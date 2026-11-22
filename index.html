@@ -32,6 +32,7 @@ button.sm{padding:5px 12px;font-size:13px}
 .pmi{padding:11px 16px;cursor:pointer;display:flex;gap:10px;align-items:center;border-top:1px solid #d9dce5}
 .pmi:hover{background:#dde0e8}
 .pmi.red{color:#c62828}
+.pmi.dis{opacity:.45;cursor:default}
 .pprof .stat{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #ffffff10}
 .pl.out{opacity:.35}
 .av{width:42px;height:42px;border-radius:50%;margin:0 auto 5px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;border:3px solid #fff3}
@@ -813,6 +814,11 @@ function playerMenu(p){
   const a=actor(), myTurn=canAct();
   let h=`<div class="pmenu"><div class="pmi" data-pm="profile">👤 Профиль</div>`;
   if(myTurn&&p!==a&&!p.out&&!a.out) h+=`<div class="pmi" data-pm="trade">🤝 Обмен</div>`;
+  // кредит — в меню своего игрока, когда сейчас ваш ход
+  if(myTurn&&p===a&&OPT().credit&&!p.out){
+    if(p.credit) h+=`<div class="pmi ${p.money<CREDIT_BACK?'dis':''}" data-pm="repay">🏦 Вернуть кредит ${fmt(CREDIT_BACK)} · ${creditLeft(p)} кр.</div>`;
+    else if(!p.creditUsed) h+=`<div class="pmi" data-pm="credit">🏦 Взять кредит ${fmt(CREDIT)}</div>`;
+  }
   if(!p.bot&&!p.out&&!G.over&&(!G.online||p.uid===DB.session)) h+=`<div class="pmi red" data-pm="give">✕ Сдаться</div>`;
   return h+'</div>';
 }
@@ -824,6 +830,10 @@ $('#players').onclick=e=>{
     if(m.dataset.pm==='profile') showPlayerProfile(p);
     if(m.dataset.pm==='trade') openTrade(p.id);
     if(m.dataset.pm==='give') surrender(p);
+    if((m.dataset.pm==='credit'||m.dataset.pm==='repay')&&!m.classList.contains('dis')&&canAct()&&actor()===p){
+      if(NET.role==='guest') netSend({kind:'cmd',name:m.dataset.pm});
+      else if(m.dataset.pm==='credit') takeCredit(p); else repayCredit(p);
+    }
     return; }
   const c=e.target.closest('[data-pid]'); if(!c) return;
   const id=+c.dataset.pid; plMenu=plMenu===id?null:id; render();
@@ -867,12 +877,8 @@ function renderActions(){
   if(G.over){ el.innerHTML=''; return; }
   const a=actor(), ad=G.askData||askData;
   if(!canAct()){ el.innerHTML=`<div class="hint">${a.bot||G.awaiting||isRemote(a)?'Ходит '+pn(a)+'…':''}</div>`; return; }
-  let tradeBtn=''; // обмен — через меню игрока слева
-  if(OPT().credit){
-    if(a.credit) tradeBtn+=`<button data-a="repay" class="sec" ${a.money<CREDIT_BACK?'disabled':''}>🏦 Вернуть кредит ${fmt(CREDIT_BACK)} (${creditLeft(a)} кр.)</button>`;
-    else if(!a.creditUsed) tradeBtn+=`<button data-a="credit" class="sec">🏦 Взять кредит ${fmt(CREDIT)}</button>`;
-  }
-  const manage=tradeBtn+'<div class="hint">Нажмите на свою компанию, чтобы строить филиалы ★ или закладывать. Обмен — нажмите на игрока слева.</div>';
+  let tradeBtn=''; // обмен и кредит — через меню игрока слева (нажмите на игрока)
+  const manage='<div class="hint">Нажмите на свою компанию, чтобы строить филиалы ★ или закладывать. Обмен и кредит — нажмите на игрока слева.</div>';
   switch(G.phase){
     case 'roll': h=`<div class="q">Ход: ${pn(a)}</div><button data-a="roll">🎲 Бросить кубики</button>`+manage; break;
     case 'jail': h=`<div class="q">${pn(a)} в тюрьме (попытка ${a.jailTries+1} из 3)</div>
@@ -883,7 +889,7 @@ function renderActions(){
       <button data-a="buy">Купить за ${fmt(c.price)}</button><button data-a="skip" class="sec">Отказаться</button>`; break; }
     case 'debt': h=`<div class="q">${pn(a)} должен заплатить <b>${fmt(G.debt.amt)}</b>, а есть ${fmt(a.money)}</div>
       <button data-a="pay" ${a.money<G.debt.amt?'disabled':''}>Оплатить</button><button data-a="give" class="red">Объявить банкротство</button>${tradeBtn}
-      <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку) или продайте компанию другому игроку: нажмите на него слева → «Обмен».</div>`; break;
+      <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
     case 'end': h=`<button data-a="end">Завершить ход ➜</button>`+manage; break;
     case 'move': h=`<div class="q">🚂 Поезд! ${pn(a)}, на сколько клеток идти?</div>`+ad.opts.map(n=>{ const t=(a.pos+n)%40;
       return `<button data-a="${n}">На ${n} → ${CELLS[t].ic} ${CELLS[t].name}</button>`; }).join(''); break;

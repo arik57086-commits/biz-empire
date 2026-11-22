@@ -110,6 +110,66 @@ button.sm{padding:5px 12px;font-size:13px}
 #tmsg{min-height:22px;margin:10px 0 4px;text-align:center;font-weight:600}
 .tsum{background:#1e222d;border-radius:10px;padding:10px 14px;margin:10px 0;line-height:1.6}
 .ingame-menu{position:fixed;left:14px;bottom:14px;z-index:30}
+/* ===== Кубики 3D, карточка хода, договор в центре поля ===== */
+#center{position:relative}
+#diceFx{position:absolute;inset:0;pointer-events:none;z-index:6;overflow:hidden;perspective:900px}
+.dthrow{position:absolute;left:50%;top:46%;transition:transform .95s cubic-bezier(.2,.75,.25,1),opacity .4s}
+.d3d{--ds:calc(var(--s)/9);width:var(--ds);height:var(--ds);position:relative;transform-style:preserve-3d;transition:transform .95s cubic-bezier(.2,.75,.25,1)}
+.d3d .f{position:absolute;inset:0;border-radius:18%;background:var(--dc,#fff);box-shadow:inset 0 0 0 1px #0002,inset 0 -6px 12px #0001;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:12%;box-sizing:border-box;backface-visibility:hidden}
+.d3d .f i{width:66%;height:66%;margin:auto;border-radius:50%;background:var(--dp,#262b38);box-shadow:inset 0 2px 3px #0005}
+.d3d .f.tr{display:flex;align-items:center;justify-content:center;font-size:calc(var(--ds)*.55)}
+.d3d .f1{transform:translateZ(calc(var(--ds)/2))}
+.d3d .f6{transform:rotateY(180deg) translateZ(calc(var(--ds)/2))}
+.d3d .f3{transform:rotateY(90deg) translateZ(calc(var(--ds)/2))}
+.d3d .f4{transform:rotateY(-90deg) translateZ(calc(var(--ds)/2))}
+.d3d .f2{transform:rotateX(90deg) translateZ(calc(var(--ds)/2))}
+.d3d .f5{transform:rotateX(-90deg) translateZ(calc(var(--ds)/2))}
+/* карточка «Ваш ход!» / «Покупаем?» */
+#actions .acard{background:#fff;color:#262b38;border-radius:10px;padding:10px 12px 12px;text-align:left;box-shadow:0 6px 20px #0004}
+#actions .acard b.t{display:block;font-size:17px}
+#actions .acard small{display:block;color:#8a93a6;font-size:12px;margin:2px 0 8px}
+#actions .acard .row2{display:flex;gap:8px}
+#actions .acard button{width:100%;margin:0;padding:9px}
+#actions .acard .row2 button{flex:1}
+#actions .acard button.sec{background:#e9ecf3;color:#4a5163}
+/* договор в центре поля */
+#tradeBox{display:none;position:absolute;inset:6px;z-index:7;background:#fff;color:#262b38;border-radius:10px;box-shadow:0 10px 30px #0006;flex-direction:column;overflow:hidden}
+#tradeBox.on{display:flex}
+#tradeBox .th{display:flex;align-items:center;justify-content:center;position:relative;padding:8px;font-weight:700;font-size:16px;border-bottom:1px solid #eef}
+#tradeBox .th .x{position:absolute;right:6px;top:4px;background:none;color:#8a93a6;padding:4px 8px;font-size:16px;margin:0}
+#tradeBox .tb{flex:1;display:flex;min-height:0}
+#tradeBox .tside{flex:1;padding:8px 10px;overflow:auto;min-width:0}
+#tradeBox .tside+.tside{border-left:1px solid #eef}
+#tradeBox .who{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+#tradeBox .who .av2{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex:none}
+#tradeBox .who b{display:block;font-size:13px;line-height:1.1}#tradeBox .who small{color:#8a93a6;font-size:11px}
+#tradeBox .titem{display:flex;gap:6px;align-items:center;font-size:12px;padding:4px 2px;border-radius:6px}
+#tradeBox .titem .ic{font-size:18px;width:24px;text-align:center}
+#tradeBox .titem small{display:block;color:#8a93a6;font-size:10px}
+#tradeBox .titem .rm{margin-left:auto;color:#c33;cursor:pointer;padding:0 4px}
+#tradeBox .money{cursor:pointer}
+#tradeBox .money .ic{background:#e6f6ec;border-radius:6px}
+#tradeBox .tip{color:#8a93a6;font-size:11px;margin-top:6px;line-height:1.3}
+#tradeBox .tf{border-top:1px solid #eef;padding:6px 10px 8px;text-align:center}
+#tradeBox .sums{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;margin-bottom:6px}
+#tradeBox .sums span{color:#8a93a6;font-weight:400;font-size:11px}
+#tradeBox .tf button{margin:2px;padding:7px 16px}
+#tradeBox .tmsg{min-height:16px;font-size:12px;color:#c33}
+.cell.tdim{filter:grayscale(.7) brightness(.55)}
+.cell.tsel{outline:3px solid #22b8a5!important;z-index:4;filter:none}
+.cell.tsel::after{content:'✓';position:absolute;top:1px;left:2px;background:#22b8a5;color:#fff;border-radius:50%;width:1.3em;height:1.3em;font-size:max(9px,calc(var(--s)/80));display:flex;align-items:center;justify-content:center}
+.cell.tpulse{animation:tp 1s infinite alternate}
+@keyframes tp{from{outline:3px solid #ffb627}to{outline:3px solid #ff8a3d;box-shadow:0 0 14px #ffb627}}
+@media (max-width:820px),(max-height:520px) and (orientation:landscape){
+  #tradeBox{inset:2px}#tradeBox .th{padding:4px;font-size:13px}
+  #tradeBox .tside{padding:4px 5px}#tradeBox .titem{font-size:10px;padding:2px 0}#tradeBox .titem .ic{font-size:14px;width:18px}
+  #tradeBox .who b{font-size:11px}#tradeBox .who .av2{width:18px;height:18px;font-size:10px}
+  #tradeBox .who{margin-bottom:2px}#tradeBox .who small,#tradeBox .titem small{display:none}#tradeBox .th .x{padding:0 6px;top:2px}
+  #tradeBox .titem b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}#tradeBox .titem>div{min-width:0}
+  #tradeBox .tmsg{min-height:0;font-size:10px}
+  #tradeBox .tip{display:none}#tradeBox .tf{padding:3px 5px 4px}#tradeBox .tf button{padding:5px 10px;font-size:12px}#tradeBox .sums{font-size:11px;margin-bottom:2px}
+  #actions .acard{padding:6px 8px 8px}#actions .acard b.t{font-size:13px}#actions .acard small{font-size:10px;margin:0 0 4px}#actions .acard button{padding:6px;font-size:12px}
+}
 /* ===== Темы оформления ===== */
 body.th-light{--bg:#e9edf5;--fg:#262b38;--pl:#fff;--ctr:#fff;--bd:#c9d0de;--logbg:#f1f3f8}
 body.th-light #log div{border-bottom-color:#0000000d}
@@ -149,7 +209,8 @@ body.bd-rose{--cell:#fbe6ec;--corner:#f4cfda}
   #reactBar{left:auto;right:74px;bottom:6px}#reactBar button{padding:4px 6px;font-size:15px}
   .cell .cb{font-size:calc(var(--s)/55);top:11%}
   #evt{font-size:10px;padding:2px 6px}
-  .tut{font-size:11px;padding:5px 7px}
+  .tut{font-size:9px;padding:3px 5px;line-height:1.25;margin-bottom:3px}.tut button{padding:1px 6px;font-size:9px;margin:2px 2px 0 0;width:auto!important}
+  #actions{flex:none;max-height:58%;overflow:auto}
 }
 
 /* ===== Светлое окно выбора режима ===== */
@@ -492,6 +553,7 @@ button.big{font-size:18px;padding:12px 28px}
   <div id="board"><div id="center">
     <div id="top"><div id="title">Бизнес<span>-империя</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="sndBtn" title="Звук">🔊</button><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
     <div id="evt"></div>
+    <div id="diceFx"></div><div id="tradeBox"></div>
     <div id="actions"></div>
     <div id="log"></div>
   </div></div>
@@ -1026,7 +1088,7 @@ function buildBoard(){
     const [r,col]=gridPos(i); d.style.gridRow=r; d.style.gridColumn=col;
     d.innerHTML=(c.g?`<div class="band" style="background:${GROUPS[c.g].c}"></div>`:'')+
       `<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div><div class="cb"></div><div class="cb l"></div>`;
-    d.onclick=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i)); openCard(i); };
+    d.onclick=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i)); if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
     b.appendChild(d);
   });
 }
@@ -1117,8 +1179,10 @@ const myPlayer=()=>G&&(G.online?G.players.find(p=>p.uid===DB.session):G.players.
 let FX=null;
 function fx(){
   const key=(G.rid||'local')+'|'+G.mode+'|'+G.players.map(p=>p.name).join(',');
-  const now={key,money:G.players.map(p=>p.money),pos:G.players.map(p=>p.pos),own:G.cells.map(s=>s.owner),dice:G.diceHtml||'',ev:G.event?G.event.id+G.event.r:''};
+  const now={key,money:G.players.map(p=>p.money),pos:G.players.map(p=>p.pos),own:G.cells.map(s=>s.owner),dice:G.diceHtml||'',ev:G.event?G.event.id+G.event.r:'',rollId:G.roll?G.roll.id:0};
   const was=FX; FX=now;
+  // гости и зрители: показать бросок, который сделал хозяин
+  if(was&&was.key===key&&G.roll&&G.roll.id!==was.rollId&&NET.role==='guest') dice3d(G.roll);
   if(!was||was.key!==key||$('#app').offsetParent===null||!$('#landing').classList.contains('hide')) return;
   let stepped=false;
   G.players.forEach((p,k)=>{ const d=p.money-was.money[k]; if(d) floatMoney(p.id,d);
@@ -1126,8 +1190,37 @@ function fx(){
   if(stepped) SFX.step();
   const mp=myPlayer(); if(mp){ const d=mp.money-was.money[mp.id]; if(d>0) SFX.coin(); else if(d<0) SFX.pay(); }
   if(now.own.some((o,i)=>o!==was.own[i]&&o>=0)) SFX.buy();
-  if(now.dice!==was.dice) SFX.dice();
+
   if(now.ev&&now.ev!==was.ev) SFX.event();
+}
+// ====== 3D-КУБИКИ: катятся по центру поля и останавливаются на выпавших числах ======
+const PIPS={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+const FACE_ROT={1:[0,0],6:[0,180],3:[0,-90],4:[0,90],2:[-90,0],5:[90,0]};
+function dieHTML(trainFace){
+  return [1,2,3,4,5,6].map(n=>n===6&&trainFace?`<div class="f f6 tr">🚂</div>`
+    :`<div class="f f${n}">${Array.from({length:9},(_,k)=>PIPS[n].includes(k+1)?'<i></i>':'<span></span>').join('')}</div>`).join('');
+}
+function dice3d(r){
+  const box=$('#diceFx'); if(!box||!r) return;
+  box.innerHTML=''; SFX.dice();
+  const p=G&&G.players[r.pid], col=p?p.color:'#5a3fd6';
+  const vals=r.v.filter((x,k)=>k<2||x);
+  vals.forEach((v,k)=>{
+    const train=v==='T', face=train?6:v, [rx,ry]=FACE_ROT[face];
+    const w=document.createElement('div'); w.className='dthrow';
+    const off=(k-(vals.length-1)/2)*1.25; // кубики рядом
+    w.style.transform=`translate(calc(-50% + var(--s)*${-0.35+off*0.11}),calc(-50% + var(--s)*-0.25)) rotate(${-40+k*25}deg)`;
+    const d=document.createElement('div'); d.className='d3d'+(k===2?' third':'');
+    d.style.setProperty('--dc',k===2?'#ffb627':'#fff'); d.style.setProperty('--dp',k===2?'#3a2300':col);
+    d.innerHTML=dieHTML(train);
+    d.style.transform=`rotateX(${Math.random()*720}deg) rotateY(${Math.random()*720}deg) rotateZ(${Math.random()*360}deg)`;
+    w.appendChild(d); box.appendChild(w);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      w.style.transform=`translate(calc(-50% + var(--s)*${off*0.11}),-50%) rotate(${(k?8:-6)}deg)`;
+      d.style.transform=`rotateX(${rx+720-12}deg) rotateY(${ry+720+14}deg)`;
+    }));
+  });
+  clearTimeout(dice3d.t); dice3d.t=setTimeout(()=>{ box.querySelectorAll('.dthrow').forEach(w=>w.style.opacity='0'); setTimeout(()=>{ if(box) box.innerHTML=''; },450); },1900);
 }
 function floatMoney(pid,d){
   const el=document.querySelector(`.pl[data-pid="${pid}"]`); if(!el) return; const r=el.getBoundingClientRect(); if(!r.width) return;
@@ -1279,17 +1372,17 @@ function renderActions(){
   let tradeBtn=''; // обмен и кредит — через меню игрока слева (нажмите на игрока)
   const manage='<div class="hint">Нажмите на свою компанию, чтобы строить филиалы ★ или закладывать. Обмен и кредит — нажмите на игрока слева.</div>';
   switch(G.phase){
-    case 'roll': h=`<div class="q">Ход: ${pn(a)}</div><button data-a="roll">🎲 Бросить кубики</button>`+manage; break;
+    case 'roll': h=`<div class="acard"><b class="t">${G.online||G.players.filter(x=>!x.bot).length<2?'Ваш ход!':'Ход: '+pn(a)}</b><small>${a.dbl?'Дубль — бросайте ещё раз!':'Вперёд, к новым победам!'}</small><button data-a="roll">🎲 Бросить кубики</button></div>`+manage; break;
     case 'jail': h=`<div class="q">${pn(a)} в тюрьме (попытка ${a.jailTries+1} из 3)</div>
       <button data-a="pay" ${a.money<JAIL_FINE?'disabled':''}>Заплатить ${fmt(JAIL_FINE)}</button>
       ${a.jailCards?'<button data-a="card">Использовать карту 🎫</button>':''}
       <button data-a="roll" class="sec">🎲 Бросить на дубль</button>`+manage; break;
-    case 'buy': { const c=CELLS[ad.i]; h=`<div class="q">${pn(a)}, купить ${c.ic} ${cn(ad.i)}?</div>
-      <button data-a="buy">Купить за ${fmt(c.price)}</button><button data-a="skip" class="sec">Отказаться</button>`; break; }
+    case 'buy': { const c=CELLS[ad.i]; h=`<div class="acard"><b class="t">Покупаем? ${c.ic} ${c.name}</b><small>${OPT().auction?'Если откажетесь — компания уйдёт на аукцион.':'Если откажетесь, компания останется у Банка.'}</small>
+      <div class="row2"><button data-a="buy">Купить за ${fmt(c.price)}</button><button data-a="skip" class="sec">Не покупать</button></div></div>`; break; }
     case 'debt': h=`<div class="q">${pn(a)} должен заплатить <b>${fmt(G.debt.amt)}</b>, а есть ${fmt(a.money)}</div>
       <button data-a="pay" ${a.money<G.debt.amt?'disabled':''}>Оплатить</button><button data-a="give" class="red">Объявить банкротство</button>${tradeBtn}
       <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
-    case 'end': h=`<button data-a="end">Завершить ход ➜</button>`+manage; break;
+    case 'end': h=`<div class="acard"><b class="t">Ход сделан</b><small>Можно строить филиалы и меняться — или передать ход.</small><button data-a="end">Завершить ход ➜</button></div>`+manage; break;
     case 'move': h=`<div class="q">🚂 Поезд! ${pn(a)}, на сколько клеток идти?</div>`+ad.opts.map(n=>{ const t=(a.pos+n)%40;
       return `<button data-a="${n}">На ${n} → ${CELLS[t].ic} ${CELLS[t].name}</button>`; }).join(''); break;
     case 'pick': h=`<div class="q">🎯 Тройка! ${pn(a)}, нажмите на <b>любую клетку поля</b> — туда и поедете.</div>`; break;
@@ -1330,6 +1423,7 @@ function onTimeout(){
   const a=actor(), ad=G.askData||askData;
   log(`⏱ Время ${pn(a)} вышло — ход делается автоматически`);
   if(!isRemote(a)&&($('#tov')||$('#ov')||$('#ppov'))) closeModal();
+  if(!isRemote(a)&&TR&&!TR.view) closeTrade();
   const v={roll:'roll',jail:'roll',buy:'skip',end:'end',debt:G.debt&&a.money>=G.debt.amt?'pay':'give',
     move:String(ad&&ad.opts?ad.opts[0]:''),pick:'-1',stock:'skip'}[G.phase]||'end';
   answer(v);
@@ -1425,6 +1519,8 @@ async function rollDice(p){
   const third=!!M().third&&!!G.speedOn;
   for(let k=0;k<7;k++){ $('#dice').innerHTML=DIE[Math.random()*6|0]+DIE[Math.random()*6|0]+(third?`<span class="d3">${face3(roll3())}</span>`:''); await sleep(60); }
   const a=1+(gRnd()*6|0), b=1+(gRnd()*6|0), c=third?roll3(gRnd):0;
+  G.roll={id:((G.roll&&G.roll.id)||0)+1,v:[a,b,c],pid:p.id}; dice3d(G.roll); FX&&(FX.rollId=G.roll.id);
+  await sleep(950); // кубики докатываются
   $('#dice').innerHTML=G.diceHtml=DIE[a-1]+DIE[b-1]+(third?`<span class="d3">${face3(c)}</span>`:'');
   G.lastDice=a+b+(c==='T'?0:c);
   log(`${pn(p)} выбрасывает ${a}:${b}${third?' и '+(c==='T'?'🚂 поезд':c):''}${a===b&&b===c?' — ТРОЙКА!':a===b?' — дубль!':''}`);
@@ -1702,56 +1798,79 @@ function confirmTrade(t){
   if(isRemote(B)) return askRemote(B,'trade',{t},false).then(v=>!!v);
   return confirmTradeUI(t);
 }
-function confirmTradeUI(t){
-  return new Promise(res=>{
-    const B=G.players[t.to];
-    $('#modal').innerHTML=`<div class="ov"><div class="box" style="width:460px">
-      <h2>🤝 Предложение обмена</h2><p>${pn(G.players[t.from])} предлагает сделку игроку ${pn(B)}:</p>
-      <div class="tsum">${tradeText(t)}</div>
-      <div style="text-align:center"><button id="tyes">Принять</button><button class="red" id="tno">Отклонить</button></div></div></div>`;
-    $('#tyes').onclick=()=>{ closeModal(); res(true); };
-    $('#tno').onclick=()=>{ closeModal(); res(false); };
-  });
+// ====== ДОГОВОР (обмен) — окно в центре поля; компании выбираются нажатием на клетки ======
+let TR=null, tradePartner=null;
+const tradeVal=(cells,m)=>m+cells.reduce((s,i)=>s+CELLS[i].price*(G.cells[i].mort?0.5:1)+G.cells[i].level*(CELLS[i].house||0),0);
+const av2=p=>`<div class="av2" style="background:${p.color}">${p.skin||avLetter(p)}</div>`;
+function tItem(i,rm){ const c=CELLS[i], s=G.cells[i];
+  return `<div class="titem"><span class="ic">${c.ic}</span><div style="min-width:0"><b style="font-weight:600">${c.name}${s.level?' '+(s.level===5?'🏨':'★'.repeat(s.level)):''}${s.mort?' 🔒':''}</b><small>${fmt(c.price+s.level*(c.house||0))}</small></div>${rm?`<span class="rm" data-rm="${i}">✕</span>`:''}</div>`; }
+function markTradeCells(){
+  const sel=TR?[...TR.give,...TR.get]:[], hl=(TR&&TR.view)?[]:sel;
+  CELLS.forEach((c,i)=>{ const el=$('#c'+i); if(!el) return;
+    const can=TR&&!TR.view&&isOwnable(c)&&(canTradeCell(i,TR.A)||canTradeCell(i,TR.B));
+    el.classList.toggle('tdim',!!TR&&!TR.view&&!can);
+    el.classList.toggle('tsel',hl.includes(i));
+    el.classList.toggle('tpulse',!!(TR&&TR.view)&&sel.includes(i)); });
 }
-let tradePartner=null;
+function closeTrade(){ if(TR&&TR.res) TR.res(false); TR=null; const b=$('#tradeBox'); if(b){ b.classList.remove('on'); b.innerHTML=''; } markTradeCells(); }
 function openTrade(partnerId){
   const A=actor(); if(!canAct()) return;
-  const others=G.players.filter(o=>o!==A&&!o.out);
-  if(partnerId===undefined) partnerId=others.some(o=>o.id===tradePartner)?tradePartner:others[0].id;
-  tradePartner=partnerId; const B=G.players[partnerId];
-  const list=(p,side)=>{ const cs=cellsOf(p.id); if(!cs.length) return '<div class="muted">Нет компаний</div>';
-    return cs.map(i=>{ const c=CELLS[i],ok=canTradeCell(i,p.id);
-      const lv=G.cells[i].level;
-      return `<label class="ti ${ok?'':'dis'}"><input type="checkbox" data-side="${side}" value="${i}" ${ok?'':'disabled'}>
-        <span class="sw" style="background:${c.g?GROUPS[c.g].c:'#888'}"></span>${c.ic} ${c.name}${lv?` <span style="color:#e6a800">${'★'.repeat(lv)}</span>`:''}${G.cells[i].mort?' 🔒':''}<span class="p">${fmt(c.price+lv*(c.house||0))}</span></label>`; }).join(''); };
-  $('#modal').innerHTML=`<div class="ov" id="tov"><div class="box" style="width:680px">
-    <h2>🤝 Обмен</h2>
-    <div class="row">С кем: ${others.map(o=>`<button class="pbtn ${o.id===B.id?'sel':''}" data-p="${o.id}" style="border-left:6px solid ${o.color}">${esc(o.name)}</button>`).join('')}</div>
-    <div class="tcols">
-      <div class="tcol"><h3>${pn(A)} отдаёт</h3><div class="tlist">${list(A,'a')}</div>
-        <label class="muted">Деньги (у вас ${fmt(A.money)}):<input type="number" id="mA" min="0" max="${A.money}" step="100" value="0"></label></div>
-      <div class="tcol"><h3>${pn(B)} отдаёт</h3><div class="tlist">${list(B,'b')}</div>
-        <label class="muted">Деньги (у него ${fmt(B.money)}):<input type="number" id="mB" min="0" max="${B.money}" step="100" value="0"></label></div>
-    </div>
-    <div id="tmsg"></div>
-    <div style="text-align:center"><button id="tsend">Предложить обмен</button><button class="sec" id="tclose">Закрыть</button></div></div></div>`;
-  $('#tov').onclick=e=>{ if(e.target.id==='tov') closeModal(); const p=e.target.closest('[data-p]'); if(p) openTrade(+p.dataset.p); };
-  $('#tclose').onclick=closeModal;
-  $('#tsend').onclick=async()=>{
-    const pick=s=>[...document.querySelectorAll(`input[data-side="${s}"]:checked`)].map(x=>+x.value);
-    const num=id=>Math.max(0,Math.floor(+$(id).value||0));
-    const t={from:A.id,to:B.id,give:pick('a'),get:pick('b'),mFrom:num('#mA'),mTo:num('#mB')};
-    const msg=$('#tmsg');
-    if(!t.give.length&&!t.get.length&&!t.mFrom&&!t.mTo){ msg.textContent='Выберите, что меняете.'; return; }
-    if(t.mFrom>A.money){ msg.textContent='У вас нет столько денег.'; return; }
-    if(t.mTo>B.money){ msg.textContent=`У ${B.name} нет столько денег.`; return; }
-    if(!tradeValid(t)){ msg.textContent='Сделка невозможна.'; return; }
-    if(NET.role==='guest'){ netSend({kind:'cmd',name:'trade',t}); msg.textContent='Предложение отправлено — ответ появится в журнале.'; setTimeout(closeModal,1200); return; }
-    if(!B.bot&&!isRemote(B)) closeModal();
-    if(isRemote(B)) msg.textContent=`Ждём ответа ${B.name}…`;
-    const r=await proposeTrade(t);
-    if(r.ok){ closeModal(); } else if(B.bot) msg.innerHTML=r.msg; else closeModal();
-  };
+  const others=G.players.filter(o=>o!==A&&!o.out); if(!others.length) return;
+  if(partnerId===undefined||!others.some(o=>o.id===partnerId)) partnerId=others.some(o=>o.id===tradePartner)?tradePartner:others[0].id;
+  tradePartner=partnerId; closeModal();
+  TR={A:A.id,B:partnerId,give:[],get:[],mFrom:0,mTo:0}; drawTrade();
+}
+function drawTrade(msg=''){
+  const box=$('#tradeBox'); if(!TR||!box) return;
+  const A=G.players[TR.A], B=G.players[TR.B], view=!!TR.view;
+  const side=(p,cells,m,key,label)=>`<div class="tside"><div class="who">${av2(p)}<div><b style="color:${p.color}">${(view?p.id===TR.B:p.id===TR.A)?'Вы':esc(p.name)}</b><small>${label}</small></div></div>
+    <div class="titem money" data-money="${key}"><span class="ic">💵</span><div><b style="font-weight:600">${fmt(m)} ${view?'':'✎'}</b><small>Наличные (есть ${fmt(p.money)})</small></div></div>
+    ${cells.map(i=>tItem(i,!view)).join('')}
+    ${!view&&!cells.length?`<div class="tip">Нажмите на компанию ${p.id===TR.A?'свою':'игрока'} на поле, чтобы добавить её</div>`:''}</div>`;
+  const vA=tradeVal(TR.give,TR.mFrom), vB=tradeVal(TR.get,TR.mTo);
+  box.innerHTML=`<div class="th">${view?'Предложение обмена':'Договор'}<button class="x" data-tx="close">✕</button></div>
+    <div class="tb">${side(A,TR.give,TR.mFrom,'a',view?'предлагает':'предлагаете')}${side(B,TR.get,TR.mTo,'b',view?'отдаёте взамен':'отдаёт')}</div>
+    <div class="tf"><div class="sums"><b>${fmt(vA)}</b><span>Общая сумма</span><b>${fmt(vB)}</b></div><div class="tmsg">${msg}</div>
+      ${view?`<button data-tx="yes">✔ Принять</button><button class="red" data-tx="no">Отклонить</button>`
+        :`<button data-tx="send">Предложить</button><button class="sec" data-tx="close">Отмена</button>`}</div>`;
+  box.classList.add('on'); markTradeCells();
+}
+$('#tradeBox').onclick=async e=>{
+  if(!TR) return;
+  const rm=e.target.closest('[data-rm]'); if(rm){ const i=+rm.dataset.rm; TR.give=TR.give.filter(x=>x!==i); TR.get=TR.get.filter(x=>x!==i); return drawTrade(); }
+  const mo=e.target.closest('[data-money]');
+  if(mo&&!TR.view){ const k=mo.dataset.money, p=G.players[k==='a'?TR.A:TR.B];
+    const v=await askText(`💵 Сколько денег ${k==='a'?'вы даёте':esc(p.name)+' даёт'}?`,String(k==='a'?TR.mFrom:TR.mTo),{num:1,ok:'Готово',note:`Есть ${fmt(p.money)}. Числа — в тысячах (k): 1500 = ${fmt(1500)}.`});
+    if(v===null||!TR) return; const n=Math.max(0,Math.min(p.money,Math.floor(+String(v).replace(/\s/g,'')||0)));
+    if(k==='a') TR.mFrom=n; else TR.mTo=n; return drawTrade(); }
+  const b=e.target.closest('[data-tx]'); if(!b) return; const x=b.dataset.tx;
+  if(x==='close') return closeTrade();
+  if(x==='yes'||x==='no'){ const r=TR.res; TR.res=null; closeTrade(); r&&r(x==='yes'); return; }
+  if(x==='send'){
+    const t={from:TR.A,to:TR.B,give:TR.give.slice(),get:TR.get.slice(),mFrom:TR.mFrom,mTo:TR.mTo};
+    if(!t.give.length&&!t.get.length&&!t.mFrom&&!t.mTo) return drawTrade('Выберите, что меняете: нажмите на компании на поле или ✎ у денег.');
+    if(!tradeValid(t)) return drawTrade('Сделка невозможна — проверьте деньги и компании.');
+    const B=G.players[t.to];
+    if(NET.role==='guest'){ netSend({kind:'cmd',name:'trade',t}); closeTrade(); toast('📨 Предложение отправлено — ответ появится в журнале'); return; }
+    closeTrade(); if(isRemote(B)) toast(`📨 Ждём ответа ${B.name}…`);
+    const r=await proposeTrade(t); if(!r.ok&&B.bot) toast(r.msg.replace(/<[^>]+>/g,''));
+  }
+};
+// клик по клетке поля, пока открыт договор: добавить/убрать компанию
+function tradeCellClick(i){
+  if(!TR||TR.view) return false;
+  const owner=canTradeCell(i,TR.A)?'give':canTradeCell(i,TR.B)?'get':null;
+  if(!owner){ toast('Эту компанию нельзя добавить в договор'); return true; }
+  TR[owner]=TR[owner].includes(i)?TR[owner].filter(x=>x!==i):[...TR[owner],i]; drawTrade(); return true;
+}
+// входящее предложение — то же окно, только «Принять / Отклонить»; клетки сделки мигают на поле
+function confirmTradeUI(t){
+  return new Promise(res=>{
+    if(TR&&TR.res) TR.res(false);
+    TR={A:t.from,B:t.to,give:t.give.slice(),get:t.get.slice(),mFrom:t.mFrom,mTo:t.mTo,view:true,res};
+    drawTrade(); SFX.turn(); if(navigator.vibrate) try{ navigator.vibrate(120); }catch(e){}
+    setTimeout(()=>{ if(TR&&TR.res===res){ TR.res=null; closeTrade(); res(false); } },38000);
+  });
 }
 // Предложить обмен: бот решает сам, живой игрок — в окне подтверждения (у себя или по сети)
 async function proposeTrade(t){
@@ -2184,6 +2303,7 @@ function watchRoom(rid){
   },e=>{ console.error('room',e); if(NET.spec){ toast('Не удалось открыть игру для просмотра'); leaveNet(false); showLanding(); } });
 }
 function leaveNet(forget){
+  if(TR) closeTrade();
   if(NET.unsub) NET.unsub(); if(NET.unsubAct) NET.unsubAct(); if(reactUnsub){ reactUnsub(); reactUnsub=null; }
   clearTimeout(NET.pubT);
   const wasHost=NET.role==='host', rid=NET.rid;

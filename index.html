@@ -2383,7 +2383,7 @@ const PAGES={
         if(x.pool) btn+=`<button class="sm sec" data-act="peek" data-i="${id}">👁 Что внутри</button>`;
         if(x.type==='card') btn+=`<button class="sm" data-act="slotCard" data-i="${id}">📌 Надеть на компанию</button>`;
         if(x.type==='card'&&upgradeInfo(x)) btn+=`<button class="sm btn-o" data-act="upgrade" data-i="${id}" ${n>=UPGRADE_N?'':`disabled title="Нужно ${UPGRADE_N} одинаковые карточки"`}>⬆ Улучшить (${Math.min(n,UPGRADE_N)}/${UPGRADE_N})</button>`;
-        if(x.type==='card') btn+=`<button class="sm btn-o" data-act="listLot" data-i="${id}">💰 Выставить на Маркет</button><button class="sm sec" data-act="sell" data-i="${id}">Банку ${fmtC(bankPrice(x))}</button>`;
+        if(isLotItem(x)) btn+=`<button class="sm btn-o" data-act="listLot" data-i="${id}">💰 Выставить на Маркет</button><button class="sm sec" data-act="sell" data-i="${id}">Банку ${fmtC(bankPrice(x))}</button>`;
         else if(x.val) btn+=`<button class="sm sec" data-act="sell" data-i="${id}">Продать ${fmtC(bankPrice(x))}</button>`;
         return `<div class="tile ${u.eq===id?'eq':''}" data-n="${esc(x.n.toLowerCase())}" data-t="${x.type}" title="${esc(x.desc||'')}">${n>1?`<span class="cntb" style="z-index:2">×${n}</span>`:''}
           <div class="tart">${id==='tok_default'?`<div class="art" style="width:180px;height:150px">${avc({...u,eq:'tok_default'},90)}</div>`:itemArt(x,180,150)}</div>
@@ -2406,31 +2406,39 @@ const PAGES={
       const cat=(t,n)=>`<button class="sm ${marketCat===t?'':'sec'}" data-act="mcat" data-t="${t}">${n}</button>`;
       const shown=ITEMS.filter(x=>x.val&&(marketCat==='boxes'?['case','set','key'].includes(x.type):marketCat==='cards'?x.type==='card'&&(!marketColl||x.coll===marketColl):x.type==='token'));
       const lots=lotsByItem();
-      // карточки продают только игроки: самая дешёвая цена и сколько лотов; нет лотов — «нет в наличии»
-      const cardRow=x=>{ const L=lots[x.id]||[], best=L[0], mine=best&&best.seller===DB.session;
+      // карточки, кейсы и наборы продают только игроки: самая дешёвая цена и сколько лотов; нет лотов — «нет в наличии»
+      const lotRow=x=>{ const L=lots[x.id]||[], best=L[0], mine=best&&best.seller===DB.session;
         return `<div class="mrow">${itemArt(x,110,80)}
-        <div class="mn2">${x.n}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span> <span class="muted" style="font-size:13px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · <b style="color:#e68a00">+${x.bonus}% к аренде</b></span>
+        <div class="mn2">${x.n}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span> ${x.type==='card'?`<span class="muted" style="font-size:13px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · <b style="color:#e68a00">+${x.bonus}% к аренде</b></span>`
+            :`<span class="rtag" style="background:#ffb627;color:#3a2a00">${TYPE_N[x.type]}${x.type==='case'?' · нужен 🔑':''}</span> <a data-act="peek" data-i="${x.id}" style="color:#3b8fd6;cursor:pointer;font-size:14px">👁 что внутри</a>`}
           <br><span class="muted" style="font-size:12px">${L.length?`Лотов: ${L.length}${L.length>1?` · до ${fmtC(L[L.length-1].price)}`:''} · продавец: ${esc(best.sellerName||'игрок')}`:'Пока никто не продаёт'}</span></div>
         <div class="mp">${best?fmtC(best.price):'—'}</div>${best?`<button data-act="buyLot" data-l="${best.id}" style="width:110px" ${mine?'disabled title="Это ваш лот"':u.coins<best.price?'disabled title="Не хватает монет"':''}>${mine?'ВАШ ЛОТ':'КУПИТЬ'}</button>`
           :'<button class="sec" style="width:110px" disabled>НЕТ В НАЛИЧИИ</button>'}</div>`; };
+      const shopRow=x=>`<div class="mrow">${itemArt(x,110,80)}
+        <div class="mn2">${x.n}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span> <span class="rtag" style="background:#ffb627;color:#3a2a00">${TYPE_N[x.type]}</span> <span class="muted" style="font-size:12px">продаёт Маркет</span></div>
+        <div class="mp">${fmtC(x.val)}</div><button data-act="buyItem" data-i="${x.id}" style="width:110px" ${u.coins<x.val?'disabled':''}>КУПИТЬ</button></div>`;
+      const cats=`${cat('boxes','🧰 Кейсы и наборы')}${cat('cards','🃏 Карточки')}${cat('tokens','♟ Фишки')}`;
+      const wait=DB.lotsReady?'':' <b>Загружаем лоты…</b>';
       if(marketCat==='cards'){
         const list=shown.slice().sort((a,b)=>(lots[b.id]?1:0)-(lots[a.id]?1:0)||(a.coll||'').localeCompare(b.coll||'')||b.r-a.r);
         body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Карточки от игроков</h3>
-          <div style="margin-bottom:10px">${cat('boxes','🧰 Кейсы и наборы')}${cat('cards','🃏 Карточки')}${cat('tokens','♟ Фишки')}
+          <div style="margin-bottom:10px">${cats}
           <select class="inp" style="width:auto;margin-left:8px" onchange="marketColl=this.value;renderSite()"><option value="">Все коллекции</option>${Object.entries(COLLECTIONS).map(([k,c])=>`<option value="${k}" ${marketColl===k?'selected':''}>${c.ic} ${c.n}</option>`).join('')}</select></div>
-          <p class="muted" style="margin-top:0">Карточки не продаются Маркетом — только игроками, по цене, которую назначил продавец. Получить карточку можно после матча, из набора или кейса — или купить здесь у другого игрока.${DB.lotsReady?'':' <b>Загружаем лоты…</b>'}</p>`+list.map(cardRow).join('');
+          <p class="muted" style="margin-top:0">Карточки не продаются Маркетом — только игроками, по цене, которую назначил продавец. Получить карточку можно после матча, из набора или кейса — или купить здесь у другого игрока.${wait}</p>`+list.map(lotRow).join('');
+      } else if(marketCat==='boxes'){
+        const boxes=shown.filter(x=>isLotItem(x)).sort((a,b)=>(lots[b.id]?1:0)-(lots[a.id]?1:0)||typeOrder[a.type]-typeOrder[b.type]||a.val-b.val);
+        body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Кейсы и наборы</h3>
+          <div style="margin-bottom:10px">${cats}</div>
+          <p class="muted" style="margin-top:0">Кейсы и наборы тоже продают только игроки — их получают после матча. Ключи 🔑 продаёт Маркет.${wait}</p>`+
+          shown.filter(x=>x.type==='key').map(shopRow).join('')+boxes.map(lotRow).join('');
       } else
-      body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Купить предметы</h3>
-        <div style="margin-bottom:10px">${cat('boxes','🧰 Кейсы и наборы')}${cat('cards','🃏 Карточки')}${cat('tokens','♟ Фишки')}
-        ${marketCat==='cards'?`<select class="inp" style="width:auto;margin-left:8px" onchange="marketColl=this.value;renderSite()"><option value="">Все коллекции</option>${Object.entries(COLLECTIONS).map(([k,c])=>`<option value="${k}" ${marketColl===k?'selected':''}>${c.ic} ${c.n}</option>`).join('')}</select>`:''}</div>`+
-        shown.sort((a,b)=>typeOrder[a.type]-typeOrder[b.type]||(a.coll||'').localeCompare(b.coll||'')||a.val-b.val).map(x=>`<div class="mrow">${itemArt(x,110,80)}
-        <div class="mn2">${x.n}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span> <span class="rtag" style="background:#ffb627;color:#3a2a00">${TYPE_N[x.type]}</span>${x.type==='card'?` <span class="muted" style="font-size:13px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · <b style="color:#e68a00">+${x.bonus}% к аренде</b></span>`:''}${x.pool?` <a data-act="peek" data-i="${x.id}" style="color:#3b8fd6;cursor:pointer;font-size:14px">👁 что внутри</a>`:''}</div>
-        <div class="mp">${fmtC(x.val)}</div><button data-act="buyItem" data-i="${x.id}" style="width:110px" ${u.coins<x.val?'disabled':''}>КУПИТЬ</button></div>`).join('');
+      body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Фишки</h3><div style="margin-bottom:10px">${cats}</div>`+
+        shown.sort((a,b)=>a.val-b.val).map(shopRow).join('');
     } else if(marketTab==='sell'){
       const groups={}; (u.items||[]).forEach(x=>(groups[x.id]=(groups[x.id]||0)+1));
       const ids=Object.keys(groups);
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Продать предметы</h3>
-        <p class="muted">🃏 <b>Карточки</b> выставляйте другим игрокам по своей цене (комиссия ${LOT_FEE*100}% с продажи) — или сразу сдайте Банку за ${BANK_CARD*100}% от ориентира. Остальное Маркет выкупает за 90%.</p>`+(ids.length?ids.map(id=>{ const x=item(id), card=x.type==='card', L=lotsByItem()[id]; return `<div class="mrow">${itemArt(x,110,80)}
+        <p class="muted">🃏 <b>Карточки, кейсы и наборы</b> выставляйте другим игрокам по своей цене (комиссия ${LOT_FEE*100}% с продажи) — или сразу сдайте Банку за ${BANK_CARD*100}% от ориентира. Ключи и фишки Маркет выкупает за 90%.</p>`+(ids.length?ids.map(id=>{ const x=item(id), card=isLotItem(x), L=lotsByItem()[id]; return `<div class="mrow">${itemArt(x,110,80)}
         <div class="mn2">${x.n} ${groups[id]>1?`<span class="muted">×${groups[id]}</span>`:''}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span>
           ${card?`<br><span class="muted" style="font-size:12px">Ориентир ${fmtC(x.val)}${L?` · дешевле всех сейчас: ${fmtC(L[0].price)}`:' · сейчас никто не продаёт'}</span>`:''}</div>
         ${card?`<div style="display:flex;flex-direction:column;gap:2px"><button class="btn-o" data-act="listLot" data-i="${id}" style="width:150px">💰 ВЫСТАВИТЬ</button><button class="sec sm" data-act="sell" data-i="${id}" style="width:150px">Банку за ${fmtC(bankPrice(x))}</button></div>`
@@ -2438,10 +2446,10 @@ const PAGES={
     } else if(marketTab==='lots'){
       const my=(DB.myLots||[]).filter(l=>l.status==='open');
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">📋 Мои лоты</h3>
-        <p class="muted">Пока карточка выставлена, её нет в инвентаре. Когда её купят, монеты (минус ${LOT_FEE*100}%) придут вам автоматически — даже если вас в это время нет в игре. Снять лот — карточка вернётся.</p>`+
+        <p class="muted">Пока предмет выставлен, его нет в инвентаре. Когда его купят, монеты (минус ${LOT_FEE*100}%) придут вам автоматически — даже если вас в это время нет в игре. Снять лот — предмет вернётся.</p>`+
         (my.length?my.map(l=>{ const x=item(l.item); return `<div class="mrow">${itemArt(x,110,80)}<div class="mn2">${x.n}<br><span class="muted" style="font-size:12px">выставлен ${new Date(l.created).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})} · вы получите ${fmtC(lotNet(l.price))}</span></div>
           <div class="mp">${fmtC(l.price)}</div><button class="sec" data-act="cancelLot" data-l="${l.id}" style="width:110px">СНЯТЬ</button></div>`; }).join('')
-          :'<div class="empty"><div class="e">🏷️</div><p class="muted">У вас нет выставленных карточек. Выставить — во вкладке «Продать».</p></div>');
+          :'<div class="empty"><div class="e">🏷️</div><p class="muted">У вас ничего не выставлено. Выставить — во вкладке «Продать».</p></div>');
     } else {
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">👑 VIP-статус</h3>
         <p style="line-height:1.7">✔ Все режимы игры: Быстрая, Расклад, Перестановка, На время, Дуэль<br>✔ Предмет после рейтингового матча с шансом 100%<br>✔ Золотая звезда ★ у имени в игре</p>
@@ -2660,11 +2668,11 @@ const ACT={
   mtab:el=>{ marketTab=el.dataset.t; renderSite(); },
   mcat:el=>{ marketCat=el.dataset.t; renderSite(); },
   mtabgo:el=>{ marketTab=el.dataset.t; go('market'); },
-  buyItem:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val||x.type==='card'||u.coins<x.val) return;
+  buyItem:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val||isLotItem(x)||u.coins<x.val) return;
     if(!await askConfirm(`Купить ${x.ic} «${x.n}» за ${fmtC(x.val)}?`,'Купить')) return;
     if(u.coins<x.val) return; u.coins=r2(u.coins-x.val); addItem(u,x.id); saveDB(); renderSite(); toast(`✔ Куплено: ${x.n}`); },
   sell:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val) return;
-    const price=bankPrice(x); if(!await askConfirm(`${x.type==='card'?'Сдать Банку':'Продать'} ${x.ic} «${esc(x.n)}» за ${fmtC(price)}?${x.type==='card'?`<br><span class="muted" style="font-size:14px">Игрокам можно продать дороже — кнопка «💰 Выставить».</span>`:''}`,'Продать')) return;
+    const price=bankPrice(x); if(!await askConfirm(`${isLotItem(x)?'Сдать Банку':'Продать'} ${x.ic} «${esc(x.n)}» за ${fmtC(price)}?${isLotItem(x)?`<br><span class="muted" style="font-size:14px">Игрокам можно продать дороже — кнопка «💰 Выставить».</span>`:''}`,'Продать')) return;
     // продаём сначала ненадетый экземпляр
     const used=new Set(Object.values(cleanSlots(u)));
     let k=(u.items||[]).findIndex(it=>it.id===x.id&&!used.has(it.uid)); if(k<0) k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
@@ -2738,7 +2746,8 @@ async function loadTop(){ if(!FB||!me()) return; try{ const s=await FB.db.collec
 // Выставить: карточка уходит из инвентаря в лот. Купить: лот помечается проданным (транзакция), покупатель
 // платит и получает карточку. Продавец забирает выручку сам (правила базы не дают писать в чужой профиль).
 const LOT_FEE=0.1, BANK_CARD=0.5, LOT_MAX=20, LOT_PRICE_MAX=100000;
-const bankPrice=x=>r2(x.val*(x.type==='card'?BANK_CARD:0.9));
+const isLotItem=x=>!!x&&['card','case','set'].includes(x.type); // эти предметы продают только игроки
+const bankPrice=x=>r2(x.val*(isLotItem(x)?BANK_CARD:0.9));
 const lotNet=p=>r2(p*(1-LOT_FEE));
 let lotsUnsub=null, myLotsUnsub=null;
 DB.lots=[]; DB.myLots=[];
@@ -2769,7 +2778,7 @@ async function collectLot(l){
   }catch(e){ console.error('collect',e); collecting.delete(l.id); }
 }
 async function listLot(id){
-  const u=me(), x=item(id); if(!u||!FB||x.type!=='card') return;
+  const u=me(), x=item(id); if(!u||!FB||!isLotItem(x)) return;
   if((DB.myLots||[]).filter(l=>l.status==='open').length>=LOT_MAX) return toast(`Не больше ${LOT_MAX} лотов одновременно`);
   const L=lotsByItem()[id], hint=L?`Сейчас дешевле всех: ${fmtC(L[0].price)}.`:'Сейчас эту карточку никто не продаёт.';
   const v=await askText(`💰 Выставить «${esc(x.n)}»`,String(L?L[0].price:x.val),{num:1,ok:'Выставить',
@@ -2810,7 +2819,7 @@ async function cancelLot(lid){
   try{
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(lid), s=await tx.get(ref);
       got=null; if(!s.exists) return; const d=s.data(); if(d.seller!==DB.session||d.status!=='open') return; got=d; tx.delete(ref); });
-    if(got){ addItem(u,got.item); saveDB(); toast('Лот снят — карточка вернулась в инвентарь'); }
+    if(got){ addItem(u,got.item); saveDB(); toast('Лот снят — предмет вернулся в инвентарь'); }
     else toast('Лот уже продан — монеты придут автоматически');
     renderSite();
   }catch(e){ toast('Ошибка: '+(e.message||e)); }

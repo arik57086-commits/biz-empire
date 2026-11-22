@@ -179,6 +179,17 @@ button.sm{padding:5px 12px;font-size:13px}
   #tradeBox .tip{display:none}#tradeBox .tf{padding:3px 5px 4px}#tradeBox .tf button{padding:5px 10px;font-size:12px}#tradeBox .sums{font-size:11px;margin-bottom:2px}
   #actions .acard{padding:6px 8px 8px}#actions .acard b.t{font-size:13px}#actions .acard small{font-size:10px;margin:0 0 4px}#actions .acard button{padding:6px;font-size:12px}
 }
+/* чат в партии и общий */
+#chatBar{display:none;gap:4px;margin:0}
+#chatBar.on{display:flex}
+#chatBar input{flex:1;min-width:0;background:var(--logbg);border:1px solid #ffffff1a;border-radius:8px;color:inherit;padding:6px 9px;font:inherit;font-size:13px;outline:none}
+#chatBar button{margin:0;padding:5px 12px}
+.gchat .gcl{height:190px;overflow:auto;font-size:13px;line-height:1.55;padding-right:4px}
+.gchat .gcf{display:flex;gap:6px;margin-top:8px}.gchat .gcf .inp{flex:1}.gchat .gcf button{margin:0}
+.gchat .gdel{color:#c33;cursor:pointer;font-size:11px;margin-left:4px;text-decoration:none}
+@media (max-width:820px),(max-height:520px) and (orientation:landscape){
+  #chatBar input{font-size:10px;padding:3px 6px}#chatBar button{padding:2px 8px;font-size:11px;width:auto}
+}
 /* ===== Темы оформления ===== */
 body.th-light{--bg:#e9edf5;--fg:#262b38;--pl:#fff;--ctr:#fff;--bd:#c9d0de;--logbg:#f1f3f8}
 body.th-light #log div{border-bottom-color:#0000000d}
@@ -566,6 +577,7 @@ button.big{font-size:18px;padding:12px 28px}
     <div id="diceFx"></div><div id="tradeBox"></div>
     <div id="actions"></div>
     <div id="log"></div>
+    <form id="chatBar" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="💬 Сообщение всем…"><button type="submit" title="Отправить">➤</button></form>
   </div></div>
   <div id="mobileLog"></div>
 </div>
@@ -1157,6 +1169,7 @@ function render(){
   });
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
+  $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
   fx();
   // подсветка клетки, где стоит тот, кто сейчас ходит
   const cp=!G.over&&G.players[G.cur];
@@ -1312,6 +1325,50 @@ function showReact(uid,e,name){
   else { const r=$('#board').getBoundingClientRect(); b.style.left=(r.left+r.width/2)+'px'; b.style.top=(r.top+r.height*0.3)+'px'; }
   document.body.appendChild(b); SFX.pop(); setTimeout(()=>b.remove(),2200);
 }
+// ====== ЧАТ: в партии по сети и общий на странице «Игры» ======
+// грубые слова прячем звёздочками (простой фильтр), ссылки не показываем ссылками
+const BAD_RE=/(^|[^а-яёa-z])((?:х[уy][йиеёю]|пизд|[её]б[аеиоуы]|бля|сук|пид[оа]р|муд[аио]|г[ао]вн)[а-яё]*)/gi;
+const cleanChat=t=>String(t||'').replace(/\s+/g,' ').trim().slice(0,120).replace(BAD_RE,(m,pre,w)=>pre+w[0]+'*'.repeat(Math.max(2,w.length-1)));
+let lastChat=0;
+function chatRateOk(){ if(Date.now()-lastChat<2500){ toast('Не так часто 🙂'); return false; } lastChat=Date.now(); return true; }
+// сообщение в журнал партии (ведёт хозяин — гости увидят вместе с обновлением партии)
+function gameChatLog(p,name,text){
+  const t=cleanChat(text); if(!t||!G) return;
+  log(`💬 ${p?pn(p):`<b>👁 ${esc(name||'зритель')}</b>`}: ${esc(t)}`);
+}
+$('#chatBar').onsubmit=e=>{
+  e.preventDefault(); const inp=$('#chatIn'), t=cleanChat(inp.value); if(!t||!G||!G.online) return;
+  if(!chatRateOk()) return; inp.value='';
+  if(NET.role==='host') gameChatLog(myPlayer(),(me()||{}).name,t);
+  else netSend({kind:'chat',text:t,name:(me()||{}).name||''});
+};
+// общий чат (коллекция chat): последние 40 сообщений
+let gchatUnsub=null; DB.gchat=[];
+function listenGlobalChat(){
+  if(!FB||!me()||gchatUnsub) return;
+  gchatUnsub=FB.db.collection('chat').orderBy('at','desc').limit(40).onSnapshot(s=>{
+    DB.gchat=s.docs.map(d=>({id:d.id,...d.data()})).reverse(); DB.gchatOk=true; drawGlobalChat();
+  },e=>{ console.error('chat',e); DB.gchatErr=true; drawGlobalChat(); });
+}
+function stopGlobalChat(){ if(gchatUnsub){ gchatUnsub(); gchatUnsub=null; } DB.gchat=[]; }
+function gchatHTML(){
+  const adm=isAdminUser();
+  return `<div class="cardw gchat"><div class="ch"><h3>💬 Чат</h3><span class="muted">${DB.gchatErr?'чат недоступен':'общий для всех'}</span></div>
+    <div class="gcl" id="gcl">${gchatLines(adm)}</div>
+    <form class="gcf" id="gcf" autocomplete="off"><input class="inp" id="gcIn" maxlength="120" placeholder="Введите сообщение и нажмите Enter"><button type="submit">➤</button></form></div>`;
+}
+function gchatLines(adm){
+  return (DB.gchat||[]).map(m=>`<div><span class="muted" style="font-size:11px">${new Date(m.at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</span> <b style="color:${esc(m.color||'#3b8fd6')}">${esc(m.name||'игрок')}</b> — ${esc(cleanChat(m.text))}${adm||m.uid===DB.session?` <a class="gdel" data-gdel="${m.id}" title="Удалить">✕</a>`:''}</div>`).join('')||'<div class="muted">Пока тихо. Напишите первым!</div>';
+}
+function drawGlobalChat(){ const el=$('#gcl'); if(!el) return; const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40; el.innerHTML=gchatLines(isAdminUser()); if(atBottom||!drawGlobalChat.done){ el.scrollTop=el.scrollHeight; drawGlobalChat.done=true; } }
+async function sendGlobalChat(){
+  const u=me(), inp=$('#gcIn'); if(!u||!FB||!inp) return; const t=cleanChat(inp.value); if(!t) return;
+  if(!chatRateOk()) return; inp.value='';
+  try{ await FB.db.collection('chat').add({uid:DB.session,name:u.name,color:u.color||'#3b8fd6',text:t,at:Date.now()}); }
+  catch(e){ toast('Не отправилось: '+(e.code==='permission-denied'?'чат ещё не включён':e.message||e)); }
+}
+document.addEventListener('submit',e=>{ if(e.target.id==='gcf'){ e.preventDefault(); sendGlobalChat(); } });
+document.addEventListener('click',e=>{ const d=e.target.closest('[data-gdel]'); if(!d||!FB) return; FB.db.collection('chat').doc(d.dataset.gdel).delete().catch(err=>toast(err.message)); });
 $('#reactBar').onclick=e=>{
   if(e.target.id==='rOpen'){ $('#reactBar').classList.toggle('open'); return; }
   const r=e.target.closest('[data-r]'); if(!r||!G||!G.online) return;
@@ -2345,7 +2402,9 @@ function listenActions(){
 }
 function hostHandleAction(a){
   if(!G||G.over) return;
-  const p=G.players.find(x=>x.uid===a.uid); if(!p) return;
+  const p=G.players.find(x=>x.uid===a.uid);
+  if(a.kind==='chat'){ gameChatLog(p,a.name,a.text); return; }
+  if(!p) return;
   if(a.kind==='answer'){ if(pending&&actor()===p&&G.phase===a.phase) answer(a.v); return; }
   if(a.kind==='reply'){ const r=NET.resolvers[a.askId]; if(r&&G.remoteAsk&&G.remoteAsk.id===a.askId&&G.remoteAsk.pid===p.id) r(a.v); return; }
   if(a.kind!=='cmd') return;
@@ -2569,7 +2628,10 @@ fitViewport();
 function renderSite(){
   const L=$('#landing'); L.classList.toggle('home',PAGE==='home');
   $('#nav').innerHTML=navHTML();
+  // сохранить набранное в чате и фокус, чтобы обновление страницы (лобби, лоты) не стирало текст
+  const gi=$('#gcIn'), gv=gi?gi.value:'', gf=gi&&document.activeElement===gi, gs=$('#gcl')?$('#gcl').scrollTop:null;
   $('#page').innerHTML=(PAGES[PAGE]||PAGES.home)();
+  const g2=$('#gcIn'); if(g2){ g2.value=gv; if(gf) g2.focus(); const l=$('#gcl'); if(l) l.scrollTop=gs==null?l.scrollHeight:gs; }
   if(PAGE==='home') buildPreview();
 }
 function navHTML(){
@@ -2650,6 +2712,7 @@ const PAGES={
       <div class="cardw"><div class="ch"><h3>Топ игроков</h3></div>
         ${top.length?top.map((a,k)=>`<div class="top"><span class="pos">${k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span class="muted">🏆 ${a.rating||1000} · ур. ${levelInfo(a.xp).lvl}</span></div>`).join(''):'<p class="muted">Загрузка…</p>'}</div>
     </div><div>
+      ${FB?gchatHTML():""}
       ${lobbyHTML(u)}
       <div class="cardw banner"><div style="flex:1"><h3>👑 VIP-статус</h3><p>Открывает все режимы игры и даёт дроп с шансом 100% в рейтинговых матчах. 7 дней — 🪙 25, 30 дней — 🪙 100.</p>
         <button class="btn-o" data-act="mtabgo" data-t="vip">${isVip(u)?'Продлить VIP':'Купить VIP'}</button></div><div class="tick">🎟️</div></div>
@@ -2931,7 +2994,7 @@ const ACT={
     if(Object.keys(cleanSlots(u)).length&&!await askConfirm('Разложить карточки заново? Текущие надетые карточки будут переставлены.','Разложить')) return;
     const n=autoEquip(u); saveDB(); renderSite(); toast(`✔ Надето карточек: ${n}`); },
   dd:()=>{ DD=!DD; renderSite(); },
-  logout:()=>{ stopLots(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
+  logout:()=>{ stopLots(); stopGlobalChat(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),
   scroll:el=>{ if(PAGE!=='home') go('home'); setTimeout(()=>{ const t=document.getElementById(el.dataset.to); if(t) t.scrollIntoView({behavior:'smooth'}); },30); },
   rulespage:()=>ACT.scroll({dataset:{to:'rules'}}),
@@ -3178,7 +3241,7 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom(); listenLots();
+  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat();
 }
 if(FB){
   FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});

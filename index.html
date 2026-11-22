@@ -389,6 +389,89 @@ button.big{font-size:18px;padding:12px 28px}
   .card{width:min(300px,92vw)}
 }
 @media(max-width:900px){.cols,.auth{grid-template-columns:1fr}.auth .or{height:40px}.lnav{flex-wrap:wrap}.mpl{display:none}.mbody{height:auto}.hero .cta2{margin:12px 0 0}.mm{flex-direction:column;width:auto}.ml{width:auto}.prof{flex-direction:column}}
+/* ===== Сайт на телефоне: компактное меню и страницы ===== */
+@media (max-width:700px){
+  .lnav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:2px;padding:8px 8px}
+  .lnav::-webkit-scrollbar{display:none}
+  .logo{font-size:0;margin-right:4px;gap:0}.logo .mk{width:32px;height:32px;font-size:17px;border-radius:9px}
+  .lnav a{font-size:12px;padding:6px 5px}
+  .lnav a.pill{font-size:11px;padding:7px 9px;letter-spacing:0}
+  .lnav .vipb{display:none}
+  .lnav .login{padding:8px 14px;font-size:12px}
+  .lnav .sp{min-width:4px}
+  .coins{font-size:12px;margin-right:4px}
+  .vipb{font-size:10px;padding:1px 5px;margin-right:4px}
+  .avwrap .avc{width:32px!important;height:32px!important;font-size:15px!important}
+  .shead{position:sticky;top:0}
+  .dd{position:fixed;right:8px;top:52px;min-width:220px}
+  .page{padding:10px}
+  .cardw{padding:12px;margin-bottom:10px;border-radius:10px}
+  .cardw h3{font-size:17px}
+  .page button{padding:7px 11px;font-size:13px}
+  .page button.sm{padding:4px 8px;font-size:12px}
+  .lobby .ch h3{white-space:nowrap}.lobby .ch button{padding:6px 8px;font-size:12px;margin:2px}
+  .banner .tick{display:none}.banner p{font-size:13px;margin:6px 0}.cardw.banner{padding:12px 14px}.banner h3{font-size:17px;margin-bottom:2px}
+  .ch{margin-bottom:8px}
+  .cols{gap:0;grid-template-columns:1fr!important}
+  .cols>div{min-width:0}
+  .gcols>div:last-child{order:-1}
+  .task{padding:8px 0}.task .tn{font-size:14px}.task .tp{font-size:13px;margin:2px 0}.task .tr{margin-top:3px}
+  .top{padding:5px 0;font-size:14px}
+  .modes{grid-template-columns:repeat(2,1fr);gap:8px}
+  .mode{min-height:86px;padding:10px}.mode .mic{font-size:22px}.mode b{font-size:14px;margin-top:2px}.mode span{font-size:11px}
+  .lobby .rps{gap:6px}
+  .lobby .lp{width:62px;font-size:11px}
+  .lobby .lp .avc,.lobby .plus{width:46px!important;height:46px!important;font-size:22px!important}
+  .lobby .plus{font-size:34px!important}
+  .room .rh{flex-wrap:wrap;gap:4px;font-size:13px}.rtagl{font-size:11px}
+  .crumbs{font-size:20px;gap:8px;margin-bottom:10px}.crumbs .cnt{font-size:16px}.crumbs .avc{width:32px!important;height:32px!important;font-size:15px!important}
+  .flist{grid-template-columns:1fr 1fr;gap:10px}
+  .fitem{gap:8px}.fitem .avc{width:40px!important;height:40px!important;font-size:18px!important}.fitem .fn{font-size:15px}.fitem .muted{font-size:11px}
+  .addf{display:flex;gap:6px}
+  /* инвентарь — плитки по 3 в ряд, подробности — по нажатию */
+  .tgrid{grid-template-columns:repeat(3,1fr);gap:8px}
+  .tile .tart{height:84px;align-items:center}
+  .tile .tart .art{zoom:.56}
+  .tile .tname{font-size:11px;padding:5px 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .tinfo{display:none}
+  .tile{cursor:pointer}
+  .cntb{right:4px;top:4px;font-size:10px;padding:0 5px}
+  #invQ{min-width:0}#invR{width:110px!important}
+  /* маркет — строки как список */
+  .mhero{margin:-10px -10px 10px;padding:14px 12px}.mhero h1{font-size:24px;margin:0}.mhero div{font-size:13px!important}
+  .mrow{gap:8px;padding:8px 0}
+  .mrow .art{zoom:.5}
+  .mrow .mn2{font-size:13px;min-width:0}
+  .mrow .mn2 .rtag{font-size:10px;padding:1px 5px}
+  .mrow .mn2 .muted,.mrow .mn2 a{font-size:11px!important}
+  .mrow .mp{font-size:13px;width:auto;white-space:nowrap}
+  .mrow button{width:auto!important;padding:6px 8px;font-size:11px;margin:1px}
+  .mrow>div[style*="flex-direction:column"] button{width:100%!important}
+  .cardw h3[style*="font-size:28px"]{font-size:19px!important}
+  .bal .v{font-size:28px;margin:2px 0}
+  /* профиль */
+  .prof{flex-direction:row!important;gap:12px;margin-bottom:12px;align-items:flex-start}
+  .prof>.avc{width:72px!important;height:72px!important;font-size:32px!important}
+  .prof h1{font-size:24px;font-weight:400}
+  .rank{font-size:13px;margin:4px 0 8px;gap:6px;flex-wrap:wrap}.rank .ri{font-size:18px}
+  .stats{gap:12px}.stats div b{font-size:22px}.stats div span{font-size:11px}
+  .favs .avc{width:30px!important;height:30px!important;font-size:13px!important}
+  .achs{grid-template-columns:1fr 1fr;gap:6px}
+  .ach{padding:6px;gap:6px}.ach .ai{font-size:22px;width:28px}.ach b{font-size:12px}.ach .muted{font-size:10px!important}
+  .hist{font-size:12px;gap:6px}
+  .badge{font-size:11px}
+  .box{max-width:94vw;box-sizing:border-box}
+  .lfoot{padding:16px 0;font-size:12px}.lfoot .lwrap{gap:14px;padding:0 12px}
+  .feat,.rules{padding:30px 0}.feat h2,.rules h2{font-size:24px;margin-bottom:16px}
+  .hero{padding:24px 0 20px}.hero .cta{font-size:20px;padding:10px 24px}
+}
+/* окно предмета из инвентаря на телефоне */
+.pinv{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.pinv>div{cursor:pointer;display:flex;flex-direction:column;align-items:center;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px #0001}
+.pinv span{display:block;width:100%;color:#fff;font-size:11px;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.pinv{grid-template-columns:repeat(3,1fr)}}
+.tlbox{width:300px;text-align:center}.tlbox .tart{display:flex;justify-content:center}
+.tlbox .tinfo{display:block!important;font-size:13px}
+.tlbox .tinfo button{margin:4px 2px}
 </style>
 </head>
 <body>
@@ -2312,7 +2395,7 @@ const PAGES={
     const li=levelInfo(u.xp), rk=rankOf(li.lvl);
     const top=(DB.top||[]).slice(0,10);
     const saved=localStorage.getItem(SAVE_KEY);
-    return `<div class="page cols"><div>
+    return `<div class="page cols gcols"><div>
       <div class="cardw"><div class="ch"><h3>Мой прогресс</h3><a data-go="profile" class="muted" style="cursor:pointer">профиль</a></div>
         <div style="display:flex;gap:14px;align-items:center">${avc(u,56)}<div style="flex:1"><b>${rk[2]} ${rk[1]}</b> · уровень ${li.lvl}
         <div class="bar" style="margin-top:6px"><i style="width:${li.cur/li.need*100}%"></i></div><div class="muted">${li.need-li.cur} XP до ур. ${li.lvl+1}</div></div></div>
@@ -2503,7 +2586,8 @@ const PAGES={
           <div class="favs" data-go="friends" style="cursor:pointer">${fr.slice(0,5).map(f=>avc(f,50)).join('')}</div>${fr.length?'<a data-go="friends" class="muted" style="cursor:pointer">все ›</a>':''}</div>
         ${(u.badges||[]).length?`<div>${u.badges.map(b=>`<span class="badge">${b.ic} ${esc(b.t)}</span>`).join('')}</div>`:''}</div></div>
       <div class="cols" style="grid-template-columns:1fr 340px"><div>
-        <div class="cardw"><h3>Инвентарь</h3><p>${own.length?own.map(x=>`<span style="font-size:36px;margin-right:8px" title="${x.n}">${x.ic}</span>`).join(''):'<span class="muted">У этого пользователя инвентарь пуст.</span>'}</p></div>
+        <div class="cardw"><div class="ch"><h3>Инвентарь <span class="muted" style="font-size:14px">${(u.items||[]).length}</span></h3><a data-go="inventory" class="muted" style="cursor:pointer">все ›</a></div>
+          ${own.length?`<div class="pinv">${own.slice(0,6).map(x=>`<div data-go="inventory" title="${esc(x.n)}">${itemArt(x,90,64)}<span style="background:linear-gradient(120deg,${RAR_GRAD[x.r]})">${esc(x.n)}</span></div>`).join('')}</div>`:'<span class="muted">У этого пользователя инвентарь пуст.</span>'}</div>
         <div class="cardw"><h3>🏅 Достижения <span class="muted" style="font-size:13px;font-weight:400">${ACH.reduce((s,x)=>s+achTier(u,x),0)} из ${ACH.reduce((s,x)=>s+x.st.length,0)}</span></h3><div class="achs">${achHTML(u,true)}</div></div>
         <div class="cardw"><h3>Последние матчи</h3>${(u.history||[]).length?u.history.map(h=>`<div class="hist"><span>${MODES[h.mode]?MODES[h.mode].ic+' '+MODES[h.mode].n:'Игра'} · ${h.n} игрока</span><span>${h.win?'🏆 Победа':'Поражение'}</span><span class="muted">${new Date(h.t).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<p class="muted">Ещё нет сыгранных матчей.</p>'}</div>
       </div><div>
@@ -2859,6 +2943,16 @@ const _go=go;
 go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
 $('#landing').addEventListener('click',e=>{
   if(DD&&!e.target.closest('.dd')&&!e.target.closest('[data-act="dd"]')){ DD=false; renderSite(); }
+  // телефон: плитка инвентаря открывается окном с подробностями и кнопками
+  const tl=e.target.closest('.tile');
+  if(tl&&!e.target.closest('button')&&matchMedia('(max-width:700px)').matches){
+    const info=tl.querySelector('.tinfo'), art=tl.querySelector('.tart'), nm=tl.querySelector('.tname');
+    $('#modal').innerHTML=`<div class="ov" id="tlov"><div class="box lt tlbox">${art?art.outerHTML:''}<h3 style="margin:6px 0">${nm?nm.innerHTML:''}</h3>${info?info.outerHTML:''}
+      <button class="sec" id="tlx" style="margin-top:8px">Закрыть</button></div></div>`;
+    $('#tlov').onclick=ev=>{ if(ev.target.id==='tlov'||ev.target.id==='tlx') return closeModal();
+      const a=ev.target.closest('[data-act]'); if(a&&ACT[a.dataset.act]&&!a.disabled){ closeModal(); ACT[a.dataset.act](a); } };
+    return;
+  }
   const g=e.target.closest('[data-go]'); if(g){ go(g.dataset.go); return; }
   const a=e.target.closest('[data-act]'); if(a&&ACT[a.dataset.act]&&!a.disabled) ACT[a.dataset.act](a);
 });

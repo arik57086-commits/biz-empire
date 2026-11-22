@@ -42,6 +42,7 @@ button.sm{padding:5px 12px;font-size:13px}
 #board{--s:min(calc(100vh - 28px),calc(100vw - 250px));width:var(--s);height:var(--s);min-width:620px;min-height:620px;display:grid;grid-template-columns:1.5fr repeat(9,1fr) 1.5fr;grid-template-rows:1.5fr repeat(9,1fr) 1.5fr;gap:2px;background:#11141b;padding:2px;border-radius:8px}
 .cell{background:#f4f1ea;color:#222;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:max(9px,calc(var(--s)/105));text-align:center;cursor:pointer;overflow:hidden;border-radius:3px;padding-top:6%}
 .cell:hover{outline:2px solid #2ec4a0;z-index:2}
+.cell.here{outline:3px solid #ffd54f;z-index:3;box-shadow:0 0 12px #ffd54f99}
 .cell .band{position:absolute;left:0;right:0;top:0;height:13%}
 .cell .ic{font-size:max(15px,calc(var(--s)/42));line-height:1}
 .cell .cn{font-weight:600;padding:0 2px;line-height:1.1;margin-top:2px}
@@ -521,18 +522,18 @@ const ITEMS=[
 // на ВСЕХ ваших компаниях этой группы (действует лучшая карточка коллекции).
 // Бренды: [легендарный, эпический, редкий, редкий, обычный ×4]
 const COLLECTIONS={
-  brown:{n:'Еда',ic:'🥐',brands:['Starbucks','Nestlé','Danone','Kinder','Lay\'s','Pringles','Oreo','Milka']},
-  lb:{n:'Сервисы',ic:'🛎️',brands:['Uber','Airbnb','DHL','FedEx','Booking','Glovo','Bolt','Lyft']},
-  pink:{n:'Мода',ic:'👗',brands:['Nike','Adidas','Puma','Lacoste','Zara','H&M','Uniqlo','Reebok']},
-  orange:{n:'Фастфуд',ic:'🍔',brands:['McDonald\'s','KFC','Burger King','Subway','Pizza Hut','Domino\'s','Taco Bell','Wendy\'s']},
-  red:{n:'Развлечения',ic:'🎬',brands:['Netflix','Disney','Sony','Nintendo','Spotify','Twitch','Warner Bros.','Ubisoft']},
-  yellow:{n:'Связь',ic:'📱',brands:['Apple','Samsung','Google','Huawei','Xiaomi','Nokia','Motorola','Telegram']},
-  green:{n:'Технологии',ic:'🔬',brands:['Tesla','Microsoft','NVIDIA','Intel','AMD','IBM','Dell','HP']},
-  blue:{n:'Финансы',ic:'💰',brands:['Visa','Mastercard','PayPal','Goldman Sachs','Revolut','Klarna','Western Union','American Express']},
-  rail:{n:'Авиалинии',ic:'✈️',c:'#607d8b',brands:['Emirates','Qatar Airways','Lufthansa','Turkish Airlines','Aeroflot','Ryanair','easyJet','Wizz Air']},
-  util:{n:'Энергетика',ic:'⚡',c:'#00897b',brands:['Shell','Siemens','BP','TotalEnergies','Chevron','ExxonMobil','Gazprom','Enel']}
+  brown:{n:'Еда',ic:'🥐',brands:['Starbucks','Nestlé','Danone','Kinder','Lay\'s','Pringles','Oreo','Milka','Coca-Cola','Pepsi']},
+  lb:{n:'Сервисы',ic:'🛎️',brands:['Uber','Airbnb','DHL','FedEx','Booking','Glovo','Bolt','Lyft','Amazon','eBay']},
+  pink:{n:'Мода',ic:'👗',brands:['Nike','Adidas','Puma','Lacoste','Zara','H&M','Uniqlo','Reebok','Gucci','New Balance']},
+  orange:{n:'Фастфуд',ic:'🍔',brands:['McDonald\'s','KFC','Burger King','Subway','Pizza Hut','Domino\'s','Taco Bell','Wendy\'s','Dunkin\'','Popeyes']},
+  red:{n:'Развлечения',ic:'🎬',brands:['Netflix','Disney','Sony','Nintendo','Spotify','Twitch','Warner Bros.','Ubisoft','YouTube','TikTok']},
+  yellow:{n:'Связь',ic:'📱',brands:['Apple','Samsung','Google','Huawei','Xiaomi','Nokia','Motorola','Telegram','Vodafone','WhatsApp']},
+  green:{n:'Технологии',ic:'🔬',brands:['Tesla','Microsoft','NVIDIA','Intel','AMD','IBM','Dell','HP','Oracle','Lenovo']},
+  blue:{n:'Финансы',ic:'💰',brands:['Visa','Mastercard','PayPal','Goldman Sachs','Revolut','Klarna','Western Union','American Express','JPMorgan','Wise']},
+  rail:{n:'Авиалинии',ic:'✈️',c:'#607d8b',brands:['Emirates','Qatar Airways','Lufthansa','Turkish Airlines','Aeroflot','Ryanair','easyJet','Wizz Air','Delta','Southwest']},
+  util:{n:'Энергетика',ic:'⚡',c:'#00897b',brands:['Shell','Siemens','BP','TotalEnergies','Chevron','ExxonMobil','Gazprom','Enel','Schneider Electric','Duracell']}
 };
-const BRAND_RARITY=[3,2,1,1,0,0,0,0];
+const BRAND_RARITY=[3,2,1,1,0,0,0,0,1,0]; // 9-й и 10-й бренды добавлены позже: редкий и обычный
 // фирменные цвета табличек [фон, текст] — только цвета и название, без логотипов
 const BRAND_STYLE={
  'Starbucks':['#00704A','#fff'],'Nestlé':['#fff','#6b7b8c'],'Danone':['#0a3d91','#fff'],'Kinder':['#fff','#e2001a'],'Lay\'s':['#ffcc00','#d52b1e'],'Pringles':['#d22630','#fff'],'Oreo':['#0057a8','#fff'],'Milka':['#7d69ac','#fff'],
@@ -544,6 +545,10 @@ const BRAND_STYLE={
  'Tesla':['#fff','#cc0000'],'Microsoft':['#fff','#737373'],'NVIDIA':['#000','#76b900'],'Intel':['#0071c5','#fff'],'AMD':['#000','#fff'],'IBM':['#0f62fe','#fff'],'Dell':['#fff','#007db8'],'HP':['#0096d6','#fff'],
  'Visa':['#fff','#1a1f71'],'Mastercard':['#000','#f79e1b'],'PayPal':['#fff','#003087'],'Goldman Sachs':['#7399c6','#fff'],'Revolut':['#000','#fff'],'Klarna':['#ffb3c7','#000'],'Western Union':['#ffdd00','#000'],'American Express':['#006fcf','#fff'],
  'Emirates':['#fff','#d71921'],'Qatar Airways':['#5c0632','#fff'],'Lufthansa':['#05164d','#ffad00'],'Turkish Airlines':['#c70a0c','#fff'],'Aeroflot':['#02458d','#fff'],'Ryanair':['#073590','#f1c933'],'easyJet':['#ff6600','#fff'],'Wizz Air':['#c6007e','#fff'],
+ 'Coca-Cola':['#e61d2b','#fff'],'Pepsi':['#004b93','#fff'],'Amazon':['#232f3e','#ff9900'],'eBay':['#fff','#e53238'],'Gucci':['#fff','#1b1b1b'],'New Balance':['#fff','#cf0a2c'],
+ 'Dunkin\'':['#ff671f','#fff'],'Popeyes':['#f26522','#fff'],'YouTube':['#fff','#ff0000'],'TikTok':['#000','#fff'],'Vodafone':['#e60000','#fff'],'WhatsApp':['#25d366','#fff'],
+ 'Oracle':['#c74634','#fff'],'Lenovo':['#e2231a','#fff'],'JPMorgan':['#fff','#5b4636'],'Wise':['#9fe870','#163300'],'Delta':['#003268','#fff'],'Southwest':['#304cb2','#ffbf27'],
+ 'Schneider Electric':['#3dcd58','#fff'],'Duracell':['#000','#c9a14a'],
  'Shell':['#ffd500','#dd1d21'],'Siemens':['#fff','#009999'],'BP':['#fff','#009b3a'],'TotalEnergies':['#fff','#ed0000'],'Chevron':['#0054a4','#fff'],'ExxonMobil':['#fff','#ed1b2f'],'Gazprom':['#0079c2','#fff'],'Enel':['#fff','#008c5a']
 };
 // имя файла своей картинки в папке logos: «Nike» → logos/nike.png, «McDonald's» → logos/mcdonalds.png
@@ -559,7 +564,8 @@ const CP=COLL_KEYS.map(collPrice), CPmin=Math.min(...CP), CPmax=Math.max(...CP);
 COLL_KEYS.forEach((k,ki)=>{
   const cl=COLLECTIONS[k], t=(CP[ki]-CPmin)/(CPmax-CPmin);
   cl.brands.forEach((b,bi)=>{
-    const r=BRAND_RARITY[bi], same=BRAND_RARITY.map((x,j)=>x===r?j:-1).filter(j=>j>=0), pos=same.length>1?same.indexOf(bi)/(same.length-1):1;
+    // первые 8 брендов считаются как раньше (чтобы цены старых карточек не менялись), новые — отдельно
+    const r=BRAND_RARITY[bi], base=BRAND_RARITY.slice(0,8), same=bi<8?base.map((x,j)=>x===r?j:-1).filter(j=>j>=0):[bi,bi+100], pos=bi<8?(same.length>1?same.indexOf(bi)/(same.length-1):1):0.7;
     // место внутри диапазона редкости: дорогая коллекция и первый бренд — выше
     const f=same.length>1?(t+(1-pos))/2:t;
     const [v0,v1]=VAL_RANGE[r], [b0,b1]=BONUS_RANGE[r];
@@ -629,6 +635,17 @@ function cleanSlots(a){
 // бонусы аккаунта для партии: {индекс клетки: {pct, brand}}
 function cardBonuses(a){ const b={}; if(!a) return b; const s=cleanSlots(a);
   for(const k in s){ const x=item(a.items.find(it=>it.uid===s[k]).id); b[k]={pct:x.bonus,brand:x.n}; } return b; }
+// разложить карточки автоматически: в каждой коллекции самые сильные — на самые дорогие компании
+function autoEquip(a){
+  const slots={};
+  const cards=(a.items||[]).map(it=>({it,x:item(it.id)})).filter(c=>c.x.type==='card').sort((p,q)=>q.x.bonus-p.x.bonus);
+  for(const k of COLL_KEYS){
+    const cells=BASE_CELLS.map((c,i)=>[c,i]).filter(([c])=>['prop','rail','util'].includes(c.type)&&collOf(c)===k).sort((p,q)=>q[0].price-p[0].price);
+    const cs=cards.filter(c=>c.x.coll===k);
+    cells.forEach(([c,i],n)=>{ if(cs[n]) slots[i]=cs[n].it.uid; });
+  }
+  a.slots=slots; return Object.keys(slots).length;
+}
 // на какие клетки надеты экземпляры карточки id
 const slotsOf=(a,id)=>Object.keys(cleanSlots(a)).filter(k=>{ const it=a.items.find(x=>x.uid===a.slots[k]); return it&&it.id===id; }).map(Number);
 // ====== КАРТИНКИ ПРЕДМЕТОВ ======
@@ -797,9 +814,23 @@ function render(){
       `<div class="tok sk" style="border-color:${p.color}" title="${esc(p.name)}">${p.skin}</div>`:
       `<div class="tok" style="background:${p.color}" title="${esc(p.name)}"></div>`).join('');
   });
+  // подсветка клетки, где стоит тот, кто сейчас ходит
+  const cp=!G.over&&G.players[G.cur];
+  CELLS.forEach((c,i)=>$('#c'+i).classList.toggle('here',!!cp&&!cp.out&&cp.pos===i));
   renderActions();
+  // игра по сети: напомнить, что настал ваш ход
+  const can=canAct();
+  if(G.online&&can&&!NET.lastCan) notifyTurn();
+  NET.lastCan=can;
   netPublish();
 }
+const BASE_TITLE=document.title;
+function notifyTurn(){
+  if(navigator.vibrate) try{ navigator.vibrate([120,60,120]); }catch(e){}
+  if(document.hidden) document.title='🔔 Ваш ход! — '+BASE_TITLE;
+  else toast('🔔 Ваш ход!');
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) document.title=BASE_TITLE; });
 // Может ли ЭТОТ браузер сейчас нажимать кнопки хода.
 // Офлайн и у хозяина комнаты — когда игра ждёт ответа от местного игрока; у гостя — когда ход его.
 function canAct(){
@@ -1749,7 +1780,7 @@ function lobbyHTML(u){
   if(!FB) return '';
   const rooms=(DB.rooms||[]).slice().sort((a,b)=>(b.uids.includes(u.login)?1:0)-(a.uids.includes(u.login)?1:0)||b.created-a.created);
   const inRoom=rooms.some(r=>r.uids.includes(u.login));
-  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div>
+  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button class="sec" data-act="invite" title="Скопировать ссылку на игру">🔗 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
     ${rooms.length?rooms.map(r=>roomHTML(r,u)).join(''):'<p class="muted">Пока никто не ждёт игры. Создайте свою — друзья смогут присоединиться!</p>'}</div>`;
 }
 function roomHTML(r,u){
@@ -1824,6 +1855,12 @@ async function leaveRoom(rid){
 }
 Object.assign(ACT_EXTRA,{
   newRoom:()=>showCreateRoom(),
+  invite:async()=>{
+    const url=location.origin+location.pathname, u=me();
+    const text=`Заходи играть в Бизнес-империю! ${url}${u&&u.nick?` — добавь меня в друзья: @${u.nick}`:''}`;
+    try{ if(navigator.share) await navigator.share({title:'Бизнес-империя',text,url}); else { await navigator.clipboard.writeText(text); toast('✔ Ссылка скопирована — отправьте её другу'); } }
+    catch(e){ if(e&&e.name==='AbortError') return; try{ await navigator.clipboard.writeText(text); toast('✔ Ссылка скопирована'); }catch(_){ askText('Скопируйте ссылку',url); } }
+  },
   joinRoom:el=>joinRoom(el.dataset.r),
   leaveRoom:el=>leaveRoom(el.dataset.r),
   delRoom:async el=>{ if(!await askConfirm('Удалить комнату?','Удалить',true)) return; leaveNet(false); roomRef(el.dataset.r).delete().catch(e=>toast(e.message)); },
@@ -1950,6 +1987,9 @@ const PAGES={
     const ids=['tok_default',...Object.keys(groups).sort((a,b)=>item(b).val-item(a).val)];
     const keys=(groups.key||[]).length;
     return `<div class="page"><div class="crumbs">${avc(u,48)}<a data-go="profile">${esc(u.name)}</a><span class="gt">›</span>Инвентарь<span class="cnt">${(u.items||[]).length}</span></div>
+      ${(u.items||[]).some(x=>item(x.id).type==='card')?`<div class="cardw" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px">
+        <span style="flex:1;min-width:220px">📌 Надето карточек: <b>${Object.keys(cleanSlots(u)).length}</b>. Бонус к аренде дают только карточки, надетые на компании.</span>
+        <button class="btn-o" data-act="autoEquip">⚡ Надеть лучшие автоматически</button></div>`:''}
       <div style="display:flex;gap:12px;margin-bottom:20px"><input class="inp" id="invQ" placeholder="Поиск предметов…" oninput="filterInv()">
         <select class="inp" id="invR" style="width:220px" onchange="filterInv()"><option value="">Все предметы</option>${Object.entries(TYPE_N).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
       <div class="tgrid">${ids.map(id=>{ const x=item(id), n=id==='tok_default'?1:groups[id].length;
@@ -2149,6 +2189,9 @@ const ACT={
   ...ACT_EXTRA,
   peek:el=>showContents(el.dataset.i),
   slotCard:el=>showSlotModal(el.dataset.i),
+  autoEquip:async()=>{ const u=me(); if(!u) return;
+    if(Object.keys(cleanSlots(u)).length&&!await askConfirm('Разложить карточки заново? Текущие надетые карточки будут переставлены.','Разложить')) return;
+    const n=autoEquip(u); saveDB(); renderSite(); toast(`✔ Надето карточек: ${n}`); },
   dd:()=>{ DD=!DD; renderSite(); },
   logout:()=>{ leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),

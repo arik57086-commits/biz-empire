@@ -141,6 +141,7 @@ button.sm{padding:5px 12px;font-size:13px}
 #actions .acard button{width:100%;margin:0;padding:9px}
 #actions .acard .row2 button{flex:1}
 #actions .acard button.sec{background:#e9ecf3;color:#4a5163}
+#actions .acard button:disabled{background:#c9ced8;color:#fff;opacity:1}
 /* договор в центре поля */
 #tradeBox{display:none;position:absolute;inset:6px;z-index:7;background:#fff;color:#262b38;border-radius:10px;box-shadow:0 10px 30px #0006;flex-direction:column;overflow:hidden}
 #tradeBox.on{display:flex}
@@ -1486,7 +1487,7 @@ function renderActions(){
       ${a.jailCards?'<button data-a="card">Использовать карту 🎫</button>':''}
       <button data-a="roll" class="sec">🎲 Бросить на дубль</button>`+manage; break;
     case 'buy': { const c=CELLS[ad.i]; h=`<div class="acard"><b class="t">Покупаем? ${c.ic} ${c.name}</b><small>${OPT().auction?'Если откажетесь — компания уйдёт на аукцион.':'Если откажетесь, компания останется у Банка.'}</small>
-      <div class="row2"><button data-a="buy">Купить за ${fmt(c.price)}</button><button data-a="skip" class="sec">Не покупать</button></div></div>`; break; }
+      <div class="row2"><button data-a="buy" ${a.money<c.price?'disabled':''}>Купить за ${fmt(c.price)}</button><button data-a="skip" class="sec">${OPT().auction?'На аукцион':'Не покупать'}</button></div>${a.money<c.price?`<small style="margin:6px 0 0">Не хватает ${fmt(c.price-a.money)}. Нажмите на свою компанию, чтобы заложить её, или на игрока слева — чтобы обменяться. Потом «Купить» станет доступна.</small>`:''}</div>`; break; }
     case 'debt': h=`<div class="q">${pn(a)} должен заплатить <b>${fmt(G.debt.amt)}</b>, а есть ${fmt(a.money)}</div>
       <button data-a="pay" ${a.money<G.debt.amt?'disabled':''}>Оплатить</button><button data-a="give" class="red">Объявить банкротство</button>${tradeBtn}
       <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
@@ -1540,7 +1541,7 @@ function onTimeout(){
 // ====== КАРТОЧКА КЛЕТКИ ======
 function canManage(i){
   if(!canAct()) return false;
-  const a=actor(); return G.cells[i].owner===a.id&&['roll','end','debt','jail'].includes(G.phase);
+  const a=actor(); return G.cells[i].owner===a.id&&['roll','end','debt','jail','buy'].includes(G.phase);
 }
 // действие с клеткой: build | sell | mort | unmort (общая функция для местного игрока и для команд по сети)
 function cellAction(a,i,m){
@@ -1714,11 +1715,14 @@ async function land(p,dice){
   render();
   if(isOwnable(c)){
     if(s.owner<0){
-      if(p.money>=c.price){
-        const buy=p.bot?botWantsBuy(p,i):(await ask('buy',{i}))==='buy';
+      // живой игрок всегда выбирает сам: «Купить» (серая, если не хватает денег — можно заложить/обменяться и купить) или аукцион/отказ
+      if(!p.bot||p.money>=c.price){
+        let buy=false;
+        if(p.bot) buy=botWantsBuy(p,i);
+        else { for(;;){ const v=await ask('buy',{i}); if(p.out) return; if(v!=='buy') break; if(p.money>=c.price){ buy=true; break; } toast('Не хватает денег — заложите компанию или обменяйтесь'); } }
         if(p.out) return;
         if(buy){ p.money-=c.price; s.owner=p.id; log(`${pn(p)} покупает ${cn(i)} за ${fmt(c.price)}`); track(p,'buy'); }
-        else { log(`${pn(p)} отказывается покупать ${cn(i)}`); if(OPT().auction) await auction(i,p); }
+        else { log(`${pn(p)} ${p.money<c.price?'не покупает (не хватает денег)':'отказывается покупать'} ${cn(i)}`); if(OPT().auction) await auction(i,p); }
       } else { log(`${pn(p)} не хватает денег на ${cn(i)}`); if(OPT().auction) await auction(i,p); }
     } else if(s.owner!==p.id){
       if(s.mort) log(`${pn(p)} попадает на ${cn(i)} — компания заложена, платить не нужно`);
@@ -2426,7 +2430,7 @@ function hostHandleAction(a){
   if(!myTurn) return;
   if(a.name==='credit') takeCredit(p);
   if(a.name==='repay') repayCredit(p);
-  if(a.name==='cell'&&['roll','end','debt','jail'].includes(G.phase)&&G.cells[a.i]) { cellAction(p,+a.i,a.m); render(); }
+  if(a.name==='cell'&&['roll','end','debt','jail','buy'].includes(G.phase)&&G.cells[a.i]) { cellAction(p,+a.i,a.m); render(); }
   if(a.name==='trade'&&a.t&&a.t.from===p.id) proposeTrade(a.t);
 }
 // гость: ответить на вопрос хозяина (аукцион, казино, обмен)

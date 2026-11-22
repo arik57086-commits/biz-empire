@@ -52,7 +52,7 @@ button.sm{padding:5px 12px;font-size:13px}
 .pl .nm{font-weight:600;font-size:14px}
 .pl .mn{font-size:21px;margin-top:3px}
 .pl .tag{font-size:11px;opacity:.7;margin-top:2px}
-#board{--s:min(calc(100vh - 28px),calc(100vw - 250px));width:var(--s);height:var(--s);min-width:620px;min-height:620px;display:grid;grid-template-columns:1.5fr repeat(9,1fr) 1.5fr;grid-template-rows:1.5fr repeat(9,1fr) 1.5fr;gap:2px;background:var(--bd);padding:2px;border-radius:8px}
+#board{--s:min(calc(100vh - 28px),calc(100vw - 250px));width:var(--s);height:var(--s);min-width:620px;min-height:620px;display:grid;grid-template-columns:.5fr 1.5fr repeat(9,1fr) 1.5fr .5fr;grid-template-rows:.5fr 1.5fr repeat(9,1fr) 1.5fr .5fr;gap:2px;background:var(--bd);padding:2px;border-radius:8px}
 .cell{background:var(--cell);color:var(--cellfg);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:max(9px,calc(var(--s)/105));text-align:center;cursor:pointer;overflow:hidden;border-radius:3px;padding-top:6%}
 .cell:hover{outline:2px solid #2ec4a0;z-index:2}
 .cell.here{outline:3px solid #ffd54f;z-index:3;box-shadow:0 0 12px #ffd54f99}
@@ -68,7 +68,16 @@ button.sm{padding:5px 12px;font-size:13px}
 .tokens{position:absolute;bottom:2px;left:0;right:0;display:flex;justify-content:center;gap:1px;flex-wrap:wrap;pointer-events:none}
 .tok{width:max(11px,calc(var(--s)/60));height:max(11px,calc(var(--s)/60));border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px #000a}
 .tok.sk{width:max(18px,calc(var(--s)/40));height:max(18px,calc(var(--s)/40));background:#fff;border-width:3px;display:flex;align-items:center;justify-content:center;font-size:max(10px,calc(var(--s)/70))}
-#center{grid-column:2/11;grid-row:2/11;background:var(--ctr);display:flex;flex-direction:column;padding:12px 16px;gap:8px;border-radius:4px;min-height:0}
+#center{grid-column:3/12;grid-row:3/12;background:var(--ctr);display:flex;flex-direction:column;padding:12px 16px;gap:8px;border-radius:4px;min-height:0}
+/* ценники снаружи поля: цвет группы, цена (или аренда, если компания куплена) */
+.lab{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:max(9px,calc(var(--s)/95));border-radius:3px;white-space:nowrap;overflow:hidden;text-shadow:0 1px 2px #0005;cursor:pointer;line-height:1}
+.lab.v{writing-mode:vertical-rl}
+.lab.vl{writing-mode:vertical-rl;transform:rotate(180deg)}
+.lab.mort{opacity:.6}
+/* купленная клетка — цветом владельца */
+.cell.own .cn,.cell.own .lv{color:#fff;text-shadow:0 1px 2px #0006}
+.cell.own .ic{filter:drop-shadow(0 1px 2px #0004)}
+.cell.own.mort{filter:grayscale(.5)}
 #top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 #title{font-size:22px;font-weight:800;letter-spacing:.5px}
 #title span{color:#2ec4a0}
@@ -209,7 +218,7 @@ body.bd-rose{--cell:#fbe6ec;--corner:#f4cfda}
   #reactBar{left:auto;right:74px;bottom:6px}#reactBar button{padding:4px 6px;font-size:15px}
   .cell .cb{font-size:calc(var(--s)/55);top:11%}
   #evt{font-size:10px;padding:2px 6px}
-  .tut{font-size:9px;padding:3px 5px;line-height:1.25;margin-bottom:3px}.tut button{padding:1px 6px;font-size:9px;margin:2px 2px 0 0;width:auto!important}
+  .tut{font-size:9px;padding:3px 5px;line-height:1.25;margin-bottom:3px}#actions .tut button{padding:2px 7px;font-size:9px;margin:3px 3px 0 0;width:auto}
   #actions{flex:none;max-height:58%;overflow:auto}
 }
 
@@ -431,13 +440,14 @@ button.big{font-size:18px;padding:12px 28px}
   .tmr{font-size:9px;padding:0 4px;left:2px;top:2px}
   .pmenu{font-size:12px;margin-top:-6px}.pmi{padding:8px 8px}
   #board{--s:min(calc(100vw - 24vw - 14px),calc(100dvh - 8px));min-width:0;min-height:0;flex:none;gap:1px;padding:1px}
-  .cell{padding-top:14%;font-size:calc(var(--s)/40);border-radius:2px}
+  .cell{padding-top:0;font-size:calc(var(--s)/40);border-radius:2px}
+  .lab{font-size:calc(var(--s)/40);border-radius:2px;letter-spacing:-.3px}
   .cell .cn{display:none}
   .cell .ic{font-size:calc(var(--s)/17)}
   .cell .pr{font-size:calc(var(--s)/42);padding:0 1px;margin-top:0;line-height:1.1}
   .cell .lv{font-size:calc(var(--s)/36)}
   .cell.corner .ic{font-size:calc(var(--s)/11)}
-  .cell.side{padding-top:8%;flex-direction:row;gap:1px}
+  .cell.side{padding-top:0;flex-direction:row;gap:1px}
   .cell.side .ic{font-size:calc(var(--s)/24)}
   .cell.side .pr{font-size:calc(var(--s)/46)}
   .tok,.tok.sk{width:calc(var(--s)/26);height:calc(var(--s)/26);border-width:1px;font-size:calc(var(--s)/44)}
@@ -1082,14 +1092,23 @@ function applyLayout(layout){ CELLS=layout?layout.map(i=>BASE_CELLS[i]):BASE_CEL
 // ====== ОТРИСОВКА ======
 function buildBoard(){
   const b=$('#board');
-  b.querySelectorAll('.cell').forEach(e=>e.remove());
+  b.querySelectorAll('.cell,.lab').forEach(e=>e.remove());
   CELLS.forEach((c,i)=>{
     const d=document.createElement('div'); d.className='cell'+([0,10,20,30].includes(i)?' corner':'')+((i>10&&i<20)||i>30?' side':''); d.id='c'+i;
-    const [r,col]=gridPos(i); d.style.gridRow=r; d.style.gridColumn=col;
-    d.innerHTML=(c.g?`<div class="band" style="background:${GROUPS[c.g].c}"></div>`:'')+
-      `<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div><div class="cb"></div><div class="cb l"></div>`;
-    d.onclick=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i)); if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
-    b.appendChild(d);
+    const [r,col]=gridPos(i); d.style.gridRow=r+1; d.style.gridColumn=col+1; // +1: снаружи — дорожка для ценников
+    d.innerHTML=`<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div><div class="cb"></div><div class="cb l"></div>`;
+    const click=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i)); if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
+    d.onclick=click; b.appendChild(d);
+    // ценник снаружи поля рядом с клеткой: цвет группы + цена/аренда
+    if(isOwnable(c)||c.type==='tax'){
+      const L=document.createElement('div'); L.id='l'+i; L.onclick=click;
+      const top=i>0&&i<10, right=i>10&&i<20, bottom=i>20&&i<30;
+      L.className='lab'+(right?' v':(!top&&!bottom?' vl':''));
+      L.style.gridRow=top?1:bottom?13:r+1; L.style.gridColumn=right?13:(!top&&!bottom)?1:col+1;
+      L.style.background=c.g?GROUPS[c.g].c:c.type==='rail'?'#607d8b':c.type==='util'?'#00897b':'#8a93a6';
+      L.textContent=c.price?fmtCell(c.price):fmtCell(c.amount||0);
+      b.appendChild(L);
+    }
   });
 }
 const avLetter=p=>esc((p.name.replace(/^Бот\s+/,'')[0]||'?').toUpperCase());
@@ -1114,12 +1133,17 @@ function render(){
   CELLS.forEach((c,i)=>{
     const el=$('#c'+i), s=G.cells[i];
     const pr=el.querySelector('.pr'), lv=el.querySelector('.lv');
-    el.classList.toggle('owned',isOwnable(c)&&s.owner>=0);
+    const own=isOwnable(c)&&s.owner>=0, lab=$('#l'+i);
+    el.classList.toggle('owned',own); el.classList.toggle('own',own);
     el.classList.toggle('mort',!!s.mort);
-    if(isOwnable(c)){
-      if(s.owner>=0){ pr.style.background=G.players[s.owner].color; pr.textContent=s.mort?'🔒 '+(OPT().mortLimit?mortLeft(s):'залог'):fmtCell(rentDue(i,G.lastDice)); el.style.boxShadow=`inset 0 0 0 3px ${G.players[s.owner].color}`; }
-      else { pr.style.background=''; pr.textContent=fmtCell(c.price); el.style.boxShadow=''; }
-    } else if(c.type==='tax') pr.textContent=evOn('taxfree')?'0':fmtCell(c.amount);
+    // купленная клетка целиком цвета владельца, ценник снаружи показывает аренду
+    el.style.background=own?`linear-gradient(${G.players[s.owner].color}e0,${G.players[s.owner].color}e0),#fff`:'';
+    pr.textContent=''; el.style.boxShadow='';
+    if(lab){
+      if(isOwnable(c)) lab.textContent=own?(s.mort?'🔒'+(OPT().mortLimit?mortLeft(s):''):fmtCell(rentDue(i,G.lastDice))):fmtCell(c.price);
+      else if(c.type==='tax') lab.textContent=evOn('taxfree')?'0':fmtCell(c.amount);
+      lab.classList.toggle('mort',!!s.mort);
+    }
     lv.textContent=(s.hq?'🏛':'')+(s.level?(s.level===5?'🏨':'★'.repeat(s.level)):'');
     // значки: 🃏 карточка владельца (+%), 📊 акции соперников
     const [cb,cbl]=el.querySelectorAll('.cb'), bon=s.owner>=0?cellBonus(G.players[s.owner],i):0;

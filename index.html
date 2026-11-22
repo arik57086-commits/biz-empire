@@ -260,6 +260,10 @@ button.big{font-size:18px;padding:12px 28px}
 .stats div span{opacity:.5}
 .favs{display:flex}
 .favs .avc{margin-left:-6px;box-shadow:0 0 0 2px #fff}
+.achs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.ach{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:#f6f4ff}
+.ach.off{opacity:.55;filter:grayscale(1)}
+.ach .ai{font-size:28px;position:relative;width:38px;text-align:center}.ach .ai small{position:absolute;right:-6px;bottom:-4px;font-size:15px}
 .hist{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f1f6}
 .auth{display:grid;grid-template-columns:1fr 60px 1fr;max-width:960px;margin:0 auto;padding:0}
 .auth .ap{padding:30px}
@@ -672,7 +676,7 @@ function itemArt(x,w,h){
   return `<div class="art" style="${S}"><span class="tokart" style="width:${h*0.72}px;height:${h*0.72}px;font-size:${h*0.42}px;background:radial-gradient(circle at 35% 30%,#fff,${RAR[x.r][1]}33)">${x.ic||'●'}</span></div>`;
 }
 const newUid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const addItem=(a,id)=>{ (a.items=a.items||[]).push({uid:newUid(),id}); };
+const addItem=(a,id)=>{ (a.items=a.items||[]).push({uid:newUid(),id}); if(typeof checkAch==='function'&&String(id).startsWith('card_')) checkAch(a); };
 const hasItem=(a,id)=>id==='tok_default'||(a.items||[]).some(x=>x.id===id);
 // перенос старых аккаунтов на новую экономику
 function migrate(a){
@@ -720,11 +724,45 @@ function track(p,id,amount=1){
   // в игре по сети прогресс заданий других игроков копится в партии — каждый применит его себе в конце
   if(G&&G.online&&p.uid&&p.uid!==DB.session){ G.tp=G.tp||{}; const t=(G.tp[p.uid]=G.tp[p.uid]||{}); t[id]=(t[id]||0)+amount; return; }
   if(!p.acc||p.acc!==DB.session) return; const a=DB.accounts[p.acc]; if(!a) return; // задания считаются только своему аккаунту
-  const ts=ensureTasks(a), t=ts.list.find(x=>x.id===id&&!x.done); if(!t) return;
+  a.life=a.life||{}; a.life[id]=(a.life[id]||0)+amount; checkAch(a);
+  const ts=ensureTasks(a), t=ts.list.find(x=>x.id===id&&!x.done); if(!t){ saveDB(); return; }
   const def=TASK_POOL.find(x=>x.id===id);
   t.prog=Math.min(def.goal,t.prog+amount);
   if(t.prog>=def.goal){ t.done=true; a.xp+=def.xp; if(G) log(`🎯 ${pn(p)} выполняет задание «${def.t}»: +${def.xp} XP`); }
   saveDB();
+}
+
+// ====== ДОСТИЖЕНИЯ (навсегда; награда — только опыт) ======
+// счётчики за всё время копятся в a.life через track(); значения ступеней — [цель, XP]
+const ACH=[
+ {id:'win',ic:'🏆',n:'Победитель',d:'Выиграйте матчи',v:a=>a.wins||0,st:[[1,50],[10,150],[50,400],[200,1000]]},
+ {id:'play',ic:'🎲',n:'Завсегдатай',d:'Сыграйте матчи',v:a=>a.matches||0,st:[[5,50],[25,150],[100,400],[500,1000]]},
+ {id:'buy',ic:'🏢',n:'Скупщик',d:'Купите компании',v:a=>(a.life||{}).buy||0,st:[[20,50],[100,150],[500,400]]},
+ {id:'build',ic:'🏗️',n:'Застройщик',d:'Постройте филиалы',v:a=>(a.life||{}).build||0,st:[[10,50],[50,150],[250,400]]},
+ {id:'rent',ic:'💸',n:'Рантье',d:'Получите аренды на сумму',v:a=>(a.life||{}).rent||0,st:[[50000,50],[500000,150],[3000000,400]],money:1},
+ {id:'trade',ic:'🤝',n:'Переговорщик',d:'Совершите обмены',v:a=>(a.life||{}).trade||0,st:[[3,50],[20,150],[100,400]]},
+ {id:'dbl',ic:'🎯',n:'Везунчик',d:'Выбросите дубли',v:a=>(a.life||{}).dbl||0,st:[[25,50],[150,150],[600,400]]},
+ {id:'casino',ic:'🎰',n:'Игрок',d:'Выиграйте в казино',v:a=>(a.life||{}).casino||0,st:[[3,50],[20,150],[100,400]]},
+ {id:'lvl',ic:'⭐',n:'Опытный',d:'Достигните уровня',v:a=>levelInfo(a.xp||0).lvl,st:[[5,0],[10,0],[20,0],[30,0]]},
+ {id:'coll',ic:'🃏',n:'Коллекционер',d:'Соберите разные карточки',v:a=>new Set((a.items||[]).map(x=>x.id).filter(id=>id.startsWith('card_'))).size,st:[[5,50],[20,150],[50,400],[100,1000]]},
+ {id:'friends',ic:'👥',n:'Душа компании',d:'Добавьте друзей',v:a=>(a.friends||[]).length,st:[[1,30],[5,100],[15,250]]}
+];
+const ACH_TIER=['🥉','🥈','🥇','💎'];
+function achTier(a,x){ const v=x.v(a); let t=0; while(t<x.st.length&&v>=x.st[t][0]) t++; return t; }
+// выдать опыт за новые ступени; возвращает список полученных
+function checkAch(a){
+  if(!a) return []; a.ach=a.ach||{}; const got=[];
+  for(let pass=0;pass<3;pass++) for(const x of ACH){ const t=achTier(a,x), had=a.ach[x.id]||0;
+    if(t>had){ for(let i=had;i<t;i++){ a.xp=(a.xp||0)+x.st[i][1]; got.push(`${x.ic} ${x.n} ${ACH_TIER[i]}`); } a.ach[x.id]=t; } }
+  if(got.length&&a.login===DB.session) setTimeout(()=>got.forEach((g,i)=>setTimeout(()=>toast('🏅 Достижение: '+g),i*1600)),300);
+  return got;
+}
+const fmtN=(x,v)=>x.money?fmt(v):Math.round(v).toLocaleString('ru');
+function achHTML(a,full){
+  const list=ACH.map(x=>{ const t=achTier(a,x), v=x.v(a), nx=x.st[t];
+    const pct=nx?Math.min(100,v/nx[0]*100):100;
+    return `<div class="ach${t?'':' off'}" title="${esc(x.d)}"><div class="ai">${x.ic}<small>${t?ACH_TIER[t-1]:''}</small></div><div style="flex:1;min-width:0"><b>${x.n}</b>${full?`<div class="muted" style="font-size:12px">${x.d}: ${nx?`${fmtN(x,v)} / ${fmtN(x,nx[0])}${nx[1]?` · +${nx[1]} XP`:''}`:'всё собрано ✔'}</div><div class="bar" style="margin-top:4px;height:5px"><i style="width:${pct}%"></i></div>`:''}</div></div>`; });
+  return list.join('');
 }
 
 // ====== УТИЛИТЫ ======
@@ -893,7 +931,7 @@ function showPlayerProfile(p){
   $('#modal').innerHTML=`<div class="ov" id="ppov"><div class="box pprof" style="width:400px">
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px"><div class="av" style="background:${p.color};width:64px;height:64px;font-size:30px;margin:0">${p.skin||avLetter(p)}</div>
       <div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted">${who}</div></div></div>
-    ${a?`<div class="stat"><span>Матчей / побед</span><b>${a.matches} / ${a.wins}</b></div>`:''}
+    ${a?`<div class="stat"><span>Матчей / побед</span><b>${a.matches} / ${a.wins}</b></div><div style="margin:6px 0 4px;font-size:20px;letter-spacing:2px">${ACH.map(x=>{const t=achTier(a,x);return t?`<span title="${x.n} ${ACH_TIER[t-1]}">${x.ic}</span>`:''}).join('')}</div>`:''}
     <div class="stat"><span>Деньги</span><b>${p.out?'Банкрот':fmt(p.money)}</b></div>
     <div class="stat"><span>Капитал (деньги + имущество)</span><b>${fmt(netWorth(p))}</b></div>
     <div class="stat"><span>Компаний</span><b>${props.length}</b></div>
@@ -1499,7 +1537,7 @@ function applyMyResult(){
   if(r&&a&&a.lastGame!==key){
     a.lastGame=key; a.matches++; if(r.win) a.wins++; a.xp+=r.xp;
     if(r.noReward){ if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
-      a.history=[{t:Date.now(),mode:G.mode,win:false,n:G.players.length},...(a.history||[])].slice(0,20); saveDB(); return lines; }
+      a.history=[{t:Date.now(),mode:G.mode,win:false,n:G.players.length},...(a.history||[])].slice(0,20); checkAch(a); saveDB(); return lines; }
     if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
     if(r.drop) addItem(a,r.drop);
     a.history=[{t:Date.now(),mode:G.mode,win:r.win,n:G.players.length},...(a.history||[])].slice(0,20);
@@ -1507,7 +1545,7 @@ function applyMyResult(){
     const G0=G; G=null; // чтобы track() не писал в журнал партии и не считал это игрой по сети
     if(r.tp) Object.entries(r.tp).forEach(([id,v])=>track(meP,id,v));
     if(r.win) track(meP,'win'); track(meP,'play');
-    G=G0; saveDB();
+    G=G0; checkAch(a); saveDB();
   }
   return lines;
 }
@@ -2085,6 +2123,7 @@ const PAGES={
           <div class="favs" data-go="friends" style="cursor:pointer">${fr.slice(0,5).map(f=>avc(f,50)).join('')}</div>${fr.length?'<a data-go="friends" class="muted" style="cursor:pointer">все ›</a>':''}</div></div></div>
       <div class="cols" style="grid-template-columns:1fr 340px"><div>
         <div class="cardw"><h3>Инвентарь</h3><p>${own.length?own.map(x=>`<span style="font-size:36px;margin-right:8px" title="${x.n}">${x.ic}</span>`).join(''):'<span class="muted">У этого пользователя инвентарь пуст.</span>'}</p></div>
+        <div class="cardw"><h3>🏅 Достижения <span class="muted" style="font-size:13px;font-weight:400">${ACH.reduce((s,x)=>s+achTier(u,x),0)} из ${ACH.reduce((s,x)=>s+x.st.length,0)}</span></h3><div class="achs">${achHTML(u,true)}</div></div>
         <div class="cardw"><h3>Последние матчи</h3>${(u.history||[]).length?u.history.map(h=>`<div class="hist"><span>${MODES[h.mode]?MODES[h.mode].ic+' '+MODES[h.mode].n:'Игра'} · ${h.n} игрока</span><span>${h.win?'🏆 Победа':'Поражение'}</span><span class="muted">${new Date(h.t).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<p class="muted">Ещё нет сыгранных матчей.</p>'}</div>
       </div><div>
         <div class="cardw"><div style="display:flex;gap:14px;align-items:center"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#5a3fd6,#8e24aa);display:flex;align-items:center;justify-content:center;font-size:30px">${rk[2]}</div>
@@ -2281,7 +2320,7 @@ async function addFriend(nick){
     if(!s.exists){ if(err) err.textContent='Игрок с ником @'+nick+' не найден.'; return; }
     const uid=s.data().uid; await loadUser(uid);
     u.friends=u.friends||[]; if(!u.friends.includes(uid)) u.friends.push(uid);
-    saveDB(); toast('✔ Друг добавлен'); renderSite();
+    checkAch(u); saveDB(); toast('✔ Друг добавлен'); renderSite();
   }catch(e){ if(err) err.textContent='Ошибка: '+(e.message||e); }
 }
 // загрузка данных для страниц (топ, «добавили вас в друзья», список для создателя)
@@ -2306,7 +2345,7 @@ if(FB){
     try{
       const a=await loadUser(user.uid);
       if(!a){ DB.session=null; toast('Профиль не найден — зарегистрируйтесь заново'); await FB.auth.signOut(); return; }
-      DB.session=user.uid; setupRows=null; onSignedIn();
+      DB.session=user.uid; setupRows=null; if(checkAch(a).length) saveDB(); onSignedIn();
     }catch(e){ console.error(e); toast('Не удалось загрузить профиль: '+(e.message||e)); }
   });
 }

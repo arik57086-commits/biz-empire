@@ -668,8 +668,8 @@ const START_MONEY=15000, SALARY=2000, JAIL_FINE=500, SAVE_KEY='bizemp_save_v1';
 // ====== РЕЖИМЫ ======
 const MODES={
  classic:{n:'Обычная игра',s:'Классические правила игры.',ic:'🎲',d:'Покупайте компании, собирайте группы одного цвета, стройте филиалы и разоряйте соперников. Побеждает последний, кто остался на плаву.',grad:'#3b5bdb,#5a3fd6'},
- fast:{n:'Быстрая игра',s:'Третий кубик и ускоряющие правила.',ic:'⚡',d:'Как только кто-то впервые пройдёт круг, все бросают третий кубик: на нём 1–6 или 🚂 поезд. Поезд — сами выбираете, идти на сумму двух кубиков или на любой из них. 💼 Бизнесмен — после хода едете дальше к первой свободной компании (если свободных нет — к ближайшей компании соперника). Три одинаковых — едете на любую клетку поля! Капитал больше, за круг платят 3,000k.',money:20000,salary:3000,third:true,grad:'#ff8a3d,#ffb627'},
- deal:{n:'Расклад',s:'Все компании уже розданы.',ic:'🃏',d:'Быстрая игра, в которой все компании случайно и поровну раздаются игрокам в начале. Сразу торгуйтесь и собирайте группы!',salary:3000,third:true,deal:true,grad:'#e53975,#ff6f91'},
+ fast:{n:'Быстрая игра',s:'Третий кубик и ускоряющие правила.',ic:'⚡',d:'Как только кто-то впервые пройдёт круг, все бросают третий кубик: на нём 1–6 или 🚂 поезд. Поезд — сами выбираете, идти на сумму двух кубиков или на любой из них. 💼 Бизнесмен — после хода едете дальше к первой свободной компании (если свободных нет — к ближайшей компании соперника). Три одинаковых — едете на любую клетку поля! Когда все игроки пройдут 15 кругов, владельцы получают 75% аренды, после 20 — 50%, после 25 — 25%. Капитал больше, за круг платят 3,000k.',money:20000,salary:3000,third:true,grad:'#ff8a3d,#ffb627'},
+ deal:{n:'Расклад',s:'Все компании уже розданы.',ic:'🃏',d:'Быстрая игра, в которой все компании случайно и поровну раздаются игрокам в начале. Сразу торгуйтесь и собирайте группы! Когда все игроки пройдут 15 кругов, владельцы получают 75% аренды, после 20 — 50%, после 25 — 25%.',salary:3000,third:true,deal:true,grad:'#e53975,#ff6f91'},
  shuffle:{n:'Перестановка',s:'Поле перемешано, строить можно сразу.',ic:'🔀',d:'Компании перемешаны по всему полю. Филиалы можно строить на любой своей компании, даже без полной группы.',shuffle:true,noMono:true,grad:'#22b8a5,#43a047'},
  timed:{n:'На время',s:'25 кругов — побеждает богатейший.',ic:'⏱️',d:'Игра длится ровно 25 кругов. В конце побеждает тот, у кого больше всего капитала: деньги + стоимость компаний и филиалов.',rounds:25,grad:'#8e24aa,#5a3fd6'},
  duel:{n:'Дуэль',s:'Один на один, быстрые правила.',ic:'⚔️',d:'Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом или ботом.',money:20000,salary:3000,third:true,duel:true,grad:'#262b38,#4a5163'},
@@ -1675,12 +1675,22 @@ function botPickCell(p){ let best=0,bs=-1e9; for(let i=0;i<40;i++){ const sc=cel
 async function move(p,n){
   for(let k=0;k<n;k++){
     p.pos=(p.pos+1)%40;
-    if(p.pos===0){ const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
+    if(p.pos===0){ p.laps=(p.laps||0)+1; checkRentStage(); const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
       if(M().third&&!G.speedOn){ G.speedOn=true; log(`⚡ ${pn(p)} первым прошёл круг — теперь все бросают <b>третий кубик</b> (1–6, 🚂 поезд или 💼 бизнесмен)!`); } }
     render(); await sleep(110);
   }
 }
 async function moveTo(p,t){ await move(p,(t-p.pos+40)%40); }
+// «Быстрая игра» и «Расклад»: когда ВСЕ оставшиеся игроки прошли 15 / 20 / 25 кругов,
+// владелец получает только 75% / 50% / 25% аренды (остальное забирает Банк) — партия быстрее идёт к концу
+const RENT_STAGES=[[25,0.25],[20,0.5],[15,0.75]];
+const rentCutModes=()=>['fast','deal'].includes(G&&G.mode);
+const minLaps=()=>{ const a=G.players.filter(p=>!p.out); return a.length?Math.min(...a.map(p=>p.laps||0)):0; };
+function rentShare(){ if(!rentCutModes()) return 1; const l=minLaps(); for(const [n,s] of RENT_STAGES) if(l>=n) return s; return 1; }
+function checkRentStage(){
+  if(!rentCutModes()) return; const s=rentShare();
+  if(s<(G.rentStage||1)){ G.rentStage=s; log(`<span style="color:#ffb627">🏦 Все игроки прошли ${minLaps()} кругов — теперь владельцы получают только <b>${Math.round(s*100)}%</b> аренды</span>`); }
+}
 // сделать ход по результату броска и обработать клетку; 💼 бизнесмен — затем ехать дальше
 async function doMove(p,mv){
   if(mv.target!==undefined) await moveTo(p,mv.target); else await move(p,mv.steps);
@@ -1715,8 +1725,10 @@ async function land(p,dice){
       else { const o=G.players[s.owner], bon=cellBonus(o,i), r=rentDue(i,dice);
         const hasHQ=!!c.g&&groupCells(c.g).some(j=>G.cells[j].hq&&G.cells[j].owner===o.id);
         const notes=[bon?`+${bon}% карточка`:'',evOn('crisis')?'−30% кризис':'',evOn('boom')&&c.g===G.event.g?'+50% бум':'',hasHQ?'+25% 🏛':''].filter(Boolean);
-        log(`${pn(p)} платит ${pn(o)} аренду ${fmt(r)} за ${cn(i)}${notes.length?` <span style="color:#ffb627">(${notes.join(', ')})</span>`:''}`); await pay(p,r,o.id); track(o,'rent',r);
-        if(!p.out) payDividends(i,r); }
+        log(`${pn(p)} платит ${pn(o)} аренду ${fmt(r)} за ${cn(i)}${notes.length?` <span style="color:#ffb627">(${notes.join(', ')})</span>`:''}`); await pay(p,r,o.id);
+        let got=r; const sh=rentShare(); if(sh<1&&!p.out){ const cut=r-Math.round(r*sh/10)*10; o.money-=cut; got=r-cut; log(`🏦 ${pn(o)} получает только ${Math.round(sh*100)}% — ${fmt(got)}, остальное ${fmt(cut)} забирает Банк`); render(); }
+        track(o,'rent',got);
+        if(!p.out) payDividends(i,got); }
     }
   } else if(c.type==='tax'){ if(evOn('taxfree')) log(`🧾 Налоговые каникулы — ${pn(p)} ничего не платит`); else { log(`${pn(p)} платит ${c.name.toLowerCase()} ${fmt(c.amount)}`); await pay(p,c.amount,-1); } }
   else if(c.type==='stock') await stock(p);
@@ -1885,7 +1897,7 @@ function bankrupt(p,to){
   G.cells.forEach((s,i)=>{ if(s.owner===p.id&&s.level){ p.money+=s.level*CELLS[i].house/2; s.level=0; } });
   if(cred) cred.money+=Math.max(0,p.money);
   G.cells.forEach(s=>{ if(s.owner===p.id){ if(cred) s.owner=cred.id; else { s.owner=-1; s.mort=false; resetCell(s); } } });
-  p.money=0; p.out=true; p.inJail=false; p.credit=null;
+  p.money=0; p.out=true; p.inJail=false; p.credit=null; checkRentStage();
   log(`💥 ${pn(p)} объявляет банкротство${cred?' — всё имущество переходит к '+pn(cred):''}`);
   render();
 }
@@ -2276,6 +2288,7 @@ function showSetup(modeId){
   const chips=[`💰 Капитал ${fmt(mode.money||START_MONEY)}`,`🔄 За круг ${fmt(mode.salary||SALARY)}`];
   if(mode.third) chips.push('🎲 Третий кубик после 1-го круга','🚂 Поезд — выбор хода','💼 Бизнесмен — к свободной компании','🎯 Тройка — любая клетка');
   if(mode.deal) chips.push('🃏 Компании розданы');
+  if(['fast','deal'].includes(setupMode)) chips.push('🏦 Аренда 75/50/25% после 15/20/25 кругов');
   if(mode.shuffle) chips.push('🔀 Поле перемешано');
   if(mode.noMono) chips.push('★ Строить можно сразу');
   if(mode.rounds) chips.push(`⏱️ ${mode.rounds} кругов`);

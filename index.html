@@ -579,7 +579,6 @@ const MODES={
  timed:{n:'На время',s:'25 кругов — побеждает богатейший.',ic:'⏱️',d:'Игра длится ровно 25 кругов. В конце побеждает тот, у кого больше всего капитала: деньги + стоимость компаний и филиалов.',rounds:25,grad:'#8e24aa,#5a3fd6'},
  duel:{n:'Дуэль',s:'Один на один, быстрые правила.',ic:'⚔️',d:'Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом или ботом.',money:20000,salary:3000,third:true,duel:true,grad:'#262b38,#4a5163'},
  ranked:{n:'Рейтинговая',s:'По сети, без ботов. С 10 уровня.',ic:'🏆',d:'Матч по сети против живых игроков — без ботов. Влияет на рейтинг: победа +25, поражение −15 (сдача тоже считается поражением). Классические правила. Создавать и заходить можно с 10 уровня. VIP-игроки получают предмет после рейтингового матча с шансом 100%.',ranked:true,needLvl:10,grad:'#c0392b,#ff8a3d'},
- daily:{n:'Задача дня',s:'Одна расстановка на всех. Кто богаче?',ic:'🧩',d:'Каждый день — новая задача, одинаковая для всех игроков: компании уже розданы, кубики выпадают в одном и том же порядке. Вы против двух ботов, 15 кругов. Цель — набрать как можно больше капитала. Карточки здесь не действуют. 3 попытки в день, засчитывается лучшая.',rounds:15,deal:true,daily:true,tries:3,grad:'#0f9b8e,#3b5bdb'}
 };
 // все режимы, кроме обычной, рейтинговой и задачи дня, — только с VIP
 Object.keys(MODES).forEach(k=>{ if(!['classic','ranked','daily'].includes(k)) MODES[k].vip=true; });
@@ -853,16 +852,34 @@ const TASK_POOL=[
  {id:'win',t:'Выиграйте матч',goal:1,xp:200,coins:60},
  {id:'play',t:'Сыграйте матчи до конца',goal:2,xp:120,coins:30},
  {id:'repay',t:'Верните кредит',goal:1,xp:80,coins:20},
- {id:'casino',t:'Выиграйте в казино',goal:2,xp:100,coins:25}
+ {id:'casino',t:'Выиграйте в казино',goal:2,xp:100,coins:25},
+ // задания по режимам: «сыграйте такой-то режим N раз» (mode: true — только для тех, кому режим доступен)
+ {id:'play_classic',t:'Сыграйте «Обычную игру»',goal:3,xp:150,mode:'classic'},
+ {id:'win_classic',t:'Выиграйте «Обычную игру»',goal:1,xp:200,mode:'classic'},
+ {id:'play_fast',t:'Сыграйте «Быструю игру»',goal:3,xp:150,mode:'fast'},
+ {id:'win_fast',t:'Выиграйте «Быструю игру»',goal:1,xp:200,mode:'fast'},
+ {id:'play_deal',t:'Сыграйте «Расклад»',goal:2,xp:150,mode:'deal'},
+ {id:'play_shuffle',t:'Сыграйте «Перестановку»',goal:2,xp:150,mode:'shuffle'},
+ {id:'play_timed',t:'Сыграйте «На время»',goal:2,xp:150,mode:'timed'},
+ {id:'play_duel',t:'Сыграйте «Дуэль»',goal:3,xp:150,mode:'duel'},
+ {id:'play_ranked',t:'Сыграйте рейтинговый матч',goal:2,xp:250,mode:'ranked'}
 ];
 const today=()=>new Date().toLocaleDateString('sv');
+const TASKS_V=2; // при смене набора заданий — пересоздать задания дня
+// 4 задания в день: 2 по режимам (из доступных игроку) и 2 обычных; набор одинаковый для всех с тем же доступом
 function ensureTasks(a){
   const day=today();
-  if(a.tasks&&a.tasks.day===day) return a.tasks;
+  if(a.tasks&&a.tasks.day===day&&a.tasks.v===TASKS_V) return a.tasks;
   let h=0; for(const ch of day) h=(h*31+ch.charCodeAt(0))&0x7fffffff;
   const rnd=()=>(h=(h*1103515245+12345)&0x7fffffff)/0x7fffffff;
-  const pool=TASK_POOL.slice().sort(()=>rnd()-0.5).slice(0,4);
-  a.tasks={day,list:pool.map(t=>({id:t.id,prog:0,done:false}))};
+  const can=t=>!t.mode||!modeLock(t.mode,a);
+  const mix=l=>l.map(t=>[rnd(),t]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
+  const modeT=mix(TASK_POOL.filter(t=>t.mode&&can(t)));
+  // одно задание на режим: не «сыграйте Быструю» и «выиграйте Быструю» в один день
+  const pickM=[]; for(const t of modeT) if(pickM.length<2&&!pickM.some(p=>p.mode===t.mode)) pickM.push(t);
+  const pool=[...pickM,...mix(TASK_POOL.filter(t=>!t.mode))].slice(0,4);
+  const old=a.tasks&&a.tasks.day===day?a.tasks.list:[];
+  a.tasks={day,v:TASKS_V,list:pool.map(t=>old.find(o=>o.id===t.id)||{id:t.id,prog:0,done:false})};
   return a.tasks;
 }
 function timeLeft(){ const n=new Date(), m=new Date(n); m.setHours(24,0,0,0); const s=(m-n)/1000|0; return `${s/3600|0} ч ${(s%3600)/60|0} мин`; }
@@ -1896,7 +1913,7 @@ function applyMyResult(){
     const meP={acc:DB.session};
     const G0=G; G=null; // чтобы track() не писал в журнал партии и не считал это игрой по сети
     if(r.tp) Object.entries(r.tp).forEach(([id,v])=>track(meP,id,v));
-    if(r.win) track(meP,'win'); track(meP,'play');
+    if(r.win){ track(meP,'win'); track(meP,'win_'+G0.mode); } track(meP,'play'); track(meP,'play_'+G0.mode);
     G=G0; addLeagues(a,r); checkAch(a); saveDB();
   }
   return lines;
@@ -1940,7 +1957,7 @@ function updateRematch(){
 async function rematchHost(){
   const old=NET.room||{}, u=me(); if(!u||!G) return;
   $('#rmGo').disabled=true;
-  const humans=G.players.filter(p=>!p.bot).length, bots=G.players.filter(p=>p.bot).length;
+  const humans=G.players.filter(p=>!p.bot).length, bots=0;
   const room={host:DB.session,hostName:u.name,mode:G.mode,max:Math.max(2,old.max||humans+bots),friendsOnly:!!old.friendsOnly,hostFriends:u.friends||[],
     opt:{...G.opt,timer:90},status:'waiting',created:Date.now(),uids:[DB.session],players:[myEntry()],bots,state:null,rev:0};
   try{
@@ -2196,7 +2213,7 @@ function startOnlineGame(r){
   const mode=MODES[r.mode]||MODES.classic;
   const layout=mode.shuffle?shuffleLayout():null;
   applyLayout(layout);
-  const list=[...r.players.map(pl=>({...pl,bot:false})),...Array.from({length:r.bots||0},(_,k)=>({name:BOT_NAMES[k],bot:true}))];
+  const list=[...r.players.map(pl=>({...pl,bot:false}))];
   G={mode:r.mode,layout,round:1,online:true,rid:r.id,opt:{...r.opt,timer:90},
      players:list.map((pl,k)=>({id:k,name:pl.name,bot:!!pl.bot,uid:pl.uid||null,acc:pl.uid===DB.session?DB.session:null,skin:pl.skin||'',vip:!!pl.vip,bonus:pl.bonus||{},
        color:COLORS[k],money:mode.money||START_MONEY,pos:0,inJail:false,jailTries:0,jailCards:0,dbl:0,out:false})),
@@ -2245,7 +2262,6 @@ function roomHTML(r,u){
   const slot=inRoom||full?'':lowLvl?`<div class="lp"><div class="plus">🔒</div><div class="muted">с ${MODES.ranked.needLvl} уровня</div></div>`:allowed?`<div class="lp join" data-act="joinRoom" data-r="${r.id}"><div class="plus">+</div><div>присоединиться</div></div>`
     :`<div class="lp"><div class="plus">🔒</div><div class="muted">только друзья</div></div>`;
   const ctrl=host?`<div style="margin-top:10px"><button data-act="startRoom" data-r="${r.id}" ${total<2?'disabled title="Нужно хотя бы 2 игрока"':''}>▶ Начать игру</button>
-      <button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="1" ${full||m.ranked?'disabled':''} ${m.ranked?'title="В рейтинговой игре ботов нет"':''}>+ бот</button><button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="-1" ${!r.bots?'disabled':''}>− бот</button>
       <button class="red sm" data-act="delRoom" data-r="${r.id}">Удалить</button></div>`
     :inRoom?`<div style="margin-top:10px"><span class="muted">Ждём, когда создатель начнёт игру…</span> <button class="sec sm" data-act="leaveRoom" data-r="${r.id}">Выйти</button></div>`:'';
   return `<div class="room"><div class="rh"><span class="ric" style="background:linear-gradient(135deg,${m.grad})">${m.ic}</span><b>${m.n}</b>${tags.map(t=>`<span class="rtagl">${t}</span>`).join('')}</div>
@@ -2377,7 +2393,7 @@ const PAGES={
       <div class="fc"><div class="e">🏆</div><h3>Уровни и ранги</h3><p>Играйте, получайте опыт и поднимайтесь от Новичка до Императора.</p></div>
       <div class="fc"><div class="e">🎯</div><h3>Задания дня</h3><p>Каждый день новые задания — за них дают опыт для новых уровней.</p></div>
       <div class="fc"><div class="e">🎁</div><h3>Кейсы и карточки</h3><p>После матча может выпасть карточка, набор или кейс. Продавайте их на Маркете.</p></div>
-      <div class="fc"><div class="e">🎲</div><h3>8 режимов</h3><p>Обычная, Задача дня, Рейтинговая с 10 уровня и ещё 5 режимов с VIP-статусом.</p></div>
+      <div class="fc"><div class="e">🎲</div><h3>7 режимов</h3><p>Обычная, Рейтинговая с 10 уровня и ещё 5 режимов с VIP-статусом. Только живые игроки — по сети.</p></div>
       <div class="fc"><div class="e">📊</div><h3>Биржа и штаб-квартиры</h3><p>Покупайте акции компаний соперников, стройте штаб-квартиры, ловите события круга.</p></div>
       <div class="fc"><div class="e">🗓</div><h3>Сезоны</h3><p>Каждый месяц — новый сезон. Лучшие три игрока получают значок в профиль.</p></div>
     </div></div></section>
@@ -2421,10 +2437,6 @@ const PAGES={
         ${ts.list.map(t=>{ const d=TASK_POOL.find(x=>x.id===t.id); return `<div class="task ${t.done?'done':''}"><div class="tn">${d.t}</div>
           <div class="tp">${d.money?fmt(t.prog)+' / '+fmt(d.goal):t.prog+' / '+d.goal}${t.done?' ✅':''}</div><div class="bar"><i style="width:${t.prog/d.goal*100}%"></i></div>
           <div class="tr">✔ ${d.xp} XP</div></div>`; }).join('')}</div>
-      <div class="cardw"><div class="ch"><h3>🧩 Задача дня</h3><span class="muted">попыток: ${dailyLeft(u)} из ${MODES.daily.tries}</span></div>
-        <p class="muted" style="margin-top:-6px">Одна раздача и одни кубики на всех. Ваш лучший результат: <b>${u[dailyKey()]?fmt(u[dailyKey()]):'—'}</b></p>
-        ${(DB.daily||[]).length?DB.daily.map((a,k)=>`<div class="top"><span class="pos">${k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${fmt(a[dailyKey()])}</b></div>`).join(''):'<p class="muted">Сегодня ещё никто не решил задачу — будьте первым!</p>'}
-        <div style="margin-top:8px"><button class="btn-o" data-act="mode" data-m="daily" ${dailyLeft(u)?'':'disabled'}>🧩 Решать задачу</button></div></div>
       <div class="cardw"><div class="ch"><h3>🗓 Сезон «${seasonName(seasonKey())}»</h3><span class="muted">ещё ${seasonDaysLeft()} дн.</span></div>
         <p class="muted" style="margin-top:-6px">Победа +3 очка, сыгранный матч +1. Места 1–3 в конце месяца получают значок в профиль и опыт (🥇 +500, 🥈 +300, 🥉 +150 XP). Ваши очки: <b>${u[seasonKey()]||0}</b></p>
         ${(DB.season||[]).length?DB.season.map((a,k)=>`<div class="top"><span class="pos">${k<3?SEASON_PRIZE[k][0]:k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[seasonKey()]} очк.</b></div>`).join(''):'<p class="muted">В этом сезоне ещё нет очков — сыграйте матч!</p>'}</div>
@@ -2434,7 +2446,6 @@ const PAGES={
       ${lobbyHTML(u)}
       <div class="cardw banner"><div style="flex:1"><h3>👑 VIP-статус</h3><p>Открывает все режимы игры и даёт дроп с шансом 100% в рейтинговых матчах. 7 дней — 🪙 25, 30 дней — 🪙 100.</p>
         <button class="btn-o" data-act="mtabgo" data-t="vip">${isVip(u)?'Продлить VIP':'Купить VIP'}</button></div><div class="tick">🎟️</div></div>
-      ${saved&&!gameActive()?`<div class="cardw ch" style="margin-bottom:22px"><div><h3>Незаконченная партия</h3><span class="muted">Можно продолжить с того же хода.</span></div><button data-act="cont">▶ Продолжить</button></div>`:''}
       ${gameActive()?`<div class="cardw ch" style="margin-bottom:22px"><div><h3>${NET.spec?'👁 Вы смотрите партию':'Идёт партия'}</h3><span class="muted">${M().ic} ${M().n}</span></div><div><button data-act="back">${NET.spec?'Смотреть дальше':'Вернуться в игру'}</button>${NET.spec?'<button class="sec" data-act="stopWatch">Выйти</button>':''}</div></div>`:''}
     </div></div>`;
   },
@@ -2948,7 +2959,7 @@ async function cancelLot(lid){
 const seasonDaysLeft=()=>{ const n=new Date(), e=new Date(n.getFullYear(),n.getMonth()+1,1); return Math.max(1,Math.ceil((e-n)/86400000)); };
 async function loadBoards(){ if(!FB||!me()) return;
   const q=async k=>(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0);
-  try{ DB.season=await q(seasonKey()); DB.daily=await q(dailyKey()); if(PAGE==='games') renderSite(); }catch(e){ console.error('boards',e); } }
+  try{ DB.season=await q(seasonKey()); if(PAGE==='games') renderSite(); }catch(e){ console.error('boards',e); } }
 // зритель: смотреть чужую партию
 function spectate(rid){ closeModal(); watchRoom(rid); NET.spec=true; }
 async function loadFans(){ if(!FB||!me()) return; try{ const s=await FB.db.collection('users').where('friends','array-contains',DB.session).limit(50).get();
@@ -3000,16 +3011,16 @@ function buildPreview(){
   $('#mboard').innerHTML=BASE_CELLS.map((c,i)=>{ const [r,col]=gridPos(i);
     return `<div class="mc ${own[i]?'o':''}" style="grid-row:${r};grid-column:${col};${own[i]?'--o:'+own[i]:''}">${c.g?`<div class="b" style="background:${GROUPS[c.g].c}"></div>`:''}${c.ic}</div>`; }).join('')+
     `<div class="mcen">${[
-      ['#1e88e5','Бот Алиса','строит филиал в «Почта «Голубь»». Аренда растёт'],
+      ['#1e88e5','Алиса','строит филиал в «Почта «Голубь»». Аренда растёт'],
       ['#e53935','Вика','выбрасывает 4:4 — дубль!'],
       ['#e53935','Вика','покупает «Кофейня «Зерно»» за $600k'],
       ['#43a047','Борис','платит аренду $1,960k за «Часы «Тик-Так»»'],
-      ['#fb8c00','Бот Гоша','проходит Старт и получает $2,000k'],
-      ['#1e88e5','Бот Алиса','🤝 предлагает обмен: $3,000k за «Банк «Злато»»'],
+      ['#fb8c00','Гоша','проходит Старт и получает $2,000k'],
+      ['#1e88e5','Алиса','🤝 предлагает обмен: $3,000k за «Банк «Злато»»'],
       ['#43a047','Борис','🎯 выполняет задание «Выбросите дубль»: +80 XP'],
-      ['#fb8c00','Бот Гоша','отправляется в тюрьму 🚔']
+      ['#fb8c00','Гоша','отправляется в тюрьму 🚔']
     ].map(([c,n,t])=>`<div><b style="color:${c}">${n}</b> ${t}</div>`).join('')}</div>`;
-  $('#mpl').innerHTML=[['#e53935','Вика','11,159'],['#1e88e5','Бот Алиса','8,420'],['#43a047','Борис','3,829'],['#fb8c00','Бот Гоша','2,220']]
+  $('#mpl').innerHTML=[['#e53935','Вика','11,159'],['#1e88e5','Алиса','8,420'],['#43a047','Борис','3,829'],['#fb8c00','Гоша','2,220']]
     .map(([c,n,m])=>`<div><i style="background:${c}"></i>${n}<b>$${m}k</b></div>`).join('');
 }
 $('#creator').textContent=DB.creatorName||CREATOR;

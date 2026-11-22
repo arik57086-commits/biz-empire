@@ -560,6 +560,17 @@ function pickDrop(){ const r=Math.random()*100;
   if(r<92) return item('set_'+randOf(Object.keys(COLLECTIONS)));
   if(r<96) return item('set_start'); if(r<98) return item('set_elite');
   return item(randOf(['case_emp','case_lux','case_coll'])); }
+// Таблица выпадения после матча, %: ничего 80 · обычная карточка 10 · кейс/набор 5 · редкая 4 · эпическая 0.8 · легендарная 0.2
+const DROP_TABLE=[['none',80],['card0',10],['box',5],['card1',4],['card2',0.8],['card3',0.2]];
+function rollDrop(guaranteed){
+  const tab=guaranteed?DROP_TABLE.filter(x=>x[0]!=='none'):DROP_TABLE;
+  const tot=tab.reduce((s,x)=>s+x[1],0); let r=Math.random()*tot, k=tab[tab.length-1][0];
+  for(const [n,w] of tab){ r-=w; if(r<0){ k=n; break; } }
+  if(k==='none') return null;
+  if(k==='box'){ const b=Math.random();
+    return b<0.6?item('set_'+randOf(COLL_KEYS)):b<0.8?item('set_start'):b<0.9?item('set_elite'):item(randOf(['case_emp','case_lux','case_coll'])); }
+  return randOf(CARDS.filter(x=>x.r===+k.slice(4)));
+}
 // лучший бонус карточек аккаунта по коллекциям: {коллекция: {pct, brand}}
 function cardBonuses(a){ const b={}; (a&&a.items||[]).forEach(it=>{ const x=item(it.id); if(x.type==='card'&&(!b[x.coll]||x.bonus>b[x.coll].pct)) b[x.coll]={pct:x.bonus,brand:x.n}; }); return b; }
 // ====== КАРТИНКИ ПРЕДМЕТОВ ======
@@ -765,9 +776,11 @@ async function surrender(p){
   if(NET.role==='guest'){ netSend({kind:'cmd',name:'surrender'}); return; }
   doSurrender(p);
 }
+const EARLY_SURRENDER=5; // сдался за первые 5 своих ходов — награды за матч нет
 function doSurrender(p){
   if(!G||p.out||G.over) return;
   log(`🏳️ ${pn(p)} сдаётся`);
+  if((p.turns||0)<=EARLY_SURRENDER){ p.noReward=true; log(`${pn(p)} сдался в первые ${EARLY_SURRENDER} ходов — награды за этот матч не будет`); }
   bankrupt(p,-1);
   if(pending&&actor()===p) answer(G.phase==='debt'?'give':'surrender');
 }
@@ -1304,7 +1317,7 @@ async function turnInner(){
   if(G.over) return;
   const myGame=gameId;
   save();
-  const p=curP(); p.dbl=0; G.turnNo=(G.turnNo||0)+1;
+  const p=curP(); p.dbl=0; G.turnNo=(G.turnNo||0)+1; p.turns=(p.turns||0)+1; // p.turns — сколько своих ходов сделал игрок
   log(`— Ход ${pn(p)} —`);
   render();
   if(p.credit&&creditLeft(p)<=0){
@@ -1370,9 +1383,11 @@ function finishGame(w){
   G.results=G.players.filter(p=>p.uid||p.acc).map(p=>{
     const win=p===w, a=p.acc&&DB.accounts[p.acc];
     const vip=a?isVip(a):!!p.vip;
-    // шанс получить предмет: 35%, за победу +15%; VIP — 60%, а в рейтинговой 100%
-    const chance=vip?(ranked?1:0.6):0.35+(win?0.15:0);
-    return {uid:p.uid||p.acc,pid:p.id,win,xp:50+(win?150:0),rd:ranked?(win?25:-15):0,drop:Math.random()<chance?pickDrop().id:null,tp:(G.tp&&p.uid&&G.tp[p.uid])||null};
+    const rd=ranked?(win?25:-15):0;
+    if(p.noReward) return {uid:p.uid||p.acc,pid:p.id,win:false,xp:0,rd,drop:null,tp:null,noReward:true};
+    // VIP в рейтинговой игре получает предмет гарантированно, остальные — по таблице выпадения
+    const it=rollDrop(vip&&ranked);
+    return {uid:p.uid||p.acc,pid:p.id,win,xp:50+(win?150:0),rd,drop:it?it.id:null,tp:(G.tp&&p.uid&&G.tp[p.uid])||null};
   });
   render(); netPublishNow();
   showWinner(w,applyMyResult());
@@ -1380,11 +1395,14 @@ function finishGame(w){
 // начислить себе свою награду (один раз) и вернуть строки итогов для окна победителя
 function applyMyResult(){
   const lines=(G.results||[]).map(r=>{ const p=G.players[r.pid]; const it=r.drop&&item(r.drop);
+    if(r.noReward) return `${pn(p)}: 🏳️ сдался в первые ${EARLY_SURRENDER} ходов — без награды${r.rd?` · рейтинг ${r.rd}`:''}`;
     return `${pn(p)}: +${r.xp} XP${r.rd?` · рейтинг ${r.rd>0?'+':''}${r.rd}`:''}<br>${it?`🎁 Выпало: ${it.ic} <b>${esc(it.n)}</b> <span style="color:${RAR[it.r][1]}">${RAR[it.r][0]}</span> · ${fmtC(it.val)}`:'<span class="muted">Предмет в этот раз не выпал</span>'}`; });
   const r=(G.results||[]).find(x=>x.uid===DB.session), a=me();
   const key=G.online?G.rid:'local'+G.turnNo+'_'+(G.log.length);
   if(r&&a&&a.lastGame!==key){
     a.lastGame=key; a.matches++; if(r.win) a.wins++; a.xp+=r.xp;
+    if(r.noReward){ if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
+      a.history=[{t:Date.now(),mode:G.mode,win:false,n:G.players.length},...(a.history||[])].slice(0,20); saveDB(); return lines; }
     if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
     if(r.drop) addItem(a,r.drop);
     a.history=[{t:Date.now(),mode:G.mode,win:r.win,n:G.players.length},...(a.history||[])].slice(0,20);
@@ -1907,7 +1925,7 @@ const PAGES={
         <div class="mp">${fmtC(r2(x.val*0.9))}</div><button class="btn-o" data-act="sell" data-i="${id}" style="width:110px">ПРОДАТЬ</button></div>`; }).join(''):'<div class="empty"><div class="e">📦</div><p class="muted">Вам пока нечего продать. Предметы выпадают после матчей.</p></div>');
     } else {
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">👑 VIP-статус</h3>
-        <p style="line-height:1.7">✔ Все режимы игры: Быстрая, Расклад, Перестановка, На время, Дуэль<br>✔ Предмет после рейтингового матча с шансом 100%<br>✔ Шанс на предмет в обычных матчах — 60%<br>✔ Золотая звезда ★ у имени в игре</p>
+        <p style="line-height:1.7">✔ Все режимы игры: Быстрая, Расклад, Перестановка, На время, Дуэль<br>✔ Предмет после рейтингового матча с шансом 100%<br>✔ Золотая звезда ★ у имени в игре</p>
         ${isVip(u)?`<p><span class="vipb">VIP</span> активен ещё <b>${vipLeft(u)}</b> Покупка продлит срок.</p>`:''}
         <div class="vipgrid">${VIP_PLANS.map(v=>`<div class="vipc"><div style="font-size:40px">👑</div><b style="font-size:22px">VIP на ${v.days} дней</b><div class="v" style="font-size:28px;margin:10px 0">${fmtC(v.price)}</div>
           <button class="btn-o" data-act="vip" data-d="${v.days}" ${u.coins<v.price?'disabled':''}>Купить</button></div>`).join('')}</div>`;

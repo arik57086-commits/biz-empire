@@ -142,6 +142,7 @@ button.sm{padding:5px 12px;font-size:13px}
 #actions .acard .row2 button{flex:1}
 #actions .acard button.sec{background:#e9ecf3;color:#4a5163}
 #actions .acard button:disabled{background:#c9ced8;color:#fff;opacity:1}
+#actions .acard .mvchips{display:flex;gap:4px;flex-wrap:wrap}#actions .acard .mvchips button{width:auto;flex:1;padding:5px 6px;font-size:13px}
 /* договор в центре поля */
 #tradeBox{display:none;position:absolute;inset:6px;z-index:7;background:#fff;color:#262b38;border-radius:10px;box-shadow:0 10px 30px #0006;flex-direction:column;overflow:hidden}
 #tradeBox.on{display:flex}
@@ -191,6 +192,31 @@ button.sm{padding:5px 12px;font-size:13px}
 @media (max-width:820px),(max-height:520px) and (orientation:landscape){
   #chatBar input{font-size:10px;padding:3px 6px}#chatBar button{padding:2px 8px;font-size:11px;width:auto}
 }
+/* аукцион — карточка в центре поля, видна всем */
+#aucBox{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92%,340px);z-index:8;background:#fff;color:#262b38;border-radius:12px;box-shadow:0 12px 34px #0007;overflow:hidden;text-align:center}
+#aucBox.on{display:block;animation:aucIn .25s ease-out}
+@keyframes aucIn{from{transform:translate(-50%,-50%) scale(.85);opacity:0}}
+#aucBox .ah{color:#fff;font-weight:800;padding:7px;font-size:16px;text-shadow:0 1px 2px #0004}
+#aucBox .ab{display:flex;gap:10px;align-items:center;justify-content:center;padding:8px 10px 2px;text-align:left}
+#aucBox .aic{font-size:34px}#aucBox .ab b{display:block;font-size:15px}#aucBox .ab small{color:#8a93a6}
+#aucBox .abid{font-size:15px;padding:4px 10px}
+#aucBox .apl{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:4px 8px}
+#aucBox .apl span{border:2px solid var(--c);color:var(--c);border-radius:12px;padding:1px 8px;font-size:12px;font-weight:700}
+#aucBox .apl span.now{background:var(--c);color:#fff}
+#aucBox .apl span.pass{opacity:.4;text-decoration:line-through}
+#aucBox .abtn{display:flex;gap:6px;padding:8px 10px 2px}#aucBox .abtn button{flex:1;margin:0;padding:10px 6px;font-size:15px}
+#aucBox .abtn button.sec{background:#e9ecf3;color:#4a5163}
+#aucBox .amy{display:block;color:#8a93a6;font-size:11px;padding-bottom:8px}
+#aucBox .await{padding:8px 10px 10px;font-size:14px}
+@media (max-width:820px),(max-height:520px) and (orientation:landscape){
+  #aucBox{width:96%;border-radius:8px}#aucBox .ah{font-size:12px;padding:3px}#aucBox .aic{font-size:22px}#aucBox .ab{padding:3px 6px 0;gap:6px}#aucBox .ab b{font-size:11px}#aucBox .ab small{font-size:9px}
+  #aucBox .abid{font-size:11px;padding:2px 6px}#aucBox .apl span{font-size:9px;padding:0 5px}#aucBox .abtn{padding:4px 6px 1px}#aucBox .abtn button{padding:6px 4px;font-size:12px;width:auto}#aucBox .amy{font-size:9px;padding-bottom:4px}#aucBox .await{font-size:11px;padding:4px 6px 6px}
+}
+/* поезд/тройка: клетки, куда можно встать */
+.cell.mvopt{outline:3px solid #ffb627!important;z-index:5;animation:mvp .8s infinite alternate;cursor:pointer}
+.cell.mvopt::before{content:attr(data-mv);position:absolute;top:2px;right:2px;background:#ffb627;color:#3a2300;border-radius:8px;padding:0 5px;font-weight:800;font-size:max(10px,calc(var(--s)/70));z-index:2}
+@keyframes mvp{from{box-shadow:0 0 0 #ffb62700}to{box-shadow:0 0 16px #ffb627}}
+.cell.pickopt{outline:2px dashed #ffb627;cursor:pointer}
 /* ===== Темы оформления ===== */
 body.th-light{--bg:#e9edf5;--fg:#262b38;--pl:#fff;--ctr:#fff;--bd:#c9d0de;--logbg:#f1f3f8}
 body.th-light #log div{border-bottom-color:#0000000d}
@@ -575,7 +601,7 @@ button.big{font-size:18px;padding:12px 28px}
   <div id="board"><div id="center">
     <div id="top"><div id="title">Бизнес<span>-империя</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="sndBtn" title="Звук">🔊</button><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
     <div id="evt"></div>
-    <div id="diceFx"></div><div id="tradeBox"></div>
+    <div id="diceFx"></div><div id="tradeBox"></div><div id="aucBox"></div>
     <div id="actions"></div>
     <div id="log"></div>
     <form id="chatBar" autocomplete="off"><input id="chatIn" maxlength="120" placeholder="💬 Сообщение всем…"><button type="submit" title="Отправить">➤</button></form>
@@ -1112,7 +1138,8 @@ function buildBoard(){
     const d=document.createElement('div'); d.className='cell'+([0,10,20,30].includes(i)?' corner':'')+((i>10&&i<20)||i>30?' side':''); d.id='c'+i;
     const [r,col]=gridPos(i); d.style.gridRow=r+1; d.style.gridColumn=col+1; // +1: снаружи — дорожка для ценников
     d.innerHTML=`<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div><div class="cb"></div><div class="cb l"></div>`;
-    const click=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i)); if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
+    const click=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i));
+      if(G&&G.phase==='move'&&canAct()){ const ad=G.askData||askData, a=actor(), n=((ad&&ad.opts)||[]).find(n=>(a.pos+n)%40===i); if(n!==undefined) return answer(String(n)); } if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
     d.onclick=click; b.appendChild(d);
     // ценник снаружи поля рядом с клеткой: цвет группы + цена/аренда
     if(isOwnable(c)||c.type==='tax'){
@@ -1171,6 +1198,10 @@ function render(){
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
   $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
+  renderAuction();
+  // поезд: подсветить клетки, куда можно пойти; тройка — любая клетка
+  { const can=canAct(), ad=G.askData||askData, a=actor(), mv=G.phase==='move'&&can&&ad&&ad.opts?ad.opts:[];
+    CELLS.forEach((c,i)=>{ const el=$('#c'+i), n=mv.find(n=>(a.pos+n)%40===i); el.classList.toggle('mvopt',n!==undefined); if(n!==undefined) el.dataset.mv='+'+n; else delete el.dataset.mv; el.classList.toggle('pickopt',G.phase==='pick'&&can); }); }
   fx();
   // подсветка клетки, где стоит тот, кто сейчас ходит
   const cp=!G.over&&G.players[G.cur];
@@ -1492,9 +1523,8 @@ function renderActions(){
       <button data-a="pay" ${a.money<G.debt.amt?'disabled':''}>Оплатить</button><button data-a="give" class="red">Объявить банкротство</button>${tradeBtn}
       <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
     case 'end': h=`<div class="acard"><b class="t">Ход сделан</b><small>Можно строить филиалы и меняться — или передать ход.</small><button data-a="end">Завершить ход ➜</button></div>`+manage; break;
-    case 'move': h=`<div class="q">🚂 Поезд! ${pn(a)}, на сколько клеток идти?</div>`+ad.opts.map(n=>{ const t=(a.pos+n)%40;
-      return `<button data-a="${n}">На ${n} → ${CELLS[t].ic} ${CELLS[t].name}</button>`; }).join(''); break;
-    case 'pick': h=`<div class="q">🎯 Тройка! ${pn(a)}, нажмите на <b>любую клетку поля</b> — туда и поедете.</div>`; break;
+    case 'move': h=`<div class="acard"><b class="t">🚂 Поезд!</b><small>Нажмите на <b>подсвеченную клетку</b> на поле — туда и поедете.</small><div class="mvchips">${ad.opts.map(n=>{ const t=(a.pos+n)%40; return `<button class="sec" data-a="${n}">+${n} ${CELLS[t].ic}</button>`; }).join('')}</div></div>`; break;
+    case 'pick': h=`<div class="acard"><b class="t">🎯 Тройка!</b><small>Нажмите на <b>любую клетку поля</b> — туда и поедете.</small></div>`; break;
     case 'stock': h=`<div class="q">📊 Фондовый рынок: ${pn(a)}, купить акцию? С каждой аренды этой компании вам будет идти ${STOCK_CUT*100}%.</div>`+
       ad.opts.map(i=>`<button data-a="${i}" ${a.money<stockPrice(i)?'disabled':''}>${CELLS[i].ic} ${CELLS[i].name} (${esc(G.players[G.cells[i].owner].name)}) — ${fmt(stockPrice(i))}</button>`).join('')+
       `<button data-a="skip" class="sec">Не покупать</button>`; break;
@@ -1509,6 +1539,7 @@ $('#actions').onclick=e=>{
   if(x==='trade') openTrade(); else if(x==='credit') takeCredit(actor()); else if(x==='repay') repayCredit(actor()); else answer(x); };
 function ask(phase,data){ if(G&&G.over) return new Promise(()=>{}); G.phase=phase; askData=data||null; G.askData=askData; G.awaiting=true; return new Promise(r=>{ pending=r; startTimer(); render(); netPublishNow(); }); }
 function answer(v){
+  document.querySelectorAll('.cell.mvopt,.cell.pickopt').forEach(el=>el.classList.remove('mvopt','pickopt'));
   if(NET.role==='guest'){ // гость не ведёт игру — он отправляет свой выбор хозяину комнаты
     if(!canAct()) return; G.awaiting=false; netSend({kind:'answer',phase:G.phase,v:String(v)}); renderActions(); return;
   }
@@ -1770,28 +1801,34 @@ function payDividends(i,r){
 const resetCell=s=>{ s.hq=false; s.sh=[]; };
 
 // ====== АУКЦИОН ======
+// Аукцион виден всем: G.auc = {i, price, leader, all:[ids], active:[ids], cur, next} — рисуется панелью в центре поля
 async function auction(i,decliner){
   const c=CELLS[i], s=G.cells[i];
   let price=c.price, leader=null;
   let active=G.players.filter(p=>!p.out&&p!==decliner&&p.money>=price);
   if(!active.length){ log(`🔨 Аукцион за ${cn(i)} не состоялся — ни у кого нет ${fmt(price)}`); return; }
   log(`🔨 Аукцион за ${cn(i)}! Стартовая цена ${fmt(price)}`);
+  const all=active.map(p=>p.id);
   const step=()=>Math.max(100,Math.round(price*0.1/100)*100);
-  while(true){
-    const others=active.filter(p=>p!==leader);
-    if(!others.length) break;
-    for(const p of others){
-      if(active.length===1&&active[0]===leader) break;
-      const next=leader?price+step():price;
-      const yes=p.money>=next&&(p.bot?(await sleep(250),botBid(p,i,next)):await askBid(p,i,next,leader,price));
-      if(yes){ leader=p; price=next; log(`🔨 ${pn(p)} ставит ${fmt(price)}`); }
-      else { active=active.filter(x=>x!==p); log(`🔨 ${pn(p)} пасует`); }
-      render();
+  const setAuc=(cur,next)=>{ G.auc={i,price,leader:leader?leader.id:null,all,active:active.map(p=>p.id),cur:cur?cur.id:null,next}; render(); netPublishNow(); };
+  try{
+    while(true){
+      const others=active.filter(p=>p!==leader);
+      if(!others.length) break;
+      for(const p of others){
+        if(active.length===1&&active[0]===leader) break;
+        const next=leader?price+step():price;
+        setAuc(p,next);
+        const yes=p.money>=next&&(p.bot?(await sleep(500),botBid(p,i,next)):await askBid(p,i,next,leader,price));
+        if(yes){ leader=p; price=next; log(`🔨 ${pn(p)} ставит ${fmt(price)}`); }
+        else { active=active.filter(x=>x!==p); log(`🔨 ${pn(p)} пасует`); }
+        setAuc(null,null);
+      }
     }
-  }
+  } finally { if(G) G.auc=null; }
   if(leader){ leader.money-=price; s.owner=leader.id; log(`🔨 ${pn(leader)} выигрывает аукцион и покупает ${cn(i)} за ${fmt(price)}`); track(leader,'buy'); }
   else log(`🔨 Никто не купил ${cn(i)}`);
-  render();
+  render(); netPublishNow();
 }
 function botBid(p,i,next){
   const c=CELLS[i];
@@ -1804,18 +1841,29 @@ function askBid(p,i,next,leader,cur){
   if(isRemote(p)) return askRemote(p,'bid',{i,next,leader:leader?leader.id:null,cur},false).then(v=>!!v);
   return askBidUI(p,i,next,leader,cur);
 }
+// ставка этого браузера: кнопки появляются в панели аукциона
+let AUC_ASK=null;
 function askBidUI(p,i,next,leader,cur){
-  return new Promise(res=>{
-    const c=CELLS[i];
-    $('#modal').innerHTML=`<div class="ov"><div class="box" style="width:420px;text-align:center">
-      <h2>🔨 Аукцион</h2><div style="font-size:40px">${c.ic}</div><h3 style="margin:4px 0">${c.name}</h3>
-      <p>${leader?`Сейчас лидирует ${pn(leader)} со ставкой <b>${fmt(cur)}</b>`:`Цена компании: <b>${fmt(c.price)}</b>`}</p>
-      <p>${pn(p)}, у вас ${fmt(p.money)}. Ваша ставка?</p>
-      <button id="bYes">Поставить ${fmt(next)}</button><button class="sec" id="bNo">Пас</button></div></div>`;
-    $('#bYes').onclick=()=>{ closeModal(); res(true); };
-    $('#bNo').onclick=()=>{ closeModal(); res(false); };
-  });
+  return new Promise(res=>{ AUC_ASK={pid:p.id,next,res}; renderAuction(); SFX.turn(); if(navigator.vibrate) try{ navigator.vibrate(100); }catch(e){} });
 }
+function aucAnswer(v){ const a=AUC_ASK; AUC_ASK=null; renderAuction(); if(a) a.res(v); }
+function renderAuction(){
+  const box=$('#aucBox'); if(!box) return;
+  const A=G&&!G.over&&G.auc;
+  if(AUC_ASK&&A&&NET.role==='guest'&&A.cur!==AUC_ASK.pid) AUC_ASK=null; // вопрос устарел (хозяин не дождался)
+  if(!A){ box.classList.remove('on'); box.innerHTML=''; return; }
+  const c=CELLS[A.i], col=c.g?GROUPS[c.g].c:'#607d8b', L=A.leader!=null?G.players[A.leader]:null, cur=A.cur!=null?G.players[A.cur]:null;
+  const mine=!!AUC_ASK;
+  box.innerHTML=`<div class="ah" style="background:${col}">🔨 Аукцион</div>
+    <div class="ab"><div class="aic">${c.ic}</div><div><b>${c.name}</b><small>цена ${fmt(c.price)}</small></div></div>
+    <div class="abid">${L?`Ставка <b>${fmt(A.price)}</b> — лидирует ${pn(L)}`:`Стартовая цена <b>${fmt(A.price)}</b>`}</div>
+    <div class="apl">${A.all.map(id=>{ const p=G.players[id], out=!A.active.includes(id);
+      return `<span class="${out?'pass':''} ${id===A.cur?'now':''} ${id===A.leader?'lead':''}" style="--c:${p.color}">${id===A.leader?'👑 ':''}${esc(p.name)}${out?' — пас':''}</span>`; }).join('')}</div>
+    ${mine?`<div class="abtn"><button data-ab="1">Поставить ${fmt(AUC_ASK.next)}</button><button class="sec" data-ab="0">Пас</button></div><small class="amy">У вас ${fmt(G.players[AUC_ASK.pid].money)}</small>`
+      :`<div class="await">${cur?`⏳ Решает ${pn(cur)}…`:'⏳ …'}</div>`}`;
+  box.classList.add('on');
+}
+$('#aucBox')&&($('#aucBox').onclick=e=>{ const b=e.target.closest('[data-ab]'); if(b&&AUC_ASK) aucAnswer(b.dataset.ab==='1'); });
 
 // ====== КАЗИНО ======
 const CASINO_MULT={1:5,2:2.5,3:1.6};

@@ -578,7 +578,7 @@ const MODES={
  shuffle:{n:'Перестановка',s:'Поле перемешано, строить можно сразу.',ic:'🔀',d:'Компании перемешаны по всему полю. Филиалы можно строить на любой своей компании, даже без полной группы.',shuffle:true,noMono:true,grad:'#22b8a5,#43a047'},
  timed:{n:'На время',s:'25 кругов — побеждает богатейший.',ic:'⏱️',d:'Игра длится ровно 25 кругов. В конце побеждает тот, у кого больше всего капитала: деньги + стоимость компаний и филиалов.',rounds:25,grad:'#8e24aa,#5a3fd6'},
  duel:{n:'Дуэль',s:'Один на один, быстрые правила.',ic:'⚔️',d:'Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом или ботом.',money:20000,salary:3000,third:true,duel:true,grad:'#262b38,#4a5163'},
- ranked:{n:'Рейтинговая',s:'Игра на рейтинг. С 10 уровня.',ic:'🏆',d:'Матч, который влияет на ваш рейтинг: победа +25, поражение −15. Вы играете против трёх ботов по классическим правилам. VIP-игроки получают предмет после рейтингового матча с шансом 100%.',ranked:true,needLvl:10,grad:'#c0392b,#ff8a3d'},
+ ranked:{n:'Рейтинговая',s:'По сети, без ботов. С 10 уровня.',ic:'🏆',d:'Матч по сети против живых игроков — без ботов. Влияет на рейтинг: победа +25, поражение −15 (сдача тоже считается поражением). Классические правила. Создавать и заходить можно с 10 уровня. VIP-игроки получают предмет после рейтингового матча с шансом 100%.',ranked:true,needLvl:10,grad:'#c0392b,#ff8a3d'},
  daily:{n:'Задача дня',s:'Одна расстановка на всех. Кто богаче?',ic:'🧩',d:'Каждый день — новая задача, одинаковая для всех игроков: компании уже розданы, кубики выпадают в одном и том же порядке. Вы против двух ботов, 15 кругов. Цель — набрать как можно больше капитала. Карточки здесь не действуют. 3 попытки в день, засчитывается лучшая.',rounds:15,deal:true,daily:true,tries:3,grad:'#0f9b8e,#3b5bdb'}
 };
 // все режимы, кроме обычной, рейтинговой и задачи дня, — только с VIP
@@ -2209,7 +2209,7 @@ function startOnlineGame(r){
   playTurn();
 }
 // ====== ЛОББИ «ОЖИДАЮТ ИГРЫ» ======
-const myEntry=()=>{ const u=me(); return {uid:DB.session,name:u.name,nick:u.nick||'',color:u.color,eq:u.eq||'tok_default',skin:item(u.eq).ic||'',vip:isVip(u),bonus:cardBonuses(u),lvl:levelInfo(u.xp).lvl}; };
+const myEntry=()=>{ const u=me(); return {uid:DB.session,name:u.name,nick:u.nick||'',color:u.color,eq:u.eq||'tok_default',skin:item(u.eq).ic||'',vip:isVip(u),bonus:cardBonuses(u),lvl:levelInfo(u.xp).lvl,rating:u.rating||1000}; };
 let lobbyUnsub=null;
 function listenLobby(){
   if(!FB||lobbyUnsub) return;
@@ -2238,13 +2238,14 @@ function roomHTML(r,u){
   const m=MODES[r.mode]||MODES.classic, me_=u.login, host=r.host===me_, inRoom=r.uids.includes(me_);
   const total=r.players.length+(r.bots||0), full=total>=r.max;
   const allowed=!r.friendsOnly||host||(r.hostFriends||[]).includes(me_);
-  const tags=[r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
-  const pl=r.players.map(p=>`<div class="lp">${avc({name:p.name,color:p.color,eq:p.eq},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}</div></div>`).join('')
+  const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
+  const pl=r.players.map(p=>`<div class="lp">${avc({name:p.name,color:p.color,eq:p.eq},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
     +Array.from({length:r.bots||0},(_,k)=>`<div class="lp"><div class="avc" style="width:74px;height:74px;background:#8892a6;font-size:34px;--ring:#8892a6">🤖</div><div class="lpn">${BOT_NAMES[k]}</div><div class="muted">бот</div></div>`).join('');
-  const slot=inRoom||full?'':allowed?`<div class="lp join" data-act="joinRoom" data-r="${r.id}"><div class="plus">+</div><div>присоединиться</div></div>`
+  const lowLvl=MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(u.xp).lvl<MODES.ranked.needLvl;
+  const slot=inRoom||full?'':lowLvl?`<div class="lp"><div class="plus">🔒</div><div class="muted">с ${MODES.ranked.needLvl} уровня</div></div>`:allowed?`<div class="lp join" data-act="joinRoom" data-r="${r.id}"><div class="plus">+</div><div>присоединиться</div></div>`
     :`<div class="lp"><div class="plus">🔒</div><div class="muted">только друзья</div></div>`;
   const ctrl=host?`<div style="margin-top:10px"><button data-act="startRoom" data-r="${r.id}" ${total<2?'disabled title="Нужно хотя бы 2 игрока"':''}>▶ Начать игру</button>
-      <button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="1" ${full?'disabled':''}>+ бот</button><button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="-1" ${!r.bots?'disabled':''}>− бот</button>
+      <button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="1" ${full||m.ranked?'disabled':''} ${m.ranked?'title="В рейтинговой игре ботов нет"':''}>+ бот</button><button class="sec sm" data-act="botRoom" data-r="${r.id}" data-d="-1" ${!r.bots?'disabled':''}>− бот</button>
       <button class="red sm" data-act="delRoom" data-r="${r.id}">Удалить</button></div>`
     :inRoom?`<div style="margin-top:10px"><span class="muted">Ждём, когда создатель начнёт игру…</span> <button class="sec sm" data-act="leaveRoom" data-r="${r.id}">Выйти</button></div>`:'';
   return `<div class="room"><div class="rh"><span class="ric" style="background:linear-gradient(135deg,${m.grad})">${m.ic}</span><b>${m.n}</b>${tags.map(t=>`<span class="rtagl">${t}</span>`).join('')}</div>
@@ -2252,7 +2253,7 @@ function roomHTML(r,u){
 }
 function showCreateRoom(modeId){
   const u=me(); if(!u) return go('auth');
-  const ids=Object.keys(MODES).filter(k=>!MODES[k].ranked&&!MODES[k].daily);
+  const ids=Object.keys(MODES).filter(k=>!MODES[k].daily);
   if(modeId) setupMode=modeId; if(!ids.includes(setupMode)) setupMode='classic';
   const mode=MODES[setupMode], lock=modeLock(setupMode,u), maxCap=mode.duel?2:6;
   const cur=Math.min(+(showCreateRoom.max||4),maxCap);
@@ -2260,7 +2261,7 @@ function showCreateRoom(modeId){
     <div class="ml">${ids.map(id=>{ const m=MODES[id]; return `<div class="mi ${id===setupMode?'sel':''}" data-mode="${id}"><b>${m.ic} ${m.n}${modeLock(id,u)?' <small>🔒</small>':''}</b><span>${m.s}</span></div>`; }).join('')}</div>
     <div class="mr"><button class="x" id="crx">✕</button>
       <h2>🌐 Игра по сети: ${mode.ic} ${mode.n}</h2><p style="line-height:1.5">${mode.d}</p>
-      ${lock==='vip'?`<div class="lockbox vip"><b>👑 Этот режим — только с VIP-статусом</b><br>Чтобы создать такую игру, нужен VIP. Присоединяться к чужим играм можно без него.</div>`:''}
+      ${lock==='vip'?`<div class="lockbox vip"><b>👑 Этот режим — только с VIP-статусом</b><br>Чтобы создать такую игру, нужен VIP. Присоединяться к чужим играм можно без него.</div>`:lock==='lvl'?`<div class="lockbox"><b>🔒 Рейтинговая игра — с ${mode.needLvl} уровня</b><br>Ваш уровень: ${levelInfo(u.xp).lvl}. Играйте матчи и выполняйте задания, чтобы получать опыт.</div>`:mode.ranked?`<div class="lockbox"><b>🏆 На рейтинг</b><br>Только живые игроки, без ботов. Войти смогут игроки с ${mode.needLvl} уровня. Победа +25, поражение −15.</div>`:''}
       <h3>Сколько игроков</h3><div>${[2,3,4,5,6].filter(n=>n<=maxCap).map(n=>`<button class="${n===cur?'':'sec'} sm" data-max="${n}">${n}</button>`).join('')}</div>
       <h3>Кто может войти</h3>
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer"><input type="checkbox" id="crFr" ${showCreateRoom.fr?'checked':''} style="width:18px;height:18px"><span><b>👥 Только для друзей</b><br><span class="muted">Войти смогут только те, кого вы добавили в друзья</span></span></label>
@@ -2290,6 +2291,7 @@ async function joinRoom(rid){
       const r=s.data(); if(r.status!=='waiting') throw new Error('Игра уже началась');
       if(r.uids.includes(DB.session)) return;
       if(r.players.length+(r.bots||0)>=r.max) throw new Error('Мест нет');
+      if(MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(me().xp).lvl<MODES.ranked.needLvl) throw new Error(`Рейтинговая игра — с ${MODES.ranked.needLvl} уровня`);
       tx.update(ref,{players:[...r.players,myEntry()],uids:[...r.uids,DB.session]});
     });
     watchRoom(rid); toast('✔ Вы в комнате — ждём начала игры');
@@ -2306,6 +2308,7 @@ async function leaveRoom(rid){
 }
 Object.assign(ACT_EXTRA,{
   newRoom:()=>showCreateRoom(),
+  rankedRoom:()=>showCreateRoom('ranked'),
   invite:async()=>{
     const url=location.origin+location.pathname, u=me();
     const text=`Заходи играть в Бизнес-империю! ${url}${u&&u.nick?` — добавь меня в друзья: @${u.nick}`:''}`;
@@ -2315,10 +2318,12 @@ Object.assign(ACT_EXTRA,{
   joinRoom:el=>joinRoom(el.dataset.r),
   leaveRoom:el=>leaveRoom(el.dataset.r),
   delRoom:async el=>{ if(!await askConfirm('Удалить комнату?','Удалить',true)) return; leaveNet(false); roomRef(el.dataset.r).delete().catch(e=>toast(e.message)); },
-  botRoom:el=>{ const r=(DB.rooms||[]).find(x=>x.id===el.dataset.r); if(!r) return; const n=Math.max(0,(r.bots||0)+(+el.dataset.d));
+  botRoom:el=>{ const r=(DB.rooms||[]).find(x=>x.id===el.dataset.r); if(!r) return; if(MODES[r.mode]&&MODES[r.mode].ranked&&+el.dataset.d>0) return toast('В рейтинговой игре ботов нет'); const n=Math.max(0,(r.bots||0)+(+el.dataset.d));
     if(n+r.players.length>r.max) return; roomRef(r.id).update({bots:n}).catch(e=>toast(e.message)); },
   startRoom:async el=>{ const s=await roomRef(el.dataset.r).get(); if(!s.exists) return; const r={id:s.id,...s.data()};
-    if(r.players.length+(r.bots||0)<2) return toast('Нужно хотя бы 2 игрока'); watchRoom(r.id); startOnlineGame(r); }
+    if(r.players.length+(r.bots||0)<2) return toast('Нужно хотя бы 2 игрока');
+    if(MODES[r.mode]&&MODES[r.mode].ranked&&(r.players.length<2||r.bots)) return toast('Для рейтинговой игры нужно хотя бы 2 живых игрока, без ботов');
+    watchRoom(r.id); startOnlineGame(r); }
 });
 
 // ====== САЙТ: СТРАНИЦЫ ======
@@ -2411,7 +2416,7 @@ const PAGES={
       <div class="cardw"><div class="ch"><h3>Мой прогресс</h3><a data-go="profile" class="muted" style="cursor:pointer">профиль</a></div>
         <div style="display:flex;gap:14px;align-items:center">${avc(u,56)}<div style="flex:1"><b>${rk[2]} ${rk[1]}</b> · уровень ${li.lvl}
         <div class="bar" style="margin-top:6px"><i style="width:${li.cur/li.need*100}%"></i></div><div class="muted">${li.need-li.cur} XP до ур. ${li.lvl+1}</div></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:14px"><span>🏆 Рейтинг: <b>${li.lvl>=10?(u.rating||1000):'с 10 ур.'}</b></span><span>${isVip(u)?`<span class="vipb">VIP</span> ещё ${vipLeft(u)}`:'<a data-act="mtabgo" data-t="vip" style="color:#ff8a3d;cursor:pointer">👑 Купить VIP</a>'}</span></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:14px"><span>🏆 Рейтинг: <b>${li.lvl>=10?(u.rating||1000):'с 10 ур.'}</b>${li.lvl>=10?' <a data-act="rankedRoom" style="color:#3b8fd6;cursor:pointer;margin-left:6px">▶ Рейтинговая игра</a>':''}</span><span>${isVip(u)?`<span class="vipb">VIP</span> ещё ${vipLeft(u)}`:'<a data-act="mtabgo" data-t="vip" style="color:#ff8a3d;cursor:pointer">👑 Купить VIP</a>'}</span></div></div>
       <div class="cardw"><div class="ch"><h3>Задания</h3><span class="muted">⏱ обновятся через ${timeLeft()}</span></div>
         ${ts.list.map(t=>{ const d=TASK_POOL.find(x=>x.id===t.id); return `<div class="task ${t.done?'done':''}"><div class="tn">${d.t}</div>
           <div class="tp">${d.money?fmt(t.prog)+' / '+fmt(d.goal):t.prog+' / '+d.goal}${t.done?' ✅':''}</div><div class="bar"><i style="width:${t.prog/d.goal*100}%"></i></div>

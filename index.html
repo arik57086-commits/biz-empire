@@ -2349,7 +2349,7 @@ function navHTML(){
   const link=(p,t)=>`<a data-go="${p}" class="${PAGE===p?'act':''}">${t}</a>`;
   let h=`<div class="logo" data-go="${u?'games':'home'}"><div class="mk">🏙️</div>Бизнес-империя</div>
     <a class="pill" data-go="${u?'games':'auth'}">Играть</a>`;
-  h+=u?link('friends','Друзья')+link('inventory','Инвентарь')+link('market','Маркет'):`<a data-act="scroll" data-to="rules">Правила</a><a data-act="guest">Играть без входа</a>`;
+  h+=u?link('friends','Друзья')+link('inventory','Инвентарь')+link('market','Маркет'):`<a data-act="scroll" data-to="rules">Правила</a>`;
   if(gameActive()) h+=`<a data-act="back">Вернуться в игру<span class="badge">●</span></a>`;
   h+='<div class="sp"></div>';
   if(u){
@@ -2363,7 +2363,7 @@ function navHTML(){
 const PAGES={
   home:()=>`<div class="lwrap"><section class="hero">
       <h1>Добро пожаловать в Бизнес-империю.</h1>
-      <p>Покупайте компании, стройте филиалы и разоряйте соперников — с друзьями или с ботами.</p>
+      <p>Покупайте компании, стройте филиалы и разоряйте соперников — вместе с друзьями.</p>
       <button class="cta" data-act="start">Начать игру</button><button class="cta2" data-act="scroll" data-to="rules">Как играть?</button>
     </section>
     <div class="mock"><div class="mbar"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div><div class="url">🔒 бизнес-империя/игра</div></div>
@@ -2400,7 +2400,7 @@ const PAGES={
         <label>Пароль (не короче 6 символов)</label><input class="inp" type="password" id="rPass" data-enter="register" autocomplete="new-password">
         <label>Повторите пароль</label><input class="inp" type="password" id="rPass2" data-enter="register" autocomplete="new-password">
         <div style="margin-top:14px"><button class="btn-o" data-act="register">Создать аккаунт</button></div><div class="err" id="rErr"></div></div>
-    </div><p class="muted center">Почта видна только вам — другим игрокам показываются ник и имя. Можно играть и без входа — <a style="color:#3b8fd6;cursor:pointer" data-act="guest">как гость с ботами</a>.</p></div>`,
+    </div><p class="muted center">Почта видна только вам — другим игрокам показываются ник и имя.</p></div>`,
 
   games:()=>{
     const u=me(), ts=ensureTasks(u); saveDB();
@@ -2431,9 +2431,6 @@ const PAGES={
         <button class="btn-o" data-act="mtabgo" data-t="vip">${isVip(u)?'Продлить VIP':'Купить VIP'}</button></div><div class="tick">🎟️</div></div>
       ${saved&&!gameActive()?`<div class="cardw ch" style="margin-bottom:22px"><div><h3>Незаконченная партия</h3><span class="muted">Можно продолжить с того же хода.</span></div><button data-act="cont">▶ Продолжить</button></div>`:''}
       ${gameActive()?`<div class="cardw ch" style="margin-bottom:22px"><div><h3>${NET.spec?'👁 Вы смотрите партию':'Идёт партия'}</h3><span class="muted">${M().ic} ${M().n}</span></div><div><button data-act="back">${NET.spec?'Смотреть дальше':'Вернуться в игру'}</button>${NET.spec?'<button class="sec" data-act="stopWatch">Выйти</button>':''}</div></div>`:''}
-      <div class="cardw"><div class="ch"><h3>Игра с ботами</h3><button class="sec" data-act="create">🤖 Играть с ботами</button></div>
-        <p class="muted" style="margin-top:-6px">Партия на этом компьютере. Чтобы играть с друзьями по сети — нажмите «Создать игру» в блоке «Ожидают игры».</p>
-        <div class="modes">${Object.entries(MODES).map(([id,m])=>`<div class="mode" data-act="mode" data-m="${id}" style="background:linear-gradient(135deg,${m.grad})"><div class="mic">${m.ic}</div><b>${m.n}${modeLock(id,u)?' 🔒':''}</b><span>${modeLock(id,u)==='vip'?'Нужен VIP':modeLock(id,u)==='lvl'?'Откроется на 10 уровне':modeLock(id,u)==='daily'?'Попытки кончились — завтра новая':m.s}</span></div>`).join('')}</div></div>
     </div></div>`;
   },
 

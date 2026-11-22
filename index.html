@@ -430,12 +430,12 @@ function askConfirm(text,okText='Да',danger=false){
     document.getElementById('dNo').onclick=()=>done(false);
   });
 }
-function askText(title,value=''){
+function askText(title,value='',o={}){
   return new Promise(res=>{
     const d=document.getElementById('dlg');
     d.innerHTML=`<div class="ov" style="z-index:60"><div class="box lt" style="width:380px">
-      <h3 style="margin-top:0">${title}</h3><input class="inp" id="dIn" maxlength="16">
-      <div style="text-align:center;margin-top:14px"><button id="dOk">Сохранить</button><button class="sec" id="dNo">Отмена</button></div></div></div>`;
+      <h3 style="margin-top:0">${title}</h3>${o.note?`<p class="muted" style="margin-top:-6px;line-height:1.5">${o.note}</p>`:''}<input class="inp" id="dIn" maxlength="${o.num?10:16}" ${o.num?'inputmode="decimal"':''}>
+      <div style="text-align:center;margin-top:14px"><button id="dOk">${o.ok||'Сохранить'}</button><button class="sec" id="dNo">Отмена</button></div></div></div>`;
     const inp=document.getElementById('dIn'); inp.value=value; inp.focus();
     const done=v=>{ d.innerHTML=''; res(v); };
     document.getElementById('dOk').onclick=()=>done(inp.value);
@@ -2383,7 +2383,8 @@ const PAGES={
         if(x.pool) btn+=`<button class="sm sec" data-act="peek" data-i="${id}">👁 Что внутри</button>`;
         if(x.type==='card') btn+=`<button class="sm" data-act="slotCard" data-i="${id}">📌 Надеть на компанию</button>`;
         if(x.type==='card'&&upgradeInfo(x)) btn+=`<button class="sm btn-o" data-act="upgrade" data-i="${id}" ${n>=UPGRADE_N?'':`disabled title="Нужно ${UPGRADE_N} одинаковые карточки"`}>⬆ Улучшить (${Math.min(n,UPGRADE_N)}/${UPGRADE_N})</button>`;
-        if(x.val) btn+=`<button class="sm sec" data-act="sell" data-i="${id}">Продать ${fmtC(r2(x.val*0.9))}</button>`;
+        if(x.type==='card') btn+=`<button class="sm btn-o" data-act="listLot" data-i="${id}">💰 Выставить на Маркет</button><button class="sm sec" data-act="sell" data-i="${id}">Банку ${fmtC(bankPrice(x))}</button>`;
+        else if(x.val) btn+=`<button class="sm sec" data-act="sell" data-i="${id}">Продать ${fmtC(bankPrice(x))}</button>`;
         return `<div class="tile ${u.eq===id?'eq':''}" data-n="${esc(x.n.toLowerCase())}" data-t="${x.type}" title="${esc(x.desc||'')}">${n>1?`<span class="cntb" style="z-index:2">×${n}</span>`:''}
           <div class="tart">${id==='tok_default'?`<div class="art" style="width:180px;height:150px">${avc({...u,eq:'tok_default'},90)}</div>`:itemArt(x,180,150)}</div>
           <div class="tname" style="background:linear-gradient(120deg,${RAR_GRAD[x.r]})">${esc(x.n)}</div>
@@ -2404,6 +2405,21 @@ const PAGES={
     if(marketTab==='buy'){
       const cat=(t,n)=>`<button class="sm ${marketCat===t?'':'sec'}" data-act="mcat" data-t="${t}">${n}</button>`;
       const shown=ITEMS.filter(x=>x.val&&(marketCat==='boxes'?['case','set','key'].includes(x.type):marketCat==='cards'?x.type==='card'&&(!marketColl||x.coll===marketColl):x.type==='token'));
+      const lots=lotsByItem();
+      // карточки продают только игроки: самая дешёвая цена и сколько лотов; нет лотов — «нет в наличии»
+      const cardRow=x=>{ const L=lots[x.id]||[], best=L[0], mine=best&&best.seller===DB.session;
+        return `<div class="mrow">${itemArt(x,110,80)}
+        <div class="mn2">${x.n}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span> <span class="muted" style="font-size:13px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · <b style="color:#e68a00">+${x.bonus}% к аренде</b></span>
+          <br><span class="muted" style="font-size:12px">${L.length?`Лотов: ${L.length}${L.length>1?` · до ${fmtC(L[L.length-1].price)}`:''} · продавец: ${esc(best.sellerName||'игрок')}`:'Пока никто не продаёт'}</span></div>
+        <div class="mp">${best?fmtC(best.price):'—'}</div>${best?`<button data-act="buyLot" data-l="${best.id}" style="width:110px" ${mine?'disabled title="Это ваш лот"':u.coins<best.price?'disabled title="Не хватает монет"':''}>${mine?'ВАШ ЛОТ':'КУПИТЬ'}</button>`
+          :'<button class="sec" style="width:110px" disabled>НЕТ В НАЛИЧИИ</button>'}</div>`; };
+      if(marketCat==='cards'){
+        const list=shown.slice().sort((a,b)=>(lots[b.id]?1:0)-(lots[a.id]?1:0)||(a.coll||'').localeCompare(b.coll||'')||b.r-a.r);
+        body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Карточки от игроков</h3>
+          <div style="margin-bottom:10px">${cat('boxes','🧰 Кейсы и наборы')}${cat('cards','🃏 Карточки')}${cat('tokens','♟ Фишки')}
+          <select class="inp" style="width:auto;margin-left:8px" onchange="marketColl=this.value;renderSite()"><option value="">Все коллекции</option>${Object.entries(COLLECTIONS).map(([k,c])=>`<option value="${k}" ${marketColl===k?'selected':''}>${c.ic} ${c.n}</option>`).join('')}</select></div>
+          <p class="muted" style="margin-top:0">Карточки не продаются Маркетом — только игроками, по цене, которую назначил продавец. Получить карточку можно после матча, из набора или кейса — или купить здесь у другого игрока.${DB.lotsReady?'':' <b>Загружаем лоты…</b>'}</p>`+list.map(cardRow).join('');
+      } else
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Купить предметы</h3>
         <div style="margin-bottom:10px">${cat('boxes','🧰 Кейсы и наборы')}${cat('cards','🃏 Карточки')}${cat('tokens','♟ Фишки')}
         ${marketCat==='cards'?`<select class="inp" style="width:auto;margin-left:8px" onchange="marketColl=this.value;renderSite()"><option value="">Все коллекции</option>${Object.entries(COLLECTIONS).map(([k,c])=>`<option value="${k}" ${marketColl===k?'selected':''}>${c.ic} ${c.n}</option>`).join('')}</select>`:''}</div>`+
@@ -2413,9 +2429,19 @@ const PAGES={
     } else if(marketTab==='sell'){
       const groups={}; (u.items||[]).forEach(x=>(groups[x.id]=(groups[x.id]||0)+1));
       const ids=Object.keys(groups);
-      body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Продать предметы</h3><p class="muted">Комиссия Маркета — 10%.</p>`+(ids.length?ids.map(id=>{ const x=item(id); return `<div class="mrow">${itemArt(x,110,80)}
-        <div class="mn2">${x.n} ${groups[id]>1?`<span class="muted">×${groups[id]}</span>`:''}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span></div>
-        <div class="mp">${fmtC(r2(x.val*0.9))}</div><button class="btn-o" data-act="sell" data-i="${id}" style="width:110px">ПРОДАТЬ</button></div>`; }).join(''):'<div class="empty"><div class="e">📦</div><p class="muted">Вам пока нечего продать. Предметы выпадают после матчей.</p></div>');
+      body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">Продать предметы</h3>
+        <p class="muted">🃏 <b>Карточки</b> выставляйте другим игрокам по своей цене (комиссия ${LOT_FEE*100}% с продажи) — или сразу сдайте Банку за ${BANK_CARD*100}% от ориентира. Остальное Маркет выкупает за 90%.</p>`+(ids.length?ids.map(id=>{ const x=item(id), card=x.type==='card', L=lotsByItem()[id]; return `<div class="mrow">${itemArt(x,110,80)}
+        <div class="mn2">${x.n} ${groups[id]>1?`<span class="muted">×${groups[id]}</span>`:''}<br><span class="rtag" style="background:${RAR[x.r][1]}">${RAR[x.r][0]}</span>
+          ${card?`<br><span class="muted" style="font-size:12px">Ориентир ${fmtC(x.val)}${L?` · дешевле всех сейчас: ${fmtC(L[0].price)}`:' · сейчас никто не продаёт'}</span>`:''}</div>
+        ${card?`<div style="display:flex;flex-direction:column;gap:2px"><button class="btn-o" data-act="listLot" data-i="${id}" style="width:150px">💰 ВЫСТАВИТЬ</button><button class="sec sm" data-act="sell" data-i="${id}" style="width:150px">Банку за ${fmtC(bankPrice(x))}</button></div>`
+          :`<div class="mp">${fmtC(bankPrice(x))}</div><button class="btn-o" data-act="sell" data-i="${id}" style="width:110px">ПРОДАТЬ</button>`}</div>`; }).join(''):'<div class="empty"><div class="e">📦</div><p class="muted">Вам пока нечего продать. Предметы выпадают после матчей.</p></div>');
+    } else if(marketTab==='lots'){
+      const my=(DB.myLots||[]).filter(l=>l.status==='open');
+      body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">📋 Мои лоты</h3>
+        <p class="muted">Пока карточка выставлена, её нет в инвентаре. Когда её купят, монеты (минус ${LOT_FEE*100}%) придут вам автоматически — даже если вас в это время нет в игре. Снять лот — карточка вернётся.</p>`+
+        (my.length?my.map(l=>{ const x=item(l.item); return `<div class="mrow">${itemArt(x,110,80)}<div class="mn2">${x.n}<br><span class="muted" style="font-size:12px">выставлен ${new Date(l.created).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})} · вы получите ${fmtC(lotNet(l.price))}</span></div>
+          <div class="mp">${fmtC(l.price)}</div><button class="sec" data-act="cancelLot" data-l="${l.id}" style="width:110px">СНЯТЬ</button></div>`; }).join('')
+          :'<div class="empty"><div class="e">🏷️</div><p class="muted">У вас нет выставленных карточек. Выставить — во вкладке «Продать».</p></div>');
     } else {
       body=`<h3 style="font-size:28px;font-weight:400;margin-bottom:8px">👑 VIP-статус</h3>
         <p style="line-height:1.7">✔ Все режимы игры: Быстрая, Расклад, Перестановка, На время, Дуэль<br>✔ Предмет после рейтингового матча с шансом 100%<br>✔ Золотая звезда ★ у имени в игре</p>
@@ -2424,11 +2450,11 @@ const PAGES={
           <button class="btn-o" data-act="vip" data-d="${v.days}" ${u.coins<v.price?'disabled':''}>Купить</button></div>`).join('')}</div>`;
     }
     return `<div class="page"><div class="mhero"><div class="lwrap" style="padding:0"><h1>Маркет</h1><div style="font-size:18px">Покупайте и продавайте предметы из своего инвентаря.</div></div></div>
-      <div style="margin-bottom:16px">${tab('buy','Купить')}${tab('sell','Продать')}${tab('vip','👑 VIP')}</div>
+      <div style="margin-bottom:16px">${tab('buy','Купить')}${tab('sell','Продать')}${tab('lots',`📋 Мои лоты${(DB.myLots||[]).filter(l=>l.status==='open').length?' ('+DB.myLots.filter(l=>l.status==='open').length+')':''}`)}${tab('vip','👑 VIP')}</div>
       <div class="cols" style="grid-template-columns:1fr 300px"><div class="cardw">${body}</div>
       <div><div class="cardw bal"><div class="muted">Ваш баланс</div><div class="v">${fmtC(u.coins)}</div><button data-go="inventory">Мой инвентарь</button></div>
-        <div class="cardw"><h3>Откуда монеты</h3><p style="line-height:1.6">В игре монеты не зарабатываются. После матча с некоторым шансом выпадает <b>карточка, набор или кейс</b> — продайте его здесь и получите монеты.</p>
-        <p class="muted">Чем дороже предмет, тем реже он выпадает. Карточки брендов: обычные — 🪙 0.1–1 (+1–5% к аренде), редкие — 🪙 1–25 (+5–15%), эпические — 🪙 25–50 (+15–25%), легендарные — 🪙 50–100 (+25–50%). Бонус работает, только если карточка надета на компанию (в инвентаре: «📌 Надеть на компанию»). Шансы каждого кейса и набора — по кнопке «👁 что внутри». Монеты игровые: за настоящие деньги ничего не продаётся.</p></div></div></div></div>`;
+        <div class="cardw"><h3>Откуда монеты</h3><p style="line-height:1.6">В игре монеты не зарабатываются. После матча с некоторым шансом выпадает <b>карточка, набор или кейс</b>. Карточку можно продать другим игрокам по своей цене или сдать Банку, остальное — продать Маркету.</p>
+        <p class="muted">Чем реже карточка, тем дороже она обычно стоит. Ориентир (по нему считается выкуп Банком): обычные — 🪙 0.1–1 (+1–5% к аренде), редкие — 🪙 1–25 (+5–15%), эпические — 🪙 25–50 (+15–25%), легендарные — 🪙 50–100 (+25–50%). Настоящую цену назначают продавцы. Бонус работает, только если карточка надета на компанию (в инвентаре: «📌 Надеть на компанию»). Шансы каждого кейса и набора — по кнопке «👁 что внутри». Монеты игровые: за настоящие деньги ничего не продаётся.</p></div></div></div></div>`;
   },
 
   admin:()=>{
@@ -2579,7 +2605,7 @@ const ACT={
     if(Object.keys(cleanSlots(u)).length&&!await askConfirm('Разложить карточки заново? Текущие надетые карточки будут переставлены.','Разложить')) return;
     const n=autoEquip(u); saveDB(); renderSite(); toast(`✔ Надето карточек: ${n}`); },
   dd:()=>{ DD=!DD; renderSite(); },
-  logout:()=>{ leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
+  logout:()=>{ stopLots(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),
   scroll:el=>{ if(PAGE!=='home') go('home'); setTimeout(()=>{ const t=document.getElementById(el.dataset.to); if(t) t.scrollIntoView({behavior:'smooth'}); },30); },
   rulespage:()=>ACT.scroll({dataset:{to:'rules'}}),
@@ -2634,11 +2660,11 @@ const ACT={
   mtab:el=>{ marketTab=el.dataset.t; renderSite(); },
   mcat:el=>{ marketCat=el.dataset.t; renderSite(); },
   mtabgo:el=>{ marketTab=el.dataset.t; go('market'); },
-  buyItem:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val||u.coins<x.val) return;
+  buyItem:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val||x.type==='card'||u.coins<x.val) return;
     if(!await askConfirm(`Купить ${x.ic} «${x.n}» за ${fmtC(x.val)}?`,'Купить')) return;
     if(u.coins<x.val) return; u.coins=r2(u.coins-x.val); addItem(u,x.id); saveDB(); renderSite(); toast(`✔ Куплено: ${x.n}`); },
   sell:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val) return;
-    const price=r2(x.val*0.9); if(!await askConfirm(`Продать ${x.ic} «${x.n}» за ${fmtC(price)}?`,'Продать')) return;
+    const price=bankPrice(x); if(!await askConfirm(`${x.type==='card'?'Сдать Банку':'Продать'} ${x.ic} «${esc(x.n)}» за ${fmtC(price)}?${x.type==='card'?`<br><span class="muted" style="font-size:14px">Игрокам можно продать дороже — кнопка «💰 Выставить».</span>`:''}`,'Продать')) return;
     // продаём сначала ненадетый экземпляр
     const used=new Set(Object.values(cleanSlots(u)));
     let k=(u.items||[]).findIndex(it=>it.id===x.id&&!used.has(it.uid)); if(k<0) k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
@@ -2656,6 +2682,9 @@ const ACT={
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
+  listLot:el=>listLot(el.dataset.i),
+  buyLot:el=>buyLot(el.dataset.l),
+  cancelLot:el=>cancelLot(el.dataset.l),
   // зрители: список идущих игр (где играют друзья или открытые комнаты)
   watchList:async()=>{
     if(!FB) return;
@@ -2704,6 +2733,88 @@ async function addFriend(nick){
 // загрузка данных для страниц (топ, «добавили вас в друзья», список для создателя)
 async function loadTop(){ if(!FB||!me()) return; try{ const s=await FB.db.collection('users').orderBy('rating','desc').limit(10).get();
   DB.top=s.docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }); if(PAGE==='games') renderSite(); }catch(e){ console.error('top',e); } }
+// ====== РЫНОК ИГРОКОВ: карточки продают только игроки, по своей цене ======
+// lots/{id}: {seller, sellerName, item, price, status:'open'|'sold', buyer, created, soldAt}
+// Выставить: карточка уходит из инвентаря в лот. Купить: лот помечается проданным (транзакция), покупатель
+// платит и получает карточку. Продавец забирает выручку сам (правила базы не дают писать в чужой профиль).
+const LOT_FEE=0.1, BANK_CARD=0.5, LOT_MAX=20, LOT_PRICE_MAX=100000;
+const bankPrice=x=>r2(x.val*(x.type==='card'?BANK_CARD:0.9));
+const lotNet=p=>r2(p*(1-LOT_FEE));
+let lotsUnsub=null, myLotsUnsub=null;
+DB.lots=[]; DB.myLots=[];
+// открытые лоты по предметам, от дешёвых к дорогим
+function lotsByItem(){ const g={}; for(const l of DB.lots||[]) if(l.status==='open') (g[l.item]=g[l.item]||[]).push(l);
+  for(const k in g) g[k].sort((a,b)=>a.price-b.price||a.created-b.created); return g; }
+function listenLots(){
+  if(!FB||!me()) return;
+  if(!lotsUnsub) lotsUnsub=FB.db.collection('lots').where('status','==','open').limit(500).onSnapshot(s=>{
+    DB.lots=s.docs.map(d=>({id:d.id,...d.data()})); DB.lotsReady=true; if(PAGE==='market'&&!$('#dlg').innerHTML) renderSite();
+  },e=>{ console.error('lots',e); DB.lotsReady=true; });
+  if(!myLotsUnsub) myLotsUnsub=FB.db.collection('lots').where('seller','==',DB.session).onSnapshot(s=>{
+    DB.myLots=s.docs.map(d=>({id:d.id,...d.data()}));
+    DB.myLots.filter(l=>l.status==='sold').forEach(collectLot);
+    if(PAGE==='market'&&!$('#dlg').innerHTML) renderSite();
+  },e=>console.error('mylots',e));
+}
+function stopLots(){ if(lotsUnsub){ lotsUnsub(); lotsUnsub=null; } if(myLotsUnsub){ myLotsUnsub(); myLotsUnsub=null; } DB.lots=[]; DB.myLots=[]; DB.lotsReady=false; }
+// продавец: забрать деньги за проданный лот (ровно один раз — лот удаляется в транзакции)
+const collecting=new Set();
+async function collectLot(l){
+  if(collecting.has(l.id)) return; collecting.add(l.id);
+  try{
+    let got=null;
+    await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(l.id), s=await tx.get(ref);
+      got=null; if(!s.exists) return; const d=s.data(); if(d.status!=='sold'||d.seller!==DB.session) return; got=d; tx.delete(ref); });
+    const u=me(); if(got&&u){ u.coins=r2((u.coins||0)+lotNet(got.price)); saveDB(); toast(`💰 Продано: «${item(got.item).n}» за ${fmtC(got.price)} — вам ${fmtC(lotNet(got.price))}`); if(PAGE==='market'||PAGE==='inventory') renderSite(); }
+  }catch(e){ console.error('collect',e); collecting.delete(l.id); }
+}
+async function listLot(id){
+  const u=me(), x=item(id); if(!u||!FB||x.type!=='card') return;
+  if((DB.myLots||[]).filter(l=>l.status==='open').length>=LOT_MAX) return toast(`Не больше ${LOT_MAX} лотов одновременно`);
+  const L=lotsByItem()[id], hint=L?`Сейчас дешевле всех: ${fmtC(L[0].price)}.`:'Сейчас эту карточку никто не продаёт.';
+  const v=await askText(`💰 Выставить «${esc(x.n)}»`,String(L?L[0].price:x.val),{num:1,ok:'Выставить',
+    note:`Назначьте цену в монетах 🪙. Ориентир: ${fmtC(x.val)}. ${hint}<br>Вы получите цену минус ${LOT_FEE*100}% комиссии Маркета.`});
+  if(v===null||v===undefined||v==='') return;
+  const price=r2(parseFloat(String(v).replace(',','.')));
+  if(!(price>=0.01&&price<=LOT_PRICE_MAX)) return toast(`Цена — от 🪙 0.01 до 🪙 ${LOT_PRICE_MAX}`);
+  // убираем экземпляр из инвентаря (сначала ненадетый)
+  const used=new Set(Object.values(cleanSlots(u)));
+  let k=u.items.findIndex(it=>it.id===id&&!used.has(it.uid)); if(k<0) k=u.items.findIndex(it=>it.id===id); if(k<0) return;
+  const [it]=u.items.splice(k,1); cleanSlots(u);
+  try{
+    await saveAccount(u);
+    await FB.db.collection('lots').add({seller:DB.session,sellerName:u.name,item:id,price,status:'open',created:Date.now()});
+    toast(`✔ Выставлено: «${x.n}» за ${fmtC(price)}`);
+  }catch(e){ u.items.push(it); saveDB(); toast('Не удалось выставить: '+(e.message||e)); }
+  renderSite();
+}
+async function buyLot(lid){
+  const u=me(), l=(DB.lots||[]).find(x=>x.id===lid); if(!u||!FB) return;
+  if(!l||l.status!=='open') return toast('Этот лот уже купили — обновляем список');
+  if(l.seller===DB.session) return;
+  const x=item(l.item);
+  if((u.coins||0)<l.price) return toast('Не хватает монет');
+  if(!await askConfirm(`Купить ${x.ic} «${esc(x.n)}» у ${esc(l.sellerName||'игрока')} за ${fmtC(l.price)}?`,'Купить')) return;
+  if((u.coins||0)<l.price) return;
+  try{
+    await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(lid), s=await tx.get(ref);
+      if(!s.exists||s.data().status!=='open') throw new Error('Этот лот уже купили');
+      tx.update(ref,{status:'sold',buyer:DB.session,soldAt:Date.now()}); });
+    u.coins=r2(u.coins-l.price); addItem(u,l.item); await saveAccount(u);
+    toast(`✔ Куплено: «${x.n}» за ${fmtC(l.price)}`); renderSite();
+  }catch(e){ toast(e.message||String(e)); }
+}
+async function cancelLot(lid){
+  const u=me(); if(!u||!FB) return;
+  let got=null;
+  try{
+    await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(lid), s=await tx.get(ref);
+      got=null; if(!s.exists) return; const d=s.data(); if(d.seller!==DB.session||d.status!=='open') return; got=d; tx.delete(ref); });
+    if(got){ addItem(u,got.item); saveDB(); toast('Лот снят — карточка вернулась в инвентарь'); }
+    else toast('Лот уже продан — монеты придут автоматически');
+    renderSite();
+  }catch(e){ toast('Ошибка: '+(e.message||e)); }
+}
 // таблицы лидеров сезона и задачи дня (одиночные поля сортируются без отдельных индексов)
 const seasonDaysLeft=()=>{ const n=new Date(), e=new Date(n.getFullYear(),n.getMonth()+1,1); return Math.max(1,Math.ceil((e-n)/86400000)); };
 async function loadBoards(){ if(!FB||!me()) return;
@@ -2720,7 +2831,7 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom();
+  listenLobby(); rejoinMyRoom(); listenLots();
 }
 if(FB){
   FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});

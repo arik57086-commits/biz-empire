@@ -518,7 +518,7 @@ COLL_KEYS.forEach((k,ki)=>{
     const [v0,v1]=VAL_RANGE[r], [b0,b1]=BONUS_RANGE[r];
     const bonus=Math.round(b0+(b1-b0)*f);
     ITEMS.push({id:`card_${k}_${bi}`,type:'card',n:b,ic:cl.ic,r,val:r2(v0+(v1-v0)*f),col:k in GROUPS?GROUPS[k].c:cl.c,coll:k,bonus,
-      desc:`Коллекция «${cl.n}». В игре: +${bonus}% к аренде на всех ваших компаниях группы «${cl.n}».`});
+      desc:`Коллекция «${cl.n}». Наденьте на одну компанию этой коллекции — когда в игре она ваша, аренда за неё +${bonus}%.`});
   });
 });
 const CARDS=ITEMS.filter(x=>x.type==='card');
@@ -571,8 +571,19 @@ function rollDrop(guaranteed){
     return b<0.6?item('set_'+randOf(COLL_KEYS)):b<0.8?item('set_start'):b<0.9?item('set_elite'):item(randOf(['case_emp','case_lux','case_coll'])); }
   return randOf(CARDS.filter(x=>x.r===+k.slice(4)));
 }
-// лучший бонус карточек аккаунта по коллекциям: {коллекция: {pct, brand}}
-function cardBonuses(a){ const b={}; (a&&a.items||[]).forEach(it=>{ const x=item(it.id); if(x.type==='card'&&(!b[x.coll]||x.bonus>b[x.coll].pct)) b[x.coll]={pct:x.bonus,brand:x.n}; }); return b; }
+// Надетые карточки: a.slots = {индекс клетки поля: uid предмета}. Карточка надевается на ОДНУ компанию своей коллекции
+// и даёт бонус к аренде только этой компании (если в партии она ваша).
+function cleanSlots(a){
+  a.slots=a.slots||{};
+  for(const k in a.slots){ const it=(a.items||[]).find(x=>x.uid===a.slots[k]), x=it&&item(it.id), c=BASE_CELLS[k];
+    if(!x||x.type!=='card'||!c||x.coll!==collOf(c)) delete a.slots[k]; }
+  return a.slots;
+}
+// бонусы аккаунта для партии: {индекс клетки: {pct, brand}}
+function cardBonuses(a){ const b={}; if(!a) return b; const s=cleanSlots(a);
+  for(const k in s){ const x=item(a.items.find(it=>it.uid===s[k]).id); b[k]={pct:x.bonus,brand:x.n}; } return b; }
+// на какие клетки надеты экземпляры карточки id
+const slotsOf=(a,id)=>Object.keys(cleanSlots(a)).filter(k=>{ const it=a.items.find(x=>x.uid===a.slots[k]); return it&&it.id===id; }).map(Number);
 // ====== КАРТИНКИ ПРЕДМЕТОВ ======
 const RAR_GRAD=['#62b9ea,#2f9fd8','#5cc68a,#2e9e5b','#a77be0,#7b4fd0','#ffb347,#ff7b29'];
 // w,h — размер в px. Бренд: своя картинка из logos/ (если есть), иначе табличка в фирменных цветах.
@@ -678,7 +689,7 @@ function calcRent(i,dice){
   return 0;
 }
 // бонус карточки игрока p для клетки i текущего поля (поле может быть перемешано)
-const cellBonus=(p,i)=>{ const b=p&&p.bonus&&isOwnable(CELLS[i])&&p.bonus[collOf(CELLS[i])]; return b&&typeof b==='object'?b.pct:0; };
+const cellBonus=(p,i)=>{ const b=p&&p.bonus&&isOwnable(CELLS[i])&&p.bonus[BASE_CELLS.indexOf(CELLS[i])]; return b&&typeof b==='object'?b.pct:0; };
 function netWorth(p){ return p.money+cellsOf(p.id).reduce((s,i)=>s+CELLS[i].price*(G.cells[i].mort?0.5:1)+G.cells[i].level*(CELLS[i].house||0),0); }
 function gridPos(i){ if(i<=10) return [1,i+1]; if(i<20) return [i-9,11]; if(i<=30) return [11,11-(i-20)]; return [11-(i-30),1]; }
 function log(h){ G.log.push(h); if(G.log.length>300) G.log.shift(); renderLog(); netPublish(); }
@@ -796,7 +807,7 @@ function showPlayerProfile(p){
     <div class="stat"><span>Деньги</span><b>${p.out?'Банкрот':fmt(p.money)}</b></div>
     <div class="stat"><span>Капитал (деньги + имущество)</span><b>${fmt(netWorth(p))}</b></div>
     <div class="stat"><span>Компаний</span><b>${props.length}</b></div>
-    ${Object.keys(p.bonus||{}).length?`<div style="margin:10px 0"><b>🃏 Бонусы карточек к аренде:</b><br>${Object.entries(p.bonus).filter(([k,v])=>COLLECTIONS[k]&&v&&v.pct).sort((a,b)=>b[1].pct-a[1].pct).map(([k,v])=>`<span style="white-space:nowrap;margin-right:10px">${COLLECTIONS[k].ic} ${COLLECTIONS[k].n} (${esc(v.brand)}) <b style="color:#ffb627">+${v.pct}%</b></span>`).join(' ')}</div>`:''}
+    ${Object.keys(p.bonus||{}).length?`<div style="margin:10px 0"><b>🃏 Бонусы карточек к аренде:</b><br>${Object.entries(p.bonus).filter(([k,v])=>BASE_CELLS[k]&&v&&v.pct).sort((a,b)=>b[1].pct-a[1].pct).map(([k,v])=>`<span style="white-space:nowrap;margin-right:10px">${BASE_CELLS[k].ic} ${BASE_CELLS[k].name} (${esc(v.brand)}) <b style="color:#ffb627">+${v.pct}%</b></span>`).join(' ')}</div>`:''}
     <div style="margin:10px 0;line-height:1.8">${props.map(i=>`<span style="white-space:nowrap;margin-right:8px"><span class="sw" style="display:inline-block;width:10px;height:10px;background:${CELLS[i].g?GROUPS[CELLS[i].g].c:'#888'}"></span> ${CELLS[i].ic} ${CELLS[i].name}${G.cells[i].level?' '+'★'.repeat(G.cells[i].level):''}${G.cells[i].mort?' 🔒':''}</span>`).join('')||'<span class="muted">Нет компаний</span>'}</div>
     <div style="text-align:center"><button class="sec" id="ppx">Закрыть</button></div></div></div>`;
   $('#ppov').onclick=e=>{ if(e.target.id==='ppov'||e.target.id==='ppx') closeModal(); };
@@ -1892,12 +1903,15 @@ const PAGES={
         if(x.type==='case') btn=`<button class="sm btn-o" data-act="open" data-i="${id}" ${keys?'':'disabled title="Нужен ключ 🔑"'}>Открыть 🔑</button>`;
         if(x.type==='set') btn=`<button class="sm btn-o" data-act="open" data-i="${id}">Открыть</button>`;
         if(x.pool) btn+=`<button class="sm sec" data-act="peek" data-i="${id}">👁 Что внутри</button>`;
+        if(x.type==='card') btn+=`<button class="sm" data-act="slotCard" data-i="${id}">📌 Надеть на компанию</button>`;
         if(x.val) btn+=`<button class="sm sec" data-act="sell" data-i="${id}">Продать ${fmtC(r2(x.val*0.9))}</button>`;
         return `<div class="tile ${u.eq===id?'eq':''}" data-n="${esc(x.n.toLowerCase())}" data-t="${x.type}" title="${esc(x.desc||'')}">${n>1?`<span class="cntb" style="z-index:2">×${n}</span>`:''}
           <div class="tart">${id==='tok_default'?`<div class="art" style="width:180px;height:150px">${avc({...u,eq:'tok_default'},90)}</div>`:itemArt(x,180,150)}</div>
           <div class="tname" style="background:linear-gradient(120deg,${RAR_GRAD[x.r]})">${esc(x.n)}</div>
           <div class="tinfo"><span style="color:${RAR[x.r][1]};font-weight:600">${RAR[x.r][0]}</span> · ${TYPE_N[x.type]} · ${x.val?fmtC(x.val):'не продаётся'}
-            ${x.type==='card'?`<div style="color:#e68a00;font-weight:600;margin-top:3px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · +${x.bonus}% к аренде</div>`:''}
+            ${x.type==='card'?`<div style="color:#e68a00;font-weight:600;margin-top:3px">${COLLECTIONS[x.coll].ic} ${COLLECTIONS[x.coll].n} · +${x.bonus}% к аренде</div>
+              ${(()=>{ const on=slotsOf(u,id); return on.length?`<div style="color:#2e9e5b;font-weight:600;margin-top:3px">📌 Надета: ${on.map(k=>esc(BASE_CELLS[k].name)).join(', ')}</div>`
+                :'<div class="muted" style="margin-top:3px">Не надета — бонус не действует</div>'; })()}`:''}
             <div style="margin-top:4px">${btn}</div></div></div>`; }).join('')}</div>
       ${!(u.items||[]).length?`<div class="empty"><div class="e">📦</div><h3>Ваш инвентарь пуст</h3><p class="muted">Предметы выпадают после матчей. Их также можно купить на <a style="color:#3b8fd6;cursor:pointer" data-go="market">Маркете</a>.</p></div>`:''}
     </div>`;
@@ -1935,7 +1949,7 @@ const PAGES={
       <div class="cols" style="grid-template-columns:1fr 300px"><div class="cardw">${body}</div>
       <div><div class="cardw bal"><div class="muted">Ваш баланс</div><div class="v">${fmtC(u.coins)}</div><button data-go="inventory">Мой инвентарь</button></div>
         <div class="cardw"><h3>Откуда монеты</h3><p style="line-height:1.6">В игре монеты не зарабатываются. После матча с некоторым шансом выпадает <b>карточка, набор или кейс</b> — продайте его здесь и получите монеты.</p>
-        <p class="muted">Чем дороже предмет, тем реже он выпадает. Карточки брендов: обычные — 🪙 0.1–1 (+1–5% к аренде), редкие — 🪙 1–25 (+5–15%), эпические — 🪙 25–50 (+15–25%), легендарные — 🪙 50–100 (+25–50%). Шансы каждого кейса и набора — по кнопке «👁 что внутри». Монеты игровые: за настоящие деньги ничего не продаётся.</p></div></div></div></div>`;
+        <p class="muted">Чем дороже предмет, тем реже он выпадает. Карточки брендов: обычные — 🪙 0.1–1 (+1–5% к аренде), редкие — 🪙 1–25 (+5–15%), эпические — 🪙 25–50 (+15–25%), легендарные — 🪙 50–100 (+25–50%). Бонус работает, только если карточка надета на компанию (в инвентаре: «📌 Надеть на компанию»). Шансы каждого кейса и набора — по кнопке «👁 что внутри». Монеты игровые: за настоящие деньги ничего не продаётся.</p></div></div></div></div>`;
   },
 
   admin:()=>{
@@ -1989,6 +2003,36 @@ function filterInv(){
   const q=($('#invQ').value||'').toLowerCase(), r=$('#invR').value;
   document.querySelectorAll('.tile').forEach(el=>el.style.display=(el.dataset.n.includes(q)&&(r===''||el.dataset.t===r))?'':'none');
 }
+// ====== НАДЕТЬ КАРТОЧКУ НА КОМПАНИЮ ======
+function showSlotModal(id){
+  const u=me(), x=item(id); if(!u||x.type!=='card') return;
+  cleanSlots(u);
+  const cells=BASE_CELLS.map((c,i)=>[c,i]).filter(([c])=>isOwnable(c)&&collOf(c)===x.coll);
+  const mine=u.items.filter(it=>it.id===id), on=slotsOf(u,id);
+  const rows=cells.map(([c,i])=>{
+    const cur=u.slots[i]&&item(u.items.find(it=>it.uid===u.slots[i]).id);
+    const here=cur&&cur.id===id;
+    return `<div class="crow" style="border-left:5px solid ${c.g?GROUPS[c.g].c:COLLECTIONS[x.coll].c}">
+      <span class="ci">${c.ic}</span><span class="cnm"><b>${esc(c.name)}</b><br><small class="muted">${cur?`надета: ${esc(cur.n)} (+${cur.bonus}%)`:'свободно'}</small></span>
+      ${here?`<button class="sm sec" data-unslot="${i}">Снять</button>`:`<button class="sm" data-slot="${i}">${cur?'Заменить':'Надеть сюда'}</button>`}</div>`; }).join('');
+  $('#modal').innerHTML=`<div class="ov" id="slov" style="z-index:55"><div class="box lt" style="width:520px"><button class="x" id="slx">✕</button>
+    <div style="display:flex;gap:14px;align-items:center">${itemArt(x,110,80)}<div><h2 style="margin:0">${esc(x.n)}</h2>
+      <div class="muted">+${x.bonus}% к аренде · коллекция «${COLLECTIONS[x.coll].n}» · у вас ${mine.length} шт., надето ${on.length}</div></div></div>
+    <p style="line-height:1.5">Выберите компанию на поле. Когда в партии она ваша, за неё платят аренду на <b>+${x.bonus}%</b> больше. На одну компанию — одна карточка.</p>
+    <div>${rows}</div></div></div>`;
+  $('#slov').onclick=e=>{
+    if(e.target.id==='slov'||e.target.id==='slx') return closeModal();
+    const s=e.target.closest('[data-slot]'), us=e.target.closest('[data-unslot]');
+    if(us){ delete u.slots[us.dataset.unslot]; saveDB(); renderSite(); showSlotModal(id); return; }
+    if(s){ const cell=+s.dataset.slot;
+      // свободный экземпляр этой карточки; если все надеты — переносим один с другой компании
+      const used=new Set(Object.values(u.slots));
+      let inst=mine.find(it=>!used.has(it.uid));
+      if(!inst){ inst=mine[0]; for(const k in u.slots) if(u.slots[k]===inst.uid) delete u.slots[k]; }
+      u.slots[cell]=inst.uid; saveDB(); toast(`✔ ${x.n} надета на ${BASE_CELLS[cell].name}`); renderSite(); showSlotModal(id); }
+  };
+}
+
 // ====== «ЧТО ВНУТРИ» КЕЙСА/НАБОРА ======
 function showContents(id){
   const box=item(id); if(!box.pool) return;
@@ -2049,6 +2093,7 @@ const ACT={
   ...ADMIN_ACT,
   ...ACT_EXTRA,
   peek:el=>showContents(el.dataset.i),
+  slotCard:el=>showSlotModal(el.dataset.i),
   dd:()=>{ DD=!DD; renderSite(); },
   logout:()=>{ leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),
@@ -2110,8 +2155,10 @@ const ACT={
     if(u.coins<x.val) return; u.coins=r2(u.coins-x.val); addItem(u,x.id); saveDB(); renderSite(); toast(`✔ Куплено: ${x.n}`); },
   sell:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val) return;
     const price=r2(x.val*0.9); if(!await askConfirm(`Продать ${x.ic} «${x.n}» за ${fmtC(price)}?`,'Продать')) return;
-    const k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
-    u.items.splice(k,1); u.coins=r2(u.coins+price); toast(`✔ Продано за ${fmtC(price)}`); if(u.eq===x.id&&!hasItem(u,x.id)) u.eq='tok_default'; saveDB(); renderSite(); },
+    // продаём сначала ненадетый экземпляр
+    const used=new Set(Object.values(cleanSlots(u)));
+    let k=(u.items||[]).findIndex(it=>it.id===x.id&&!used.has(it.uid)); if(k<0) k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
+    u.items.splice(k,1); cleanSlots(u); u.coins=r2(u.coins+price); toast(`✔ Продано за ${fmtC(price)}`); if(u.eq===x.id&&!hasItem(u,x.id)) u.eq='tok_default'; saveDB(); renderSite(); },
   open:el=>{ const u=me(), x=item(el.dataset.i), k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
     if(x.type==='case'){ const kk=u.items.findIndex(it=>it.id==='key'); if(kk<0) return; u.items.splice(kk,1); }
     u.items.splice(u.items.findIndex(it=>it.id===x.id),1);

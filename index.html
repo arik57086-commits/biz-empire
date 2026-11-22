@@ -1335,8 +1335,31 @@ async function surrender(p){
   if(!G||p.out||G.over) return;
   if(!await askConfirm(`${esc(p.name)}, точно сдаться? Все ваши компании вернутся банку, и вы выбываете из игры.`,'Сдаться',true)) return;
   if(!G||p.out||G.over) return;
-  if(NET.role==='guest'){ netSend({kind:'cmd',name:'surrender'}); return; }
+  if(NET.role==='guest'){ netSend({kind:'cmd',name:'surrender'}); afterSurrender(); return; }
   doSurrender(p);
+  if(G&&!G.over) afterSurrender();
+}
+// сдавшемуся: партия идёт дальше без него (если игроков было 3+) — можно уйти в меню или смотреть
+function afterSurrender(){
+  setTimeout(()=>{ if(!G||G.over) return;
+    const host=NET.role==='host'&&G.online;
+    $('#modal').innerHTML=`<div class="ov" id="sgov"><div class="box" style="width:380px;text-align:center"><div style="font-size:44px">🏳️</div>
+      <h2 style="margin:4px 0">Вы сдались</h2><p>Партия продолжается без вас. Итоги матча придут, когда она закончится.</p>
+      ${host?'<p class="muted">Вы создатель комнаты: не закрывайте вкладку, пока игра не закончится — иначе она остановится у всех.</p>':''}
+      <button id="sgMenu">В меню</button><button class="sec" id="sgWatch">Смотреть дальше</button></div></div>`;
+    $('#sgMenu').onclick=()=>{ closeModal(); showLanding(); };
+    $('#sgWatch').onclick=closeModal;
+  },600);
+}
+// остался один игрок — партия заканчивается сразу, не дожидаясь конца чужого хода
+function endIfLastStanding(){
+  if(!G||G.over) return false;
+  const alive=G.players.filter(x=>!x.out); if(alive.length>1) return false;
+  gameId++; stopTimer(); const r=pending; pending=null; G.awaiting=false; G.askData=null; askData=null;
+  if(typeof TR!=='undefined'&&TR) closeTrade();
+
+  closeModal(); finishGame(alive[0]);
+  return true;
 }
 const EARLY_SURRENDER=5; // сдался за первые 5 своих ходов — награды за матч нет
 function doSurrender(p){
@@ -1344,6 +1367,7 @@ function doSurrender(p){
   log(`🏳️ ${pn(p)} сдаётся`);
   if((p.turns||0)<=EARLY_SURRENDER){ p.noReward=true; log(`${pn(p)} сдался в первые ${EARLY_SURRENDER} ходов — награды за этот матч не будет`); }
   bankrupt(p,-1);
+  if(endIfLastStanding()) return;
   if(pending&&actor()===p) answer(G.phase==='debt'?'give':'surrender');
 }
 function showPlayerProfile(p){
@@ -1398,7 +1422,7 @@ $('#actions').onclick=e=>{
   const b=e.target.closest('button[data-a]'); if(!b||b.disabled) return; const x=b.dataset.a;
   if(NET.role==='guest'){ if(x==='credit'||x==='repay') netSend({kind:'cmd',name:x}); else answer(x); return; }
   if(x==='trade') openTrade(); else if(x==='credit') takeCredit(actor()); else if(x==='repay') repayCredit(actor()); else answer(x); };
-function ask(phase,data){ G.phase=phase; askData=data||null; G.askData=askData; G.awaiting=true; return new Promise(r=>{ pending=r; startTimer(); render(); netPublishNow(); }); }
+function ask(phase,data){ if(G&&G.over) return new Promise(()=>{}); G.phase=phase; askData=data||null; G.askData=askData; G.awaiting=true; return new Promise(r=>{ pending=r; startTimer(); render(); netPublishNow(); }); }
 function answer(v){
   if(NET.role==='guest'){ // гость не ведёт игру — он отправляет свой выбор хозяину комнаты
     if(!canAct()) return; G.awaiting=false; netSend({kind:'answer',phase:G.phase,v:String(v)}); renderActions(); return;
@@ -1659,6 +1683,7 @@ function botBid(p,i,next){
 }
 // Вопрос конкретному игроку: если он играет по сети с другого компьютера — спрашиваем через базу
 function askBid(p,i,next,leader,cur){
+  if(!G||G.over) return new Promise(()=>{});
   if(isRemote(p)) return askRemote(p,'bid',{i,next,leader:leader?leader.id:null,cur},false).then(v=>!!v);
   return askBidUI(p,i,next,leader,cur);
 }
@@ -1678,6 +1703,7 @@ function askBidUI(p,i,next,leader,cur){
 // ====== КАЗИНО ======
 const CASINO_MULT={1:5,2:2.5,3:1.6};
 function casinoModal(p){
+  if(!G||G.over) return new Promise(()=>{});
   if(isRemote(p)) return askRemote(p,'casino',{},null);
   return casinoModalUI(p);
 }
@@ -1794,6 +1820,7 @@ function botScore(pid,t){
   return s;
 }
 function confirmTrade(t){
+  if(!G||G.over) return new Promise(()=>{});
   const B=G.players[t.to];
   if(isRemote(B)) return askRemote(B,'trade',{t},false).then(v=>!!v);
   return confirmTradeUI(t);
@@ -2250,6 +2277,7 @@ function netPublishNow(){
 function netSend(o){ if(!FB||!NET.rid) return; roomRef().collection('actions').add({...o,uid:DB.session,at:Date.now()}).catch(e=>toast('Не отправилось: '+(e.message||e))); }
 // спросить игрока на другом компьютере; если не ответит за 40 сек — ответ по умолчанию
 function askRemote(p,kind,data,def){
+  if(!G||G.over) return new Promise(()=>{});
   const id=Math.random().toString(36).slice(2,10);
   G.remoteAsk={id,pid:p.id,kind,data}; netPublishNow();
   return new Promise(res=>{

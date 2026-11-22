@@ -294,6 +294,60 @@ button.big{font-size:18px;padding:12px 28px}
 .lfoot{background:#e3e7f0;color:#667;padding:36px 0;font-size:14px}
 .lfoot .lwrap{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
 .lfoot a{color:#3b8fd6;cursor:pointer;display:block;margin:6px 0}
+/* ===== Телефон: игроки полоской сверху, поле на всю ширину, журнал под полем ===== */
+#mobileLog{display:none}
+@media (max-width:820px){
+  body{overflow-x:hidden}
+  #app{flex-direction:column;align-items:stretch;padding:4px;gap:4px}
+  #players{width:100%;flex-direction:row;overflow-x:auto;gap:4px;flex:none;scrollbar-width:none}
+  .pl{flex:1 0 82px;padding:4px 3px 5px;border-radius:8px}
+  .pl .av{width:26px;height:26px;font-size:13px;margin-bottom:2px;border-width:2px}
+  .pl .nm{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl .mn{font-size:13px;margin-top:1px}
+  .pl .tag{font-size:9px;white-space:nowrap;overflow:hidden}
+  .tmr{font-size:10px;padding:1px 5px;left:2px;top:2px}
+  .pmenu{font-size:13px}.pmi{padding:8px 10px}
+  #board{--s:min(calc(100vw - 8px),calc(100vh - 96px));min-width:0;min-height:0;margin:0 auto;flex:none}
+  .cell{padding-top:14%;font-size:calc(var(--s)/40)}
+  .cell .cn{display:none}
+  .cell .ic{font-size:calc(var(--s)/20)}
+  .cell .pr{font-size:calc(var(--s)/46);padding:0 2px;margin-top:1px}
+  .cell .lv{font-size:calc(var(--s)/40)}
+  .cell.corner .ic{font-size:calc(var(--s)/13)}
+  .tok,.tok.sk{width:calc(var(--s)/30);height:calc(var(--s)/30);border-width:1px;font-size:calc(var(--s)/50)}
+  #center{padding:6px;gap:4px}
+  #title{font-size:13px}#minfo{font-size:10px}
+  #dice{font-size:30px;letter-spacing:2px}#dice small,#dice .d3{font-size:20px}
+  #top button{padding:4px 8px;font-size:12px;margin:1px}
+  #actions{min-height:0}
+  #actions button{padding:7px 10px;font-size:13px;margin:2px}
+  #actions .q{font-size:13px;margin:2px 0}#actions .hint{font-size:10px;margin:2px}
+  #app{min-height:100vh;min-height:100dvh}
+  #mobileLog{display:flex;flex-direction:column;flex:1 1 auto;min-height:110px}
+  #mobileLog #log{flex:1;font-size:12px;background:#262b38;max-height:none}
+  /* боковые клетки на телефоне низкие и широкие — значок и цена рядом */
+  .cell.side{flex-direction:row;gap:1px;padding-top:6%}
+  .cell.side .ic{font-size:calc(var(--s)/26)}
+  .cell.side .pr{margin-top:0}
+  #newBtn{white-space:nowrap}
+  .ingame-menu{left:auto;right:6px;bottom:6px;padding:6px 10px;font-size:13px}
+  .tcols{flex-direction:column}
+  .box{padding:14px}
+  .card{width:min(300px,92vw)}
+}
+/* телефон боком: игроки колонкой слева, поле по высоте экрана */
+@media (max-width:950px) and (max-height:520px) and (orientation:landscape){
+  #app{flex-direction:row;align-items:flex-start;padding:4px;gap:4px}
+  #players{width:96px;flex-direction:column;overflow-y:auto;max-height:calc(100vh - 8px)}
+  .pl{flex:none;padding:3px}
+  .pl .av{width:22px;height:22px;font-size:11px}.pl .nm{font-size:10px}.pl .mn{font-size:12px}
+  #board{--s:calc(100vh - 8px);min-width:0;min-height:0}
+  .cell .cn{display:none}.cell{padding-top:14%;font-size:calc(var(--s)/40)}
+  .cell .ic{font-size:calc(var(--s)/20)}.cell .pr{font-size:calc(var(--s)/46)}
+  #title{font-size:12px}#dice{font-size:26px}
+  #actions button{padding:5px 8px;font-size:12px}
+  #mobileLog{display:none}#log{font-size:11px}
+}
 @media(max-width:900px){.cols,.auth{grid-template-columns:1fr}.auth .or{height:40px}.lnav{flex-wrap:wrap}.mpl{display:none}.mbody{height:auto}.hero .cta2{margin:12px 0 0}.mm{flex-direction:column;width:auto}.ml{width:auto}.prof{flex-direction:column}}
 </style>
 </head>
@@ -301,10 +355,11 @@ button.big{font-size:18px;padding:12px 28px}
 <div id="app">
   <div id="players"></div>
   <div id="board"><div id="center">
-    <div id="top"><div id="title">Бизнес<span>-империя</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><button class="sec" id="newBtn">Новая игра</button></div>
+    <div id="top"><div id="title">Бизнес<span>-империя</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
     <div id="actions"></div>
     <div id="log"></div>
   </div></div>
+  <div id="mobileLog"></div>
 </div>
 <button class="sec ingame-menu" id="menuBtn">☰ Меню</button>
 
@@ -669,6 +724,9 @@ const $=s=>document.querySelector(s);
 let gameId=0; // при новой игре старые таймеры прерываются
 const sleep=ms=>{ const id=gameId; return new Promise((r,j)=>setTimeout(()=>id===gameId?r():j('stale'),ms)); };
 const fmt=n=>'$'+Math.round(n).toLocaleString('en-US')+'k';
+// короткая цена для клеток на узком экране: $600k, $1.2M, $4M
+const fmtCell=n=>{ if(!window.matchMedia||!matchMedia('(max-width:820px), (max-height:520px)').matches) return fmt(n);
+  n=Math.round(n); return n<1000?'$'+n+'k':'$'+(Math.round(n/100)/10)+'M'; };
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pn=p=>`<b style="color:${p.color}">${esc(p.name)}</b>`;
 const cn=i=>`<b>${CELLS[i].name}</b>`;
@@ -706,7 +764,7 @@ function buildBoard(){
   const b=$('#board');
   b.querySelectorAll('.cell').forEach(e=>e.remove());
   CELLS.forEach((c,i)=>{
-    const d=document.createElement('div'); d.className='cell'+([0,10,20,30].includes(i)?' corner':''); d.id='c'+i;
+    const d=document.createElement('div'); d.className='cell'+([0,10,20,30].includes(i)?' corner':'')+((i>10&&i<20)||i>30?' side':''); d.id='c'+i;
     const [r,col]=gridPos(i); d.style.gridRow=r; d.style.gridColumn=col;
     d.innerHTML=(c.g?`<div class="band" style="background:${GROUPS[c.g].c}"></div>`:'')+
       `<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div>`;
@@ -739,9 +797,9 @@ function render(){
     el.classList.toggle('owned',isOwnable(c)&&s.owner>=0);
     el.classList.toggle('mort',!!s.mort);
     if(isOwnable(c)){
-      if(s.owner>=0){ pr.style.background=G.players[s.owner].color; pr.textContent=s.mort?'🔒 '+(OPT().mortLimit?mortLeft(s):'залог'):fmt(calcRent(i,G.lastDice)); el.style.boxShadow=`inset 0 0 0 3px ${G.players[s.owner].color}`; }
-      else { pr.style.background=''; pr.textContent=fmt(c.price); el.style.boxShadow=''; }
-    } else if(c.type==='tax') pr.textContent=fmt(c.amount);
+      if(s.owner>=0){ pr.style.background=G.players[s.owner].color; pr.textContent=s.mort?'🔒 '+(OPT().mortLimit?mortLeft(s):'залог'):fmtCell(calcRent(i,G.lastDice)); el.style.boxShadow=`inset 0 0 0 3px ${G.players[s.owner].color}`; }
+      else { pr.style.background=''; pr.textContent=fmtCell(c.price); el.style.boxShadow=''; }
+    } else if(c.type==='tax') pr.textContent=fmtCell(c.amount);
     lv.textContent=s.level?(s.level===5?'🏨':'★'.repeat(s.level)):'';
     el.querySelector('.tokens').innerHTML=G.players.filter(p=>!p.out&&p.pos===i).map(p=>p.skin?
       `<div class="tok sk" style="border-color:${p.color}" title="${esc(p.name)}">${p.skin}</div>`:
@@ -2241,6 +2299,20 @@ function buildPreview(){
     .map(([c,n,m])=>`<div><i style="background:${c}"></i>${n}<b>$${m}k</b></div>`).join('');
 }
 $('#creator').textContent=DB.creatorName||CREATOR;
+// ====== ТЕЛЕФОН ======
+// на узком экране (телефон вертикально) журнал переезжает под поле, где есть место
+const narrowMQ=window.matchMedia('(max-width:820px)'), landMQ=window.matchMedia('(max-height:520px) and (orientation:landscape)');
+function placeLog(){ const phone=narrowMQ.matches&&!landMQ.matches, log=$('#log'), target=phone?$('#mobileLog'):$('#center'); if(log&&target&&log.parentNode!==target) target.appendChild(log); }
+[narrowMQ,landMQ].forEach(m=>m.addEventListener?m.addEventListener('change',placeLog):m.addListener(placeLog));
+placeLog();
+// кнопка «на весь экран» (на iPhone браузер её может не поддерживать — тогда кнопка скрыта)
+const fsOK=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+if(!fsOK) $('#fsBtn').style.display='none';
+$('#fsBtn').onclick=()=>{
+  const d=document, el=d.documentElement;
+  if(d.fullscreenElement||d.webkitFullscreenElement) (d.exitFullscreen||d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen||el.webkitRequestFullscreen).call(el).catch?.(()=>{});
+};
 buildBoard();
 showLanding();
 </script>

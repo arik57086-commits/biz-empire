@@ -656,7 +656,7 @@ const START_MONEY=15000, SALARY=2000, JAIL_FINE=500, SAVE_KEY='bizemp_save_v1';
 // ====== РЕЖИМЫ ======
 const MODES={
  classic:{n:'Обычная игра',s:'Классические правила игры.',ic:'🎲',d:'Покупайте компании, собирайте группы одного цвета, стройте филиалы и разоряйте соперников. Побеждает последний, кто остался на плаву.',grad:'#3b5bdb,#5a3fd6'},
- fast:{n:'Быстрая игра',s:'Третий кубик и ускоряющие правила.',ic:'⚡',d:'Как только кто-то впервые пройдёт круг, все бросают третий кубик: на нём 1–6 или 🚂 поезд. Поезд — сами выбираете, идти на сумму двух кубиков или на любой из них. Три одинаковых — едете на любую клетку поля! Капитал больше, за круг платят 3,000k.',money:20000,salary:3000,third:true,grad:'#ff8a3d,#ffb627'},
+ fast:{n:'Быстрая игра',s:'Третий кубик и ускоряющие правила.',ic:'⚡',d:'Как только кто-то впервые пройдёт круг, все бросают третий кубик: на нём 1–6 или 🚂 поезд. Поезд — сами выбираете, идти на сумму двух кубиков или на любой из них. 💼 Бизнесмен — после хода едете дальше к первой свободной компании (если свободных нет — к ближайшей компании соперника). Три одинаковых — едете на любую клетку поля! Капитал больше, за круг платят 3,000k.',money:20000,salary:3000,third:true,grad:'#ff8a3d,#ffb627'},
  deal:{n:'Расклад',s:'Все компании уже розданы.',ic:'🃏',d:'Быстрая игра, в которой все компании случайно и поровну раздаются игрокам в начале. Сразу торгуйтесь и собирайте группы!',salary:3000,third:true,deal:true,grad:'#e53975,#ff6f91'},
  shuffle:{n:'Перестановка',s:'Поле перемешано, строить можно сразу.',ic:'🔀',d:'Компании перемешаны по всему полю. Филиалы можно строить на любой своей компании, даже без полной группы.',shuffle:true,noMono:true,grad:'#22b8a5,#43a047'},
  timed:{n:'На время',s:'25 кругов — побеждает богатейший.',ic:'⏱️',d:'Игра длится ровно 25 кругов. В конце побеждает тот, у кого больше всего капитала: деньги + стоимость компаний и филиалов.',rounds:25,grad:'#8e24aa,#5a3fd6'},
@@ -671,7 +671,9 @@ const vipDaysLeft=a=>Math.max(0,Math.ceil((((a&&a.vipUntil)||0)-Date.now())/8640
 const VIP_FOREVER=Date.UTC(2100,0,1);
 const vipLeft=a=>(a&&a.vipUntil>=VIP_FOREVER)?'навсегда':vipDaysLeft(a)+' дн.';
 const M=()=>MODES[(G&&G.mode)||'classic']||MODES.classic;
-const salary=()=>(M().salary||SALARY)*(evOn('bonus')?2:1);
+// за круг: обычная сумма режима; после 10-го круга — 1,000k; после 15-го — ничего
+const SALARY_LOW=1000, SALARY_LOW_R=10, SALARY_OFF_R=15;
+const salary=()=>{ const r=(G&&G.round)||1; if(r>SALARY_OFF_R) return 0; return (r>SALARY_LOW_R?SALARY_LOW:(M().salary||SALARY))*(evOn('bonus')?2:1); };
 
 // ====== АККАУНТЫ В ОБЛАКЕ (Firebase) ======
 const CREATOR='Ваше имя'; // ← имя создателя по умолчанию (его можно поменять в панели создателя)
@@ -1125,7 +1127,7 @@ function render(){
       <div class="nm">${p.vip?'<span title="VIP" style="color:#ffd54f">★</span> ':''}${esc(p.name)}${p.bot?' 🤖':''}</div>
       ${acc?`<div class="tag">${rankOf(levelInfo(acc.xp).lvl)[2]} ур. ${levelInfo(acc.xp).lvl}</div>`:''}
       <div class="mn">${p.out?'Банкрот':fmt(p.money)}</div>
-      <div class="tag">🏢 ${props}${p.inJail?' · 🚔 в тюрьме':''}${p.jailCards?' · 🎫 '+p.jailCards:''}${p.credit?` · 🏦 ${creditLeft(p)} кр.`:''}</div>
+      <div class="tag">🏢 ${props}${p.inJail?' · 🚔 в тюрьме':''}${p.jailCards?' · 🎫 '+p.jailCards:''}${p.credit?` · 🏦 ${creditLeft(p)} ход.`:''}</div>
       ${G.tmDeadline&&G.awaiting&&p===actor()?`<div class="tmr">⏱ <span id="tmv">${tmRemain()}</span></div>`:''}</div>${plMenu===p.id?playerMenu(p):''}`;
   }).join('');
   $('#newBtn').style.display=G.online?'none':'';
@@ -1221,7 +1223,7 @@ function fx(){
 const PIPS={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
 const FACE_ROT={1:[0,0],6:[0,180],3:[0,-90],4:[0,90],2:[-90,0],5:[90,0]};
 function dieHTML(trainFace){
-  return [1,2,3,4,5,6].map(n=>n===6&&trainFace?`<div class="f f6 tr">🚂</div>`
+  return [1,2,3,4,5,6].map(n=>n===6&&trainFace?`<div class="f f6 tr">${trainFace}</div>`
     :`<div class="f f${n}">${Array.from({length:9},(_,k)=>PIPS[n].includes(k+1)?'<i></i>':'<span></span>').join('')}</div>`).join('');
 }
 function dice3d(r){
@@ -1230,7 +1232,7 @@ function dice3d(r){
   const p=G&&G.players[r.pid], col=p?p.color:'#5a3fd6';
   const vals=r.v.filter((x,k)=>k<2||x);
   vals.forEach((v,k)=>{
-    const train=v==='T', face=train?6:v, [rx,ry]=FACE_ROT[face];
+    const train=v==='T'?'🚂':v==='W'?'💼':'', face=train?6:v, [rx,ry]=FACE_ROT[face];
     const w=document.createElement('div'); w.className='dthrow';
     const off=(k-(vals.length-1)/2)*1.25; // кубики рядом
     w.style.transform=`translate(calc(-50% + var(--s)*${-0.35+off*0.11}),calc(-50% + var(--s)*-0.25)) rotate(${-40+k*25}deg)`;
@@ -1332,8 +1334,9 @@ function playerMenu(p){
   if(myTurn&&p!==a&&!p.out&&!a.out) h+=`<div class="pmi" data-pm="trade">🤝 Обмен</div>`;
   // кредит — в меню своего игрока, когда сейчас ваш ход
   if(myTurn&&p===a&&OPT().credit&&!p.out){
-    if(p.credit) h+=`<div class="pmi ${p.money<CREDIT_BACK?'dis':''}" data-pm="repay">🏦 Вернуть кредит ${fmt(CREDIT_BACK)} · ${creditLeft(p)} кр.</div>`;
-    else if(!p.creditUsed) h+=`<div class="pmi" data-pm="credit">🏦 Взять кредит ${fmt(CREDIT)}</div>`;
+    if(p.credit) h+=`<div class="pmi ${p.money<CREDIT_BACK?'dis':''}" data-pm="repay">🏦 Вернуть кредит ${fmt(CREDIT_BACK)} · осталось ${creditLeft(p)} ход.</div>`;
+    else if(creditWait(p)) h+=`<div class="pmi dis">🏦 Новый кредит — через ${creditWait(p)} ход.</div>`;
+    else h+=`<div class="pmi" data-pm="credit">🏦 Взять кредит ${fmt(CREDIT)} на ${CREDIT_TURNS} ходов</div>`;
   }
   if(!p.bot&&!p.out&&!G.over&&(!G.online||p.uid===DB.session)) h+=`<div class="pmi red" data-pm="give">✕ Сдаться</div>`;
   return h+'</div>';
@@ -1555,10 +1558,10 @@ function closeModal(){ $('#modal').innerHTML=''; }
 
 // ====== ИГРОВАЯ ЛОГИКА ======
 // Третий кубик (режимы с third): появляется, когда кто-то впервые прошёл круг.
-// Грани: 1–6 и 🚂 поезд. Возвращает [a,b,c], где c = 0 (кубика ещё нет), 1..6 или 'T' (поезд).
+// Грани: 1–6, 🚂 поезд и 💼 бизнесмен. Возвращает [a,b,c], где c = 0 (кубика ещё нет), 1..6, 'T' (поезд) или 'W' (бизнесмен).
 const DIE='⚀⚁⚂⚃⚄⚅';
-const face3=c=>c==='T'?'🚂':DIE[c-1];
-const roll3=(rnd=Math.random)=>{ const v=rnd()*7|0; return v===6?'T':v+1; };
+const face3=c=>c==='T'?'🚂':c==='W'?'💼':DIE[c-1];
+const roll3=(rnd=Math.random)=>{ const v=rnd()*8|0; return v===6?'T':v===7?'W':v+1; };
 // «Задача дня»: кубики и карточки «Шанс» идут в одном порядке для всех (зерно — дата)
 function mulberry(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const hashStr=s=>{ let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
@@ -1570,8 +1573,8 @@ async function rollDice(p){
   G.roll={id:((G.roll&&G.roll.id)||0)+1,v:[a,b,c],pid:p.id}; dice3d(G.roll); FX&&(FX.rollId=G.roll.id);
   await sleep(950); // кубики докатываются
   $('#dice').innerHTML=G.diceHtml=DIE[a-1]+DIE[b-1]+(third?`<span class="d3">${face3(c)}</span>`:'');
-  G.lastDice=a+b+(c==='T'?0:c);
-  log(`${pn(p)} выбрасывает ${a}:${b}${third?' и '+(c==='T'?'🚂 поезд':c):''}${a===b&&b===c?' — ТРОЙКА!':a===b?' — дубль!':''}`);
+  G.lastDice=a+b+(c==='T'||c==='W'?0:c);
+  log(`${pn(p)} выбрасывает ${a}:${b}${third?' и '+(c==='T'?'🚂 поезд':c==='W'?'💼 бизнесмен':c):''}${a===b&&b===c?' — ТРОЙКА!':a===b?' — дубль!':''}`);
   if(a===b) track(p,'dbl');
   return [a,b,c];
 }
@@ -1594,6 +1597,7 @@ async function chooseMove(p,a,b,c){
     log(`🎯 ${pn(p)} выбирает клетку ${cn(t)}`);
     return {target:t};
   }
+  if(c==='W'){ log(`💼 ${pn(p)}: бизнесмен — после хода едет к первой свободной компании`); return {steps:a+b,boss:true}; }
   return {steps:a+b+(c||0)};
 }
 // бот: клетка, которую выгоднее всего занять/пройти
@@ -1614,12 +1618,28 @@ function botPickCell(p){ let best=0,bs=-1e9; for(let i=0;i<40;i++){ const sc=cel
 async function move(p,n){
   for(let k=0;k<n;k++){
     p.pos=(p.pos+1)%40;
-    if(p.pos===0){ p.money+=salary(); log(`${pn(p)} проходит Старт и получает ${fmt(salary())}`); track(p,'start');
-      if(M().third&&!G.speedOn){ G.speedOn=true; log(`⚡ ${pn(p)} первым прошёл круг — теперь все бросают <b>третий кубик</b> (1–6 или 🚂 поезд)!`); } }
+    if(p.pos===0){ const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
+      if(M().third&&!G.speedOn){ G.speedOn=true; log(`⚡ ${pn(p)} первым прошёл круг — теперь все бросают <b>третий кубик</b> (1–6, 🚂 поезд или 💼 бизнесмен)!`); } }
     render(); await sleep(110);
   }
 }
 async function moveTo(p,t){ await move(p,(t-p.pos+40)%40); }
+// сделать ход по результату броска и обработать клетку; 💼 бизнесмен — затем ехать дальше
+async function doMove(p,mv){
+  if(mv.target!==undefined) await moveTo(p,mv.target); else await move(p,mv.steps);
+  await land(p,G.lastDice);
+  if(mv.boss&&!p.out&&!p.inJail&&!G.over) await bossJump(p);
+}
+// 💼: вперёд до первой свободной компании; если свободных нет — до ближайшей компании соперника
+async function bossJump(p){
+  let t=-1;
+  for(let k=1;k<40&&t<0;k++){ const j=(p.pos+k)%40; if(isOwnable(CELLS[j])&&G.cells[j].owner<0) t=j; }
+  let why='свободной компании';
+  if(t<0){ for(let k=1;k<40&&t<0;k++){ const j=(p.pos+k)%40, s=G.cells[j]; if(isOwnable(CELLS[j])&&s.owner>=0&&s.owner!==p.id&&!s.mort) t=j; } why='компании соперника'; }
+  if(t<0){ log(`💼 ${pn(p)}: ехать некуда — все компании свои или заложены`); return; }
+  log(`💼 ${pn(p)} едет к ближайшей ${why}: ${cn(t)}`);
+  await sleep(350); await moveTo(p,t); await land(p,G.lastDice);
+}
 function sendJail(p){ p.pos=10; p.inJail=true; p.jailTries=0; p.dbl=0; log(`${pn(p)} отправляется в тюрьму 🚔`); render(); }
 
 async function land(p,dice){
@@ -1767,10 +1787,13 @@ async function casino(p){
 
 // ====== КРЕДИТ БАНКА И СРОК ЗАЛОГА ======
 const OPT=()=>(G&&G.opt)||{};
-const CREDIT=5000, CREDIT_BACK=6000, CREDIT_ROUNDS=15, MORT_ROUNDS=15;
-const creditLeft=p=>p.credit?Math.max(0,p.credit.due-(G.round||1)):0;
-function takeCredit(p){ if(!OPT().credit||p.credit||p.creditUsed) return; p.money+=CREDIT; p.credit={due:(G.round||1)+CREDIT_ROUNDS}; p.creditUsed=true; log(`🏦 ${pn(p)} берёт у Банка в кредит ${fmt(CREDIT)} на ${CREDIT_ROUNDS} кругов (вернуть ${fmt(CREDIT_BACK)})`); render(); }
-function repayCredit(p){ if(!p.credit||p.money<CREDIT_BACK) return; p.money-=CREDIT_BACK; p.credit=null; log(`🏦 ${pn(p)} возвращает кредит Банку`); track(p,'repay'); render(); }
+// Кредит Банка: 5,000k, вернуть 6,000k за CREDIT_TURNS своих ходов; после возврата новый — через CREDIT_CD ходов
+const CREDIT=5000, CREDIT_BACK=6000, CREDIT_TURNS=10, CREDIT_CD=3, MORT_ROUNDS=15;
+const creditLeft=p=>p.credit?Math.max(0,(p.credit.dueT!=null?p.credit.dueT:(p.turns||0)+CREDIT_TURNS)-(p.turns||0)):0;
+const creditWait=p=>Math.max(0,(p.creditCd||0)-(p.turns||0)); // сколько ходов ждать до нового кредита
+const canTakeCredit=p=>!!OPT().credit&&!p.credit&&!creditWait(p);
+function takeCredit(p){ if(!canTakeCredit(p)) return; p.money+=CREDIT; p.credit={dueT:(p.turns||0)+CREDIT_TURNS}; log(`🏦 ${pn(p)} берёт у Банка в кредит ${fmt(CREDIT)} — вернуть ${fmt(CREDIT_BACK)} за ${CREDIT_TURNS} своих ходов`); render(); }
+function repayCredit(p){ if(!p.credit||p.money<CREDIT_BACK) return; p.money-=CREDIT_BACK; p.credit=null; p.creditCd=(p.turns||0)+CREDIT_CD; log(`🏦 ${pn(p)} возвращает кредит Банку. Новый можно взять через ${CREDIT_CD} хода`); track(p,'repay'); render(); }
 function checkMortgages(){
   if(!OPT().mortLimit) return;
   G.cells.forEach((s,i)=>{ if(s.mort&&s.owner>=0&&(G.round-(s.mortR||G.round))>=MORT_ROUNDS){
@@ -1963,7 +1986,7 @@ function autoLiquidate(p,amt){
     const withLv=cellsOf(p.id).filter(i=>canSell(i)).sort((a,b)=>G.cells[b].level-G.cells[a].level);
     if(withLv.length){ const i=withLv[0]; G.cells[i].level--; p.money+=CELLS[i].house/2; log(`${pn(p)} продаёт филиал в ${cn(i)}`); continue; }
     const m=cellsOf(p.id).filter(i=>canMortgage(i)).sort((a,b)=>CELLS[a].price-CELLS[b].price);
-    if(OPT().credit&&!p.creditUsed){ takeCredit(p); continue; }
+    if(canTakeCredit(p)){ takeCredit(p); continue; }
     if(m.length){ const i=m[0]; G.cells[i].mort=true; G.cells[i].mortR=G.round||1; p.money+=CELLS[i].price/2; log(`${pn(p)} закладывает ${cn(i)}`); continue; }
     break;
   }
@@ -2004,7 +2027,7 @@ async function turnInner(){
   render();
   if(p.credit&&creditLeft(p)<=0){
     log(`🏦 Срок кредита ${pn(p)} истёк — Банк списывает ${fmt(CREDIT_BACK)}`);
-    p.credit=null; await pay(p,CREDIT_BACK,-1); track(p,'repay');
+    p.credit=null; p.creditCd=p.turns+CREDIT_CD; await pay(p,CREDIT_BACK,-1); track(p,'repay');
   }
   let again=true;
   while(again&&!p.out){
@@ -2017,10 +2040,10 @@ async function turnInner(){
       else {
         const [a,b,c]=await rollDice(p);
         if(a===b){ p.inJail=false; log(`${pn(p)} выходит из тюрьмы по дублю`); const mv=await chooseMove(p,a,b,c); if(p.out) break;
-          if(mv.target!==undefined) await moveTo(p,mv.target); else await move(p,mv.steps); await land(p,G.lastDice); }
+          await doMove(p,mv); }
         else if(++p.jailTries>=3){ log(`${pn(p)} не смог выбросить дубль за 3 попытки и платит ${fmt(JAIL_FINE)}`); await pay(p,JAIL_FINE,-1); if(p.out) break; p.inJail=false;
           const mv=await chooseMove(p,a,b,c); if(p.out) break;
-          if(mv.target!==undefined) await moveTo(p,mv.target); else await move(p,mv.steps); await land(p,G.lastDice); }
+          await doMove(p,mv); }
         else log(`${pn(p)} остаётся в тюрьме`);
         break;
       }
@@ -2031,8 +2054,7 @@ async function turnInner(){
     if(a===b){ if(++p.dbl>=3){ log(`${pn(p)} выбрасывает третий дубль подряд!`); sendJail(p); break; } again=true; }
     const mv=await chooseMove(p,a,b,c);
     if(p.out) break;
-    if(mv.target!==undefined) await moveTo(p,mv.target); else await move(p,mv.steps);
-    await land(p,G.lastDice);
+    await doMove(p,mv);
     if(p.inJail) again=false;
     if(again&&!p.out) log(`${pn(p)} ходит ещё раз (дубль)`);
   }
@@ -2049,6 +2071,8 @@ function nextPlayer(){
     checkMortgages();
     if(G.event){ log(`Событие «${(EVENTS.find(v=>v.id===G.event.id)||{}).n}» закончилось`); G.event=null; }
     if(G.round%5===0) startEvent();
+    if(G.round===SALARY_LOW_R+1) log(`💸 Начался ${G.round}-й круг: за проход Старта теперь платят только ${fmt(SALARY_LOW)}`);
+    if(G.round===SALARY_OFF_R+1) log(`💸 Начался ${G.round}-й круг: за проход Старта больше не платят`);
     const lim=M().rounds;
     if(lim){
       if(G.round>lim){ const w=alive.slice().sort((a,b)=>netWorth(b)-netWorth(a))[0]; log(`⏱️ Все ${lim} кругов сыграны! Самый богатый — ${pn(w)} (${fmt(netWorth(w))})`); return finishGame(w); }
@@ -2155,7 +2179,7 @@ let setupMode='classic', setupRows=null;
 const OPTS_KEY='bizemp_opts';
 let setupOpts; try{ setupOpts=JSON.parse(localStorage.getItem(OPTS_KEY)); }catch(e){}
 if(!setupOpts) setupOpts={timer:true,auction:true,credit:true,mortLimit:true};
-const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','Один раз за игру: 5,000k на 15 кругов, вернуть 6,000k'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку']];
+const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку']];
 function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name:'Вы'},{type:'bot',name:'Бот Алиса'},{type:'bot',name:'Бот Борис'},{type:'bot',name:'Бот Вика'}]; }
 // режимы с заданным составом: рейтинговая — вы и 3 бота, задача дня — вы и 2 бота
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;
@@ -2193,7 +2217,7 @@ function showSetup(modeId){
   const friends=u?(u.friends||[]).map(l=>DB.accounts[l]).filter(Boolean):[];
   const saved=localStorage.getItem(SAVE_KEY);
   const chips=[`💰 Капитал ${fmt(mode.money||START_MONEY)}`,`🔄 За круг ${fmt(mode.salary||SALARY)}`];
-  if(mode.third) chips.push('🎲 Третий кубик после 1-го круга','🚂 Поезд — выбор хода','🎯 Тройка — любая клетка');
+  if(mode.third) chips.push('🎲 Третий кубик после 1-го круга','🚂 Поезд — выбор хода','💼 Бизнесмен — к свободной компании','🎯 Тройка — любая клетка');
   if(mode.deal) chips.push('🃏 Компании розданы');
   if(mode.shuffle) chips.push('🔀 Поле перемешано');
   if(mode.noMono) chips.push('★ Строить можно сразу');
@@ -2581,7 +2605,7 @@ const PAGES={
       <div class="fc"><div class="e">🗓</div><h3>Сезоны</h3><p>Каждый месяц — новый сезон. Лучшие три игрока получают значок в профиль.</p></div>
     </div></div></section>
     <section class="rules" id="rules"><div class="lwrap"><h2>Правила за минуту</h2><ol>
-      <li>Бросайте кубики и двигайтесь по полю. За каждый круг — <b>$2,000k</b>.</li>
+      <li>Бросайте кубики и двигайтесь по полю. За каждый круг — <b>$2,000k</b>, после 10-го круга — $1,000k, после 15-го — ничего.</li>
       <li>Попали на свободную компанию — купите её. На чужую — заплатите аренду владельцу.</li>
       <li>Соберите все компании одного цвета — аренда удвоится, и можно строить филиалы ★.</li>
       <li>Не хватает денег — закладывайте компании, продавайте филиалы или меняйтесь.</li>

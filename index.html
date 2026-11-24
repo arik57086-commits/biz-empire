@@ -217,6 +217,10 @@ button.sm{padding:5px 12px;font-size:13px}
 .cell.mvopt::before{content:attr(data-mv);position:absolute;top:2px;right:2px;background:#ffb627;color:#3a2300;border-radius:8px;padding:0 5px;font-weight:800;font-size:max(10px,calc(var(--s)/70));z-index:2}
 @keyframes mvp{from{box-shadow:0 0 0 #ffb62700}to{box-shadow:0 0 16px #ffb627}}
 .cell.pickopt{outline:2px dashed #ffb627;cursor:pointer}
+.shbtns{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.shb{display:block;color:#fff;text-decoration:none;font-weight:700;padding:11px;border-radius:10px;cursor:pointer;font-size:15px}
+.shb:hover{filter:brightness(1.08)}
+.shurl{font-size:12px;color:#8a93a6;word-break:break-all;margin-bottom:10px;user-select:all}
 /* ===== Темы оформления ===== */
 body.th-light{--bg:#e9edf5;--fg:#262b38;--pl:#fff;--ctr:#fff;--bd:#c9d0de;--logbg:#f1f3f8}
 body.th-light #log div{border-bottom-color:#0000000d}
@@ -616,7 +620,7 @@ button.big{font-size:18px;padding:12px 28px}
   <main id="page"></main>
   <footer class="lfoot"><div class="lwrap">
     <div><b style="font-size:18px">🏙️ Бизнес-империя</b><p>Бизнес-империя — бесплатная экономическая онлайн-игра.<br>© 2026 · Создатель: <span id="creator"></span></p></div>
-    <div><b>Материалы</b><a data-act="rulespage">Как тут играть</a><a data-go="market">Маркет</a><a data-go="games">Режимы игры</a><a data-act="theme">🎨 Оформление и звук</a></div>
+    <div><b>Материалы</b><a data-act="rulespage">Как тут играть</a><a data-go="market">Маркет</a><a data-go="games">Режимы игры</a><a data-act="theme">🎨 Оформление и звук</a><a data-act="invite">📣 Поделиться игрой</a></div>
     <div><b>Аккаунт</b><a data-go="profile">Профиль</a><a data-go="friends">Друзья</a><a data-go="inventory">Инвентарь</a><a data-go="admin">⚙ Панель создателя</a></div>
   </div></footer>
 </div>
@@ -2267,8 +2271,9 @@ async function checkSeasonAward(a){
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
     <h2>Победитель: ${p?pn(p):'никто'}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
-    <div id="rmBox"></div><button id="wmenu">В меню</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
+    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
+  $('#wshare').onclick=showShare;
   if($('#wnew')) $('#wnew').onclick=()=>showSetup(G.mode);
   updateRematch();
 }
@@ -2579,7 +2584,7 @@ function lobbyHTML(u){
   if(!FB) return '';
   const rooms=(DB.rooms||[]).slice().sort((a,b)=>(b.uids.includes(u.login)?1:0)-(a.uids.includes(u.login)?1:0)||b.created-a.created);
   const inRoom=rooms.some(r=>r.uids.includes(u.login));
-  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Скопировать ссылку на игру">🔗 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
+  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Позвать друзей">📣 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
     ${rooms.length?rooms.map(r=>roomHTML(r,u)).join(''):'<p class="muted">Пока никто не ждёт игры. Создайте свою — друзья смогут присоединиться!</p>'}</div>`;
 }
 function roomHTML(r,u){
@@ -2656,12 +2661,7 @@ async function leaveRoom(rid){
 Object.assign(ACT_EXTRA,{
   newRoom:()=>showCreateRoom(),
   rankedRoom:()=>showCreateRoom('ranked'),
-  invite:async()=>{
-    const url=location.origin+location.pathname, u=me();
-    const text=`Заходи играть в Бизнес-империю! ${url}${u&&u.nick?` — добавь меня в друзья: @${u.nick}`:''}`;
-    try{ if(navigator.share) await navigator.share({title:'Бизнес-империя',text,url}); else { await navigator.clipboard.writeText(text); toast('✔ Ссылка скопирована — отправьте её другу'); } }
-    catch(e){ if(e&&e.name==='AbortError') return; try{ await navigator.clipboard.writeText(text); toast('✔ Ссылка скопирована'); }catch(_){ askText('Скопируйте ссылку',url); } }
-  },
+  invite:()=>showShare(),
   joinRoom:el=>joinRoom(el.dataset.r),
   leaveRoom:el=>leaveRoom(el.dataset.r),
   delRoom:async el=>{ if(!await askConfirm('Удалить комнату?','Удалить',true)) return; leaveNet(false); roomRef(el.dataset.r).delete().catch(e=>toast(e.message)); },
@@ -2719,7 +2719,7 @@ const PAGES={
   home:()=>`<div class="lwrap"><section class="hero">
       <h1>Добро пожаловать в Бизнес-империю.</h1>
       <p>Покупайте компании, стройте филиалы и разоряйте соперников — вместе с друзьями.</p>
-      <button class="cta" data-act="start">Начать игру</button><button class="cta2" data-act="scroll" data-to="rules">Как играть?</button>
+      <button class="cta" data-act="start">Начать игру</button><button class="cta2" data-act="scroll" data-to="rules">Как играть?</button><button class="cta2" data-act="invite">📣 Позвать друзей</button>
     </section>
     <div class="mock"><div class="mbar"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div><div class="url">🔒 бизнес-империя/игра</div></div>
       <div class="mbody"><div class="mpl" id="mpl"></div><div class="mboard" id="mboard"></div></div></div></div>
@@ -3013,6 +3013,28 @@ function showContents(id){
   $('#cov').onclick=e=>{ if(e.target.id==='cov'||e.target.id==='cx') closeModal(); };
 }
 
+// ====== ПОДЕЛИТЬСЯ: Telegram, VK, WhatsApp, копировать ссылку ======
+const SITE_URL='https://arik57086-commits.github.io/biz-empire/';
+function shareText(){ const u=me(); return `Заходи играть в Бизнес-империю — бесплатная экономическая игра с друзьями прямо в браузере!${u&&u.nick?` Добавь меня в друзья: @${u.nick}`:''}`; }
+function showShare(){
+  const url=SITE_URL, t=shareText(), e=encodeURIComponent;
+  const links=[
+    ['Telegram','#2aabee','✈️',`https://t.me/share/url?url=${e(url)}&text=${e(t)}`],
+    ['ВКонтакте','#0077ff','🅥',`https://vk.com/share.php?url=${e(url)}&title=${e('Бизнес-империя')}&comment=${e(t)}`],
+    ['WhatsApp','#25d366','💬',`https://wa.me/?text=${e(t+' '+url)}`]
+  ];
+  $('#modal').innerHTML=`<div class="ov" id="shov"><div class="box lt" style="width:360px;text-align:center">
+    <h2 style="margin-top:0">📣 Позвать друзей</h2><p class="muted">Чем больше людей знает об игре, тем выше она в поиске Google.</p>
+    <div class="shbtns">${links.map(([n,c,ic,href])=>`<a class="shb" href="${href}" target="_blank" rel="noopener" style="background:${c}">${ic} ${n}</a>`).join('')}
+      <a class="shb" data-copy="1" style="background:#4a5163">🔗 Скопировать ссылку</a>
+      ${navigator.share?'<a class="shb" data-native="1" style="background:#5a3fd6">📱 Другое приложение…</a>':''}</div>
+    <div class="shurl">${url}</div><button class="sec" id="shx">Закрыть</button></div></div>`;
+  $('#shov').onclick=async ev=>{
+    if(ev.target.id==='shov'||ev.target.id==='shx') return closeModal();
+    if(ev.target.closest('[data-copy]')){ try{ await navigator.clipboard.writeText(t+' '+url); toast('✔ Ссылка скопирована — вставьте её другу'); }catch(_){ askText('Скопируйте ссылку',url); } }
+    if(ev.target.closest('[data-native]')){ try{ await navigator.share({title:'Бизнес-империя',text:t,url}); }catch(_){} }
+  };
+}
 // ====== ПАНЕЛЬ СОЗДАТЕЛЯ ======
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
 function xpForLevel(L){ let xp=0,need=100; for(let l=1;l<L;l++){ xp+=need; need=100+(l+1)*25; } return xp; }

@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Бизнес-империя — бесплатная экономическая онлайн-игра с друзьями</title>
-<meta name="description" content="Бизнес-империя — бесплатная экономическая настольная игра в браузере. Покупайте компании, стройте филиалы, торгуйтесь и разоряйте соперников по сети вместе с друзьями. 7 режимов, рейтинг, сезоны, карточки брендов и кейсы.">
-<meta name="keywords" content="бизнес империя, экономическая игра, настольная игра онлайн, игра с друзьями, браузерная игра, бизнес игра">
+<title>Кубитал — бесплатная экономическая онлайн-игра с друзьями</title>
+<meta name="description" content="Кубитал — бесплатная экономическая настольная игра в браузере. Покупайте компании, стройте филиалы, торгуйтесь и разоряйте соперников по сети вместе с друзьями. 7 режимов, рейтинг, сезоны, карточки брендов и кейсы.">
+<meta name="keywords" content="кубитал, кубитал игра, экономическая игра, настольная игра онлайн, игра с друзьями, браузерная игра, бизнес игра">
 <meta name="robots" content="index,follow">
 <meta name="google-site-verification" content="iQ7M_7QfHYvAaIv37UvouY4hcbQsarG_c6WZZnj00ug" />
 <link rel="canonical" href="https://arik57086-commits.github.io/biz-empire/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Бизнес-империя — экономическая онлайн-игра">
+<meta property="og:title" content="Кубитал — экономическая онлайн-игра">
 <meta property="og:description" content="Покупайте компании, стройте филиалы и разоряйте соперников вместе с друзьями. Бесплатно, прямо в браузере.">
 <meta property="og:url" content="https://arik57086-commits.github.io/biz-empire/">
 <meta property="og:locale" content="ru_RU">
@@ -603,7 +603,7 @@ button.big{font-size:18px;padding:12px 28px}
 <div id="app">
   <div id="players"></div>
   <div id="board"><div id="center">
-    <div id="top"><div id="title">Бизнес<span>-империя</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="sndBtn" title="Звук">🔊</button><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
+    <div id="top"><div id="title">Куби<span>тал</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="sndBtn" title="Звук">🔊</button><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
     <div id="evt"></div>
     <div id="diceFx"></div><div id="tradeBox"></div><div id="aucBox"></div>
     <div id="actions"></div>
@@ -619,7 +619,7 @@ button.big{font-size:18px;padding:12px 28px}
   <header class="shead"><nav class="lnav" id="nav"></nav></header>
   <main id="page"></main>
   <footer class="lfoot"><div class="lwrap">
-    <div><b style="font-size:18px">🏙️ Бизнес-империя</b><p>Бизнес-империя — бесплатная экономическая онлайн-игра.<br>© 2026 · Создатель: <span id="creator"></span></p></div>
+    <div><b style="font-size:18px">🎲 Кубитал</b><p>Кубитал — бесплатная экономическая онлайн-игра.<br>© 2026 · Создатель: <span id="creator"></span></p></div>
     <div><b>Материалы</b><a data-act="rulespage">Как тут играть</a><a data-go="market">Маркет</a><a data-go="games">Режимы игры</a><a data-act="theme">🎨 Оформление и звук</a><a data-act="invite">📣 Поделиться игрой</a></div>
     <div><b>Аккаунт</b><a data-go="profile">Профиль</a><a data-go="friends">Друзья</a><a data-go="inventory">Инвентарь</a><a data-go="admin">⚙ Панель создателя</a></div>
   </div></footer>
@@ -2702,7 +2702,7 @@ function renderSite(){
 function navHTML(){
   const u=me();
   const link=(p,t)=>`<a data-go="${p}" class="${PAGE===p?'act':''}">${t}</a>`;
-  let h=`<div class="logo" data-go="${u?'games':'home'}"><div class="mk">🏙️</div>Бизнес-империя</div>
+  let h=`<div class="logo" data-go="${u?'games':'home'}"><div class="mk">🎲</div>Кубитал</div>
     <a class="pill" data-go="${u?'games':'auth'}">Играть</a>`;
   h+=u?link('friends','Друзья')+link('inventory','Инвентарь')+link('market','Маркет'):`<a data-act="scroll" data-to="rules">Правила</a>`;
   if(gameActive()) h+=`<a data-act="back">Вернуться в игру<span class="badge">●</span></a>`;
@@ -2717,11 +2717,11 @@ function navHTML(){
 }
 const PAGES={
   home:()=>`<div class="lwrap"><section class="hero">
-      <h1>Добро пожаловать в Бизнес-империю.</h1>
+      <h1>Добро пожаловать в Кубитал.</h1>
       <p>Покупайте компании, стройте филиалы и разоряйте соперников — вместе с друзьями.</p>
       <button class="cta" data-act="start">Начать игру</button><button class="cta2" data-act="scroll" data-to="rules">Как играть?</button><button class="cta2" data-act="invite">📣 Позвать друзей</button>
     </section>
-    <div class="mock"><div class="mbar"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div><div class="url">🔒 бизнес-империя/игра</div></div>
+    <div class="mock"><div class="mbar"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div><div class="url">🔒 кубитал/игра</div></div>
       <div class="mbody"><div class="mpl" id="mpl"></div><div class="mboard" id="mboard"></div></div></div></div>
     <section class="feat"><div class="lwrap"><h2>Почему здесь интересно играть</h2><div class="fgrid">
       <div class="fc"><div class="e">🏆</div><h3>Уровни и ранги</h3><p>Играйте, получайте опыт и поднимайтесь от Новичка до Императора.</p></div>
@@ -2743,7 +2743,7 @@ const PAGES={
 
   auth:()=>!FB?`<div class="page"><div class="cardw empty"><div class="e">📡</div><h3>Нет связи с сервером</h3><p class="muted">Аккаунты и игра по сети работают только при подключении к интернету. Сейчас можно сыграть с ботами — <a style="color:#3b8fd6;cursor:pointer" data-act="guest">как гость</a>.</p></div></div>`
     :`<div class="page"><div class="cardw auth">
-      <div class="ap"><h2 style="font-weight:400">Авторизация</h2><p>Войдите при помощи почты и пароля от вашего аккаунта в Бизнес-империи.</p>
+      <div class="ap"><h2 style="font-weight:400">Авторизация</h2><p>Войдите при помощи почты и пароля от вашего аккаунта в Кубитале.</p>
         <label>Электронная почта</label><input class="inp" type="email" id="lMail" data-enter="login" placeholder="например, ivan@example.com" autocomplete="email">
         <label>Пароль</label><input class="inp" type="password" id="lPass" data-enter="login" placeholder="ваш пароль" autocomplete="current-password">
         <div style="margin-top:14px"><button data-act="login">Войти</button> <a style="color:#3b8fd6;cursor:pointer;margin-left:10px" data-act="forgot">Забыли пароль?</a></div><div class="err" id="lErr"></div></div>
@@ -3015,12 +3015,12 @@ function showContents(id){
 
 // ====== ПОДЕЛИТЬСЯ: Telegram, VK, WhatsApp, копировать ссылку ======
 const SITE_URL='https://arik57086-commits.github.io/biz-empire/';
-function shareText(){ const u=me(); return `Заходи играть в Бизнес-империю — бесплатная экономическая игра с друзьями прямо в браузере!${u&&u.nick?` Добавь меня в друзья: @${u.nick}`:''}`; }
+function shareText(){ const u=me(); return `Заходи играть в Кубитал — бесплатная экономическая игра с друзьями прямо в браузере!${u&&u.nick?` Добавь меня в друзья: @${u.nick}`:''}`; }
 function showShare(){
   const url=SITE_URL, t=shareText(), e=encodeURIComponent;
   const links=[
     ['Telegram','#2aabee','✈️',`https://t.me/share/url?url=${e(url)}&text=${e(t)}`],
-    ['ВКонтакте','#0077ff','🅥',`https://vk.com/share.php?url=${e(url)}&title=${e('Бизнес-империя')}&comment=${e(t)}`],
+    ['ВКонтакте','#0077ff','🅥',`https://vk.com/share.php?url=${e(url)}&title=${e('Кубитал')}&comment=${e(t)}`],
     ['WhatsApp','#25d366','💬',`https://wa.me/?text=${e(t+' '+url)}`]
   ];
   $('#modal').innerHTML=`<div class="ov" id="shov"><div class="box lt" style="width:360px;text-align:center">
@@ -3032,7 +3032,7 @@ function showShare(){
   $('#shov').onclick=async ev=>{
     if(ev.target.id==='shov'||ev.target.id==='shx') return closeModal();
     if(ev.target.closest('[data-copy]')){ try{ await navigator.clipboard.writeText(t+' '+url); toast('✔ Ссылка скопирована — вставьте её другу'); }catch(_){ askText('Скопируйте ссылку',url); } }
-    if(ev.target.closest('[data-native]')){ try{ await navigator.share({title:'Бизнес-империя',text:t,url}); }catch(_){} }
+    if(ev.target.closest('[data-native]')){ try{ await navigator.share({title:'Кубитал',text:t,url}); }catch(_){} }
   };
 }
 // ====== ПАНЕЛЬ СОЗДАТЕЛЯ ======

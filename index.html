@@ -15,6 +15,11 @@
 <meta property="og:url" content="https://arik57086-commits.github.io/biz-empire/">
 <meta property="og:locale" content="ru_RU">
 <meta name="theme-color" content="#5a3fd6">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Кубитал">
 <!-- Firebase: аккаунты и игра по сети -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -635,7 +640,7 @@ button.big{font-size:18px;padding:12px 28px}
   <main id="page"></main>
   <footer class="lfoot"><div class="lwrap">
     <div><b style="font-size:18px">🎲 Кубитал</b><p>Кубитал — бесплатная экономическая онлайн-игра.<br>© 2026 · Создатель: <span id="creator"></span></p></div>
-    <div><b>Материалы</b><a data-act="rulespage">Как тут играть</a><a data-go="market">Маркет</a><a data-go="games">Режимы игры</a><a data-act="theme">🎨 Оформление и звук</a><a data-act="invite">📣 Поделиться игрой</a></div>
+    <div><b>Материалы</b><a data-act="rulespage">Как тут играть</a><a data-go="market">Маркет</a><a data-go="games">Режимы игры</a><a data-act="theme">🎨 Оформление и звук</a><a data-act="invite">📣 Поделиться игрой</a><a data-act="install">📲 Установить на телефон</a><a data-act="notifyOn">🔔 Уведомления о ходе</a></div>
     <div><b>Аккаунт</b><a data-go="profile">Профиль</a><a data-go="friends">Друзья</a><a data-go="inventory">Инвентарь</a><a data-go="admin">⚙ Панель создателя</a></div>
   </div></footer>
 </div>
@@ -1239,7 +1244,7 @@ const BASE_TITLE=document.title;
 function notifyTurn(){
   if(navigator.vibrate) try{ navigator.vibrate([120,60,120]); }catch(e){}
   SFX.turn();
-  if(document.hidden) document.title='🔔 Ваш ход! — '+BASE_TITLE;
+  if(document.hidden){ document.title='🔔 Ваш ход! — '+BASE_TITLE; pushNote('🎲 Кубитал — ваш ход!','Соперники ждут: откройте игру и бросьте кубики','turn'); }
   else toast('🔔 Ваш ход!');
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) document.title=BASE_TITLE; });
@@ -1440,7 +1445,7 @@ function listenDM(){
   if(!FB||!me()||dmUnsubs.length) return;
   const col=FB.db.collection('dm');
   dmUnsubs=[col.where('to','==',DB.session).onSnapshot(s=>{ const before=DB.dmIn.length; DB.dmIn=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(DB.dmReady&&DB.dmIn.length>before){ const m=DB.dmIn.sort((a,b)=>b.at-a.at)[0]; if(m&&!m.read&&dmOpen!==m.from){ SFX.pop(); toast(`✉️ ${m.name||'Сообщение'}: ${cleanChat(m.text).slice(0,40)}`); } }
+      if(DB.dmReady&&DB.dmIn.length>before){ const m=DB.dmIn.sort((a,b)=>b.at-a.at)[0]; if(m&&!m.read&&dmOpen!==m.from){ SFX.pop(); toast(`✉️ ${m.name||'Сообщение'}: ${cleanChat(m.text).slice(0,40)}`); pushNote('✉️ '+(m.name||'Сообщение'),cleanChat(m.text).slice(0,100),'dm'); } }
       DB.dmReady=true; dmRefresh(); },e=>console.error('dm',e)),
     col.where('from','==',DB.session).onSnapshot(s=>{ DB.dmOut=s.docs.map(d=>({id:d.id,...d.data()})); dmRefresh(); },e=>console.error('dm',e))];
 }
@@ -1504,6 +1509,41 @@ function reportsHTML(){ const R=DB.reports||[];
     ${R.length?R.map(r=>`<div class="top"><span class="n"><b data-uprof="${esc(r.target)}" style="cursor:pointer">${esc(r.targetName||r.target)}</b> — ${esc(r.reason)}${r.text?`<br><span class="muted" style="font-size:12px">«${esc(r.text)}»</span>`:''}<br><span class="muted" style="font-size:11px">от ${esc(r.fromName||'')} · ${new Date(r.at).toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></span>
       <button class="red sm" data-act="aBan" data-u="${esc(r.target)}" data-v="1">Бан</button><button class="sec sm" data-act="aBan" data-u="${esc(r.target)}" data-v="0">Разбан</button><button class="sec sm" data-act="aRepDel" data-id="${r.id}">✕</button></div>`).join('')
       :'<p class="muted">Жалоб нет.</p>'}</div>`;
+}
+
+// ====== ПРИЛОЖЕНИЕ НА ТЕЛЕФОН И УВЕДОМЛЕНИЯ «ВАШ ХОД» ======
+let installEvt=null; const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(e=>console.error('sw',e));
+addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installEvt=e; if(PAGE==='games') renderSite(); });
+async function doInstall(){
+  if(isStandalone()) return toast('✔ Кубитал уже установлен');
+  if(installEvt){ installEvt.prompt(); const r=await installEvt.userChoice.catch(()=>({})); if(r.outcome==='accepted') toast('✔ Кубитал установлен — ищите значок на главном экране'); installEvt=null; return; }
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  $('#modal').innerHTML=`<div class="ov" id="inov"><div class="box lt" style="width:340px;text-align:center"><img src="icon-192.png" style="width:72px;border-radius:16px"><h2 style="margin:6px 0">Установить Кубитал</h2>
+    <p style="line-height:1.6;text-align:left">${ios?'1. Нажмите кнопку <b>«Поделиться»</b> (квадрат со стрелкой внизу Safari).<br>2. Выберите <b>«На экран «Домой»»</b>.<br>3. Нажмите <b>«Добавить»</b>.'
+      :'1. Откройте меню браузера <b>⋮</b> (справа вверху).<br>2. Нажмите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.'}</p>
+    <p class="muted" style="font-size:13px">Игра появится значком на телефоне и будет открываться без адресной строки, как обычное приложение.</p><button id="inx">Понятно</button></div></div>`;
+  $('#inx').onclick=closeModal;
+}
+const notifOK=()=>'Notification' in window&&Notification.permission==='granted';
+async function askNotify(){
+  if(!('Notification' in window)) return toast('Этот браузер не умеет показывать уведомления');
+  if(Notification.permission==='denied') return toast('Уведомления запрещены в настройках браузера для этого сайта');
+  const r=await Notification.requestPermission(); toast(r==='granted'?'🔔 Готово! Когда игра свёрнута, придёт уведомление о вашем ходе':'Уведомления не включены');
+  if(PAGE==='games') renderSite();
+}
+// показать уведомление, только если вкладка/приложение свёрнуты
+function pushNote(title,body,tag){
+  if(!notifOK()||!document.hidden) return;
+  const opt={body,tag,renotify:true,icon:'icon-192.png',badge:'icon-192.png',vibrate:[120,60,120]};
+  if(navigator.serviceWorker&&navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(r=>r.showNotification(title,opt)).catch(()=>{});
+  else try{ new Notification(title,opt); }catch(e){}
+}
+function appCardHTML(){
+  if(isStandalone()&&notifOK()) return '';
+  return `<div class="cardw"><div class="ch"><h3>📲 Кубитал на телефоне</h3></div>
+    <p class="muted" style="margin-top:-6px">Значок на главном экране и уведомление, когда ваш ход, даже если игра свёрнута.</p>
+    ${isStandalone()?'':'<button data-act="install">📲 Установить</button>'}${notifOK()?'<span class="muted">🔔 Уведомления включены</span>':'<button class="sec" data-act="notifyOn">🔔 Включить уведомления</button>'}</div>`;
 }
 
 // ====== ПРИГЛАШЕНИЕ В КОМНАТУ ПО ССЫЛКЕ (?room=ID) ======
@@ -3083,6 +3123,7 @@ const PAGES={
       <div class="cardw"><div class="ch"><h3>Топ игроков</h3></div>
         ${top.length?top.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span class="muted">🏆 ${a.rating||1000} · ур. ${levelInfo(a.xp).lvl}</span></div>`).join(''):'<p class="muted">Загрузка…</p>'}</div>
     </div><div>
+      ${appCardHTML()}
       ${FB?friendsOnlineHTML(u):""}
       ${FB?gchatHTML():""}
       ${lobbyHTML(u)}
@@ -3466,6 +3507,8 @@ const ACT={
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); addDeal(u,{k:"vip",days:plan.days,price:plan.price}); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
+  install:()=>doInstall(),
+  notifyOn:()=>askNotify(),
   dmList:()=>showDMList(),
   dmTo:el=>showDM(el.dataset.u),
   reportsReload:()=>loadReports(),

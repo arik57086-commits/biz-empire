@@ -1034,9 +1034,9 @@ function timeLeft(){ const n=new Date(), m=new Date(n); m.setHours(24,0,0,0); co
 function track(p,id,amount=1){
   if(!p) return;
   // в игре по сети прогресс заданий других игроков копится в партии — каждый применит его себе в конце
-  if(G&&G.online&&p.uid&&p.uid!==DB.session){ G.tp=G.tp||{}; const t=(G.tp[p.uid]=G.tp[p.uid]||{}); t[id]=(t[id]||0)+amount; return; }
+  if(G&&G.online&&p.uid&&p.uid!==DB.session){ G.tp=G.tp||{}; const t=(G.tp[p.uid]=G.tp[p.uid]||{}); t[id]=id==='rentMax'?Math.max(t[id]||0,amount):(t[id]||0)+amount; return; }
   if(!p.acc||p.acc!==DB.session) return; const a=DB.accounts[p.acc]; if(!a) return; // задания считаются только своему аккаунту
-  a.life=a.life||{}; a.life[id]=(a.life[id]||0)+amount; checkAch(a);
+  a.life=a.life||{}; if(id==='rentMax') a.life.rentMax=Math.max(a.life.rentMax||0,amount); else a.life[id]=(a.life[id]||0)+amount; checkAch(a);
   const ts=ensureTasks(a), t=ts.list.find(x=>x.id===id&&!x.done); if(!t){ saveDB(); return; }
   const def=TASK_POOL.find(x=>x.id===id);
   t.prog=Math.min(def.goal,t.prog+amount);
@@ -1057,7 +1057,14 @@ const ACH=[
  {id:'casino',ic:'🎰',n:'Игрок',d:'Выиграйте в казино',v:a=>(a.life||{}).casino||0,st:[[3,50],[20,150],[100,400]]},
  {id:'lvl',ic:'⭐',n:'Опытный',d:'Достигните уровня',v:a=>levelInfo(a.xp||0).lvl,st:[[5,0],[10,0],[20,0],[30,0]]},
  {id:'coll',ic:'🃏',n:'Коллекционер',d:'Соберите разные карточки',v:a=>new Set((a.items||[]).map(x=>x.id).filter(id=>id.startsWith('card_'))).size,st:[[5,50],[20,150],[50,400],[100,1000]]},
- {id:'friends',ic:'👥',n:'Душа компании',d:'Добавьте друзей',v:a=>(a.friends||[]).length,st:[[1,30],[5,100],[15,250]]}
+ {id:'friends',ic:'👥',n:'Душа компании',d:'Добавьте друзей',v:a=>(a.friends||[]).length,st:[[1,30],[5,100],[15,250]]},
+ {id:'kill',ic:'💥',n:'Разоритель',d:'Разорите соперников',v:a=>(a.life||{}).kill||0,st:[[1,50],[10,150],[50,400]]},
+ {id:'rentMax',ic:'💎',n:'Золотая клетка',d:'Получите за одну аренду',v:a=>(a.life||{}).rentMax||0,st:[[5000,50],[15000,150],[30000,400]],money:1},
+ {id:'aucwin',ic:'🔨',n:'Аукционист',d:'Выиграйте аукционы',v:a=>(a.life||{}).aucwin||0,st:[[1,30],[10,100],[50,300]]},
+ {id:'hqb',ic:'🏛',n:'Штаб-квартира',d:'Постройте штаб-квартиры',v:a=>(a.life||{}).hq||0,st:[[1,50],[5,150],[20,400]]},
+ {id:'jackpot',ic:'💰',n:'Счастливчик',d:'Сорвите джекпот',v:a=>(a.life||{}).jackpot||0,st:[[1,50],[5,150],[20,400]]},
+ {id:'portal',ic:'🌀',n:'Путешественник',d:'Пройдите через порталы',v:a=>(a.life||{}).portal||0,st:[[1,30],[10,100],[50,300]]},
+ {id:'modes',ic:'🎭',n:'Универсал',d:'Победите в разных режимах',v:a=>Object.keys(MODES).filter(k=>(a['mw_'+k]||0)>0).length,st:[[2,100],[4,250],[7,600]]},
 ];
 const ACH_TIER=['🥉','🥈','🥇','💎'];
 function achTier(a,x){ const v=x.v(a); let t=0; while(t<x.st.length&&v>=x.st[t][0]) t++; return t; }
@@ -1640,7 +1647,8 @@ const LOGS_KEY='bizemp_logs';
 const savedLogs=()=>{ try{ return JSON.parse(localStorage.getItem(LOGS_KEY))||[]; }catch(e){ return []; } };
 function saveMatchLog(){
   if(!G) return; const w=G.players[G.winner];
-  const rec={t:Date.now(),mode:G.mode,online:!!G.online,winner:w?w.name:'',players:G.players.map(p=>({n:p.name,c:p.color,m:netWorth(p),out:p.out})),log:G.log.slice(-300)};
+  const hist=[...(G.hist||[]),G.players.map(p=>p.out?0:Math.round(netWorth(p)))];
+  const rec={t:Date.now(),mode:G.mode,online:!!G.online,winner:w?w.name:'',hist,players:G.players.map(p=>({n:p.name,c:p.color,m:netWorth(p),out:p.out})),log:G.log.slice(-300)};
   try{ localStorage.setItem(LOGS_KEY,JSON.stringify([rec,...savedLogs()].slice(0,5))); }catch(e){}
 }
 function showMatchLog(k){
@@ -1648,9 +1656,45 @@ function showMatchLog(k){
   $('#modal').innerHTML=`<div class="ov" id="mlov"><div class="box" style="width:520px;max-height:86vh;display:flex;flex-direction:column">
     <h2 style="margin:0 0 4px">📜 ${m.ic} ${m.n}</h2><div class="muted">${new Date(r.t).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})} · победитель: <b>${esc(r.winner||'—')}</b></div>
     <div style="margin:8px 0">${r.players.map(p=>`<span class="badge" style="background:${p.c};color:#fff">${esc(p.n)}: ${p.out?'банкрот':fmt(p.m)}</span>`).join('')}</div>
+    ${r.hist?`<details style="margin-bottom:6px"><summary style="cursor:pointer">📈 График партии</summary>${graphSVG(r.players,r.hist)}</details>`:''}
     <div class="mlog">${r.log.slice().reverse().map(x=>`<div>${x}</div>`).join('')}</div>
     <div style="text-align:center;margin-top:8px"><button class="sec" id="mlx">Закрыть</button></div></div></div>`;
   $('#mlov').onclick=e=>{ if(e.target.id==='mlov'||e.target.id==='mlx') closeModal(); };
+}
+// ====== ГРАФИК ПАРТИИ: капитал каждого игрока по кругам ======
+function graphSVG(players,hist){
+  if(!hist||hist.length<2) return '<p class="muted">График появится, когда партия длится хотя бы 2 круга.</p>';
+  const W=480,H=200,P=34, max=Math.max(1,...hist.flat()), n=hist.length;
+  const X=k=>P+(W-P-8)*k/(n-1), Y=v=>H-22-(H-34)*v/max;
+  const lines=players.map((p,j)=>`<polyline fill="none" stroke="${p.c||p.color}" stroke-width="3" stroke-linejoin="round" points="${hist.map((h,k)=>X(k).toFixed(1)+','+Y(h[j]||0).toFixed(1)).join(' ')}"/>`).join('');
+  const grid=[0,0.5,1].map(f=>`<line x1="${P}" x2="${W-8}" y1="${Y(max*f)}" y2="${Y(max*f)}" stroke="#8885" stroke-dasharray="3 4"/><text x="2" y="${Y(max*f)+4}" font-size="10" fill="#8a93a6">${fmtCell(max*f).replace('$','')}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:#1e222d;border-radius:8px">${grid}${lines}
+    <text x="${P}" y="${H-6}" font-size="10" fill="#8a93a6">круг 1</text><text x="${W-8}" y="${H-6}" font-size="10" fill="#8a93a6" text-anchor="end">круг ${n}</text></svg>
+    <div style="margin-top:4px">${players.map(p=>`<span class="badge" style="background:${p.c||p.color};color:#fff">${esc(p.n||p.name)}</span>`).join('')}</div>`;
+}
+function showGraph(players,hist,title){
+  $('#modal').innerHTML=`<div class="ov" id="grov"><div class="box" style="width:540px"><h2 style="margin:0 0 8px">📈 ${title||'График партии'}</h2>${graphSVG(players,hist)}
+    <div style="text-align:center;margin-top:10px"><button class="sec" id="grx">Закрыть</button></div></div></div>`;
+  $('#grov').onclick=e=>{ if(e.target.id==='grov'||e.target.id==='grx') closeModal(); };
+}
+// ====== ЛУЧШИЕ ПО РЕЖИМАМ (поле mw_<режим> — победы в режиме) ======
+let lbMode='classic';
+async function loadModeLeaders(){ if(!FB||!me()) return; const k='mw_'+lbMode;
+  try{ DB.lbm=(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0); DB.lbmKey=k; if(PAGE==='games') renderSite(); }catch(e){ console.error('lbm',e); } }
+function modeLeadersHTML(u){ const k='mw_'+lbMode;
+  return `<div class="cardw"><div class="ch"><h3>🏅 Лучшие по режимам</h3><select class="inp" style="width:auto" onchange="lbMode=this.value;DB.lbm=null;loadModeLeaders()">${Object.entries(MODES).map(([id,m])=>`<option value="${id}" ${id===lbMode?'selected':''}>${m.ic} ${m.n}</option>`).join('')}</select></div>
+    ${DB.lbm&&DB.lbmKey===k?(DB.lbm.length?DB.lbm.map((a,i)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${i+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[k]} побед</b></div>`).join(''):'<p class="muted">В этом режиме ещё никто не побеждал.</p>'):'<p class="muted">Загрузка…</p>'}</div>`;
+}
+// ====== ПОДРОБНАЯ СТАТИСТИКА В ПРОФИЛЕ ======
+function statsHTML(a){
+  const L=a.life||{}, ms=a.ms||{}, fav=Object.entries(ms).sort((x,y)=>y[1].m-x[1].m)[0];
+  const row=(t,v)=>`<div class="stat"><span>${t}</span><b>${v}</b></div>`;
+  return `<div class="cardw"><h3>📊 Статистика</h3>
+    ${row('Процент побед',a.matches?Math.round(a.wins/a.matches*100)+'%':'—')}
+    ${row('Любимый режим',fav&&MODES[fav[0]]?MODES[fav[0]].ic+' '+MODES[fav[0]].n:'—')}
+    ${row('Всего получено аренды',fmt(L.rent||0))}${row('Самая большая аренда',fmt(L.rentMax||0))}
+    ${row('Куплено компаний',L.buy||0)}${row('Построено филиалов',L.build||0)}${row('Разорено соперников',L.kill||0)}${row('Обменов',L.trade||0)}
+    ${Object.keys(ms).length?`<div style="margin-top:8px">${Object.entries(ms).filter(([k])=>MODES[k]).map(([k,s])=>`<div class="hist"><span>${MODES[k].ic} ${MODES[k].n}</span><span>${s.m} матч. · ${s.w} побед</span><span class="muted">${s.m?Math.round(s.w/s.m*100):0}%</span></div>`).join('')}</div>`:''}</div>`;
 }
 function logsHTML(){ const L=savedLogs(); if(!L.length) return '';
   return `<div class="cardw"><div class="ch"><h3>📜 Последние партии</h3><span class="muted">на этом устройстве</span></div>
@@ -1896,7 +1940,7 @@ function cellAction(a,i,m){
   if(m==='sell'&&canSell(i)){ a.money+=c.house/2; s.level--; log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
   if(m==='mort'&&canMortgage(i)){ a.money+=c.price/2; s.mort=true; s.mortR=G.round||1; log(`${pn(a)} закладывает ${cn(i)} и получает ${fmt(c.price/2)}`); }
   if(m==='unmort'&&s.mort&&a.money>=unmortCost(i)){ a.money-=unmortCost(i); s.mort=false; log(`${pn(a)} выкупает ${cn(i)}`); }
-  if(m==='hq'&&canHQ(i)){ a.money-=hqCost(i); s.hq=true; log(`🏛 ${pn(a)} строит <b>штаб-квартиру</b> в ${cn(i)} — аренда всей группы «${GROUPS[c.g].n}» +${Math.round((HQ_MULT-1)*100)}%`); track(a,'build'); }
+  if(m==='hq'&&canHQ(i)){ a.money-=hqCost(i); s.hq=true; log(`🏛 ${pn(a)} строит <b>штаб-квартиру</b> в ${cn(i)} — аренда всей группы «${GROUPS[c.g].n}» +${Math.round((HQ_MULT-1)*100)}%`); track(a,'build'); track(a,'hq'); }
 }
 function canBuild(i){
   const c=CELLS[i],s=G.cells[i],a=actor();
@@ -2079,14 +2123,14 @@ async function land(p,dice){
         const notes=[bon?`+${bon}% карточка`:'',evOn('crisis')?'−30% кризис':'',evOn('boom')&&c.g===G.event.g?'+50% бум':'',hasHQ?'+25% 🏛':''].filter(Boolean);
         log(`${pn(p)} платит ${pn(o)} аренду ${fmt(r)} за ${cn(i)}${notes.length?` <span style="color:#ffb627">(${notes.join(', ')})</span>`:''}`); await pay(p,r,o.id);
         let got=r; const sh=rentShare(); if(sh<1&&!p.out){ const cut=r-Math.round(r*sh/10)*10; o.money-=cut; got=r-cut; log(`🏦 ${pn(o)} получает только ${Math.round(sh*100)}% — ${fmt(got)}, остальное ${fmt(cut)} забирает Банк`); render(); }
-        track(o,'rent',got);
+        track(o,'rent',got); track(o,'rentMax',got);
         if(!p.out) payDividends(i,got); }
     }
   } else if(c.type==='tax'){ if(evOn('taxfree')) log(`🧾 Налоговые каникулы — ${pn(p)} ничего не платит`); else { log(`${pn(p)} платит ${c.name.toLowerCase()} ${fmt(c.amount)}`); await pay(p,c.amount,-1); if(!p.out) toJackpot(c.amount); } }
   else if(c.type==='stock') await stock(p);
   else if(c.type==='chance'&&OPT().portal&&PORTALS.includes(i)&&!G.noPortal) await portal(p,i);
   else if(c.type==='chance') await chance(p);
-  else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); G.jackpot=0; render(); } await casino(p); }
+  else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); track(p,'jackpot'); G.jackpot=0; render(); } await casino(p); }
   else if(c.type==='gojail') sendJail(p);
   render();
 }
@@ -2101,7 +2145,7 @@ async function portal(p,i){
   if(p.bot) go=Math.random()<0.5;
   else { const v=await ask('portal',{to}); if(p.out) return; go=v==='go'; }
   if(!go){ log(`🌀 ${pn(p)} остаётся у портала`); return; }
-  log(`🌀 ${pn(p)} проходит через портал на другую сторону поля`); SFX.event();
+  log(`🌀 ${pn(p)} проходит через портал на другую сторону поля`); SFX.event(); track(p,'portal');
   p.pos=to; render(); await sleep(400);
   p.pos=to; render(); // на втором портале ничего не происходит — следующий ход уже оттуда
 }
@@ -2159,7 +2203,7 @@ async function auction(i,decliner){
       }
     }
   } finally { if(G) G.auc=null; }
-  if(leader){ leader.money-=price; s.owner=leader.id; log(`🔨 ${pn(leader)} выигрывает аукцион и покупает ${cn(i)} за ${fmt(price)}`); track(leader,'buy'); }
+  if(leader){ leader.money-=price; s.owner=leader.id; log(`🔨 ${pn(leader)} выигрывает аукцион и покупает ${cn(i)} за ${fmt(price)}`); track(leader,'buy'); track(leader,'aucwin'); }
   else log(`🔨 Никто не купил ${cn(i)}`);
   render(); netPublishNow();
 }
@@ -2280,7 +2324,7 @@ function bankrupt(p,to){
   if(p.out) return;
   const cred=to>=0?G.players[to]:null;
   G.cells.forEach((s,i)=>{ if(s.owner===p.id&&s.level){ p.money+=s.level*CELLS[i].house/2; s.level=0; } });
-  if(cred) cred.money+=Math.max(0,p.money);
+  if(cred){ cred.money+=Math.max(0,p.money); track(cred,'kill'); }
   G.cells.forEach(s=>{ if(s.owner===p.id){ if(cred) s.owner=cred.id; else { s.owner=-1; s.mort=false; resetCell(s); } } });
   p.money=0; p.out=true; p.inJail=false; p.credit=null; checkRentStage();
   log(`💥 ${pn(p)} объявляет банкротство${cred?' — всё имущество переходит к '+pn(cred):''}`);
@@ -2522,6 +2566,7 @@ function nextPlayer(){
   do{ G.cur=(G.cur+1)%G.players.length; }while(G.players[G.cur].out);
   if(G.cur<=prev){
     G.round=(G.round||1)+1;
+    G.hist=G.hist||[]; G.hist.push(G.players.map(p=>p.out?0:Math.round(netWorth(p)))); // для графика партии
     checkMortgages();
     if(G.event){ log(`Событие «${(EVENTS.find(v=>v.id===G.event.id)||{}).n}» закончилось`); G.event=null; }
     if(G.round%5===0) startEvent();
@@ -2579,6 +2624,8 @@ function applyMyResult(){
 }
 // сезон (месяц): победа +3 очка, матч +1 · неделя среди друзей · лучший результат задачи дня
 function addLeagues(a,r){
+  // статистика по режимам: матчи и победы; победы ещё и отдельным полем — для таблицы лидеров режима
+  if(G&&G.mode){ a.ms=a.ms||{}; const s=a.ms[G.mode]=a.ms[G.mode]||{m:0,w:0}; s.m++; if(r.win&&!r.noReward){ s.w++; a['mw_'+G.mode]=(a['mw_'+G.mode]||0)+1; } }
   const sk=seasonKey(); a[sk]=(a[sk]||0)+(r.noReward?0:(r.win?3:1));
   if(G&&G.online&&isWeekend()&&!r.noReward){ const wk2=weekendKey(); a[wk2]=(a[wk2]||0)+(r.win?3:1); }
   const wk=weekKey(); if(!a.wk||a.wk.id!==wk) a.wk={id:wk,w:0,m:0}; a.wk.m++; if(r.win&&!r.noReward) a.wk.w++;
@@ -2601,9 +2648,9 @@ async function checkSeasonAward(a){
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
     <h2>Победитель: ${p?pn(p):'никто'}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
-    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
+    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wgraph">📈 График</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
-  $('#wshare').onclick=showShare; $('#wlog').onclick=()=>showMatchLog(0);
+  $('#wshare').onclick=showShare; $('#wlog').onclick=()=>showMatchLog(0); $('#wgraph').onclick=()=>{ const r=savedLogs()[0]; if(r) showGraph(r.players,r.hist); };
   if($('#wnew')) $('#wnew').onclick=()=>showSetup(G.mode);
   updateRematch();
 }
@@ -3119,6 +3166,7 @@ const PAGES={
         <p class="muted" style="margin-top:-6px">Победа +3 очка, сыгранный матч +1. Места 1–3 в конце месяца получают значок в профиль и опыт (🥇 +500, 🥈 +300, 🥉 +150 XP). Ваши очки: <b>${u[seasonKey()]||0}</b></p>
         ${(DB.season||[]).length?DB.season.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k<3?SEASON_PRIZE[k][0]:k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[seasonKey()]} очк.</b></div>`).join(''):'<p class="muted">В этом сезоне ещё нет очков — сыграйте матч!</p>'}</div>
       ${FB?weekendHTML(u):""}
+      ${FB?modeLeadersHTML(u):""}
       ${logsHTML()}
       <div class="cardw"><div class="ch"><h3>Топ игроков</h3></div>
         ${top.length?top.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span class="muted">🏆 ${a.rating||1000} · ур. ${levelInfo(a.xp).lvl}</span></div>`).join(''):'<p class="muted">Загрузка…</p>'}</div>
@@ -3300,6 +3348,7 @@ const PAGES={
         <div class="cardw"><div class="ch"><h3>Инвентарь <span class="muted" style="font-size:14px">${(u.items||[]).length}</span></h3><a data-go="inventory" class="muted" style="cursor:pointer">все ›</a></div>
           ${own.length?`<div class="pinv">${own.slice(0,6).map(x=>`<div data-go="inventory" title="${esc(x.n)}">${itemArt(x,90,64)}<span style="background:linear-gradient(120deg,${RAR_GRAD[x.r]})">${esc(x.n)}</span></div>`).join('')}</div>`:'<span class="muted">У этого пользователя инвентарь пуст.</span>'}</div>
         <div class="cardw"><h3>🏅 Достижения <span class="muted" style="font-size:13px;font-weight:400">${ACH.reduce((s,x)=>s+achTier(u,x),0)} из ${ACH.reduce((s,x)=>s+x.st.length,0)}</span></h3><div class="achs">${achHTML(u,true)}</div></div>
+        ${statsHTML(u)}
         <div class="cardw"><h3>Последние матчи</h3>${(u.history||[]).length?u.history.map(h=>`<div class="hist"><span>${MODES[h.mode]?MODES[h.mode].ic+' '+MODES[h.mode].n:'Игра'} · ${h.n} игрока</span><span>${h.win?'🏆 Победа':'Поражение'}</span><span class="muted">${new Date(h.t).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''):'<p class="muted">Ещё нет сыгранных матчей.</p>'}</div>
       </div><div>
         <div class="cardw"><div style="display:flex;gap:14px;align-items:center"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#5a3fd6,#8e24aa);display:flex;align-items:center;justify-content:center;font-size:30px">${rk[2]}</div>
@@ -3705,7 +3754,7 @@ if(FB){
 }
 // при переходе на страницы подгружаем свежие данные
 const _go=go;
-go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
+go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); loadModeLeaders(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
 $('#landing').addEventListener('click',e=>{
   if(DD&&!e.target.closest('.dd')&&!e.target.closest('[data-act="dd"]')){ DD=false; renderSite(); }
   // телефон: плитка инвентаря открывается окном с подробностями и кнопками

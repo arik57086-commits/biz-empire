@@ -217,10 +217,15 @@ button.sm{padding:5px 12px;font-size:13px}
 .cell.mvopt::before{content:attr(data-mv);position:absolute;top:2px;right:2px;background:#ffb627;color:#3a2300;border-radius:8px;padding:0 5px;font-weight:800;font-size:max(10px,calc(var(--s)/70));z-index:2}
 @keyframes mvp{from{box-shadow:0 0 0 #ffb62700}to{box-shadow:0 0 16px #ffb627}}
 .cell.pickopt{outline:2px dashed #ffb627;cursor:pointer}
+.grpinfo{font-size:13px;margin:6px 0;line-height:1.5}
+.mlog{flex:1;overflow:auto;font-size:13px;line-height:1.5;background:#1e222d;border-radius:8px;padding:8px 10px;min-height:120px}
+.mlog div{border-bottom:1px solid #ffffff0d;padding:2px 0}
 .shbtns{display:flex;flex-direction:column;gap:8px;margin:12px 0}
 .shb{display:block;color:#fff;text-decoration:none;font-weight:700;padding:11px;border-radius:10px;cursor:pointer;font-size:15px}
 .shb:hover{filter:brightness(1.08)}
 .shurl{font-size:12px;color:#8a93a6;word-break:break-all;margin-bottom:10px;user-select:all}
+.odot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa1ae;vertical-align:middle;box-shadow:0 0 0 2px #fff3}
+.odot.on{background:#3ccf6e;box-shadow:0 0 6px #3ccf6e}
 /* ===== Темы оформления ===== */
 body.th-light{--bg:#e9edf5;--fg:#262b38;--pl:#fff;--ctr:#fff;--bd:#c9d0de;--logbg:#f1f3f8}
 body.th-light #log div{border-bottom-color:#0000000d}
@@ -1168,7 +1173,7 @@ function render(){
     const act=p.id===G.cur&&!G.over;
     return `<div class="pl ${act?'active':''} ${p.out?'out':''} ${plMenu===p.id?'open':''}" data-pid="${p.id}" style="${act?`background:linear-gradient(135deg,${p.color},${p.color}cc)`:''}">
       <div class="av" style="background:${p.color}">${p.skin||avLetter(p)}</div>
-      <div class="nm">${p.vip?'<span title="VIP" style="color:#ffd54f">★</span> ':''}${esc(p.name)}${p.bot?' 🤖':''}</div>
+      <div class="nm">${G.online&&p.uid&&!p.out?dot(isOnlineUid(p.uid))+' ':''}${p.vip?'<span title="VIP" style="color:#ffd54f">★</span> ':''}${esc(p.name)}${p.bot?' 🤖':''}</div>
       ${acc?`<div class="tag">${rankOf(levelInfo(acc.xp).lvl)[2]} ур. ${levelInfo(acc.xp).lvl}</div>`:''}
       <div class="mn">${p.out?'Банкрот':fmt(p.money)}</div>
       <div class="tag">🏢 ${props}${p.inJail?' · 🚔 в тюрьме':''}${p.jailCards?' · 🎫 '+p.jailCards:''}${p.credit?` · 🏦 ${creditLeft(p)} ход.`:''}</div>
@@ -1202,7 +1207,7 @@ function render(){
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
   $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
-  renderAuction();
+  renderAuction(); maybeAutoEnd();
   // поезд: подсветить клетки, куда можно пойти; тройка — любая клетка
   { const can=canAct(), ad=G.askData||askData, a=actor(), mv=G.phase==='move'&&can&&ad&&ad.opts?ad.opts:[];
     CELLS.forEach((c,i)=>{ const el=$('#c'+i), n=mv.find(n=>(a.pos+n)%40===i); el.classList.toggle('mvopt',n!==undefined); if(n!==undefined) el.dataset.mv='+'+n; else delete el.dataset.mv; el.classList.toggle('pickopt',G.phase==='pick'&&can); }); }
@@ -1315,6 +1320,7 @@ function showTheme(){
     <h3>Тема игры</h3><button class="${THEME.th==='dark'?'':'sec'}" data-th="dark">🌙 Тёмная</button><button class="${THEME.th==='light'?'':'sec'}" data-th="light">☀️ Светлая</button>
     <h3>Цвет клеток поля</h3><div>${BOARDS.map(([k,n,c])=>`<span class="swc ${THEME.bd===k?'sel':''}" data-bd="${k}" title="${n}" style="background:${c}"></span>`).join('')}</div>
     <h3>Звук</h3><button class="${SND.on?'':'sec'}" data-snd="1">🔊 Включён</button><button class="${SND.on?'sec':''}" data-snd="0">🔇 Выключен</button>
+    <h3>Игра</h3><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-ae="1" ${THEME.autoEnd?'checked':''} style="width:18px;height:18px"> Завершать ход автоматически через 3 секунды (если ничего не нажимали)</label>
     <h3>Подсказки для новичков</h3><button class="sec" data-tutr="1">↺ Показать подсказки заново</button>
     <p class="muted">Настройки сохраняются в этом браузере.</p><div style="text-align:center"><button id="thx">Готово</button></div></div></div>`;
     $('#thov').onclick=e=>{ const t=e.target;
@@ -1322,6 +1328,7 @@ function showTheme(){
       if(t.dataset.th){ THEME.th=t.dataset.th; applyTheme(); draw(); }
       if(t.dataset.bd){ THEME.bd=t.dataset.bd; applyTheme(); draw(); }
       if(t.dataset.snd){ setSound(t.dataset.snd==='1'); draw(); }
+      if(t.dataset.ae){ THEME.autoEnd=t.checked; applyTheme(); toast(THEME.autoEnd?'✔ Ход будет завершаться сам через 3 с':'Автозавершение выключено'); }
       if(t.dataset.tutr){ localStorage.removeItem(TUT_KEY); toast('✔ Подсказки снова будут показываться'); } };
   };
   draw();
@@ -1361,6 +1368,158 @@ function showReact(uid,e,name){
   else { const r=$('#board').getBoundingClientRect(); b.style.left=(r.left+r.width/2)+'px'; b.style.top=(r.top+r.height*0.3)+'px'; }
   document.body.appendChild(b); SFX.pop(); setTimeout(()=>b.remove(),2200);
 }
+// ====== В СЕТИ / НЕ В СЕТИ: раз в 45 с отмечаемся в своём профиле (поле seen) ======
+const AFK_OUT=3, ONLINE_MS=110000;
+const SEEN={}; // uid → время последней отметки (из профилей)
+const isOnlineAcc=a=>!!(a&&a.seen&&Date.now()-a.seen<ONLINE_MS);
+const isOnlineUid=uid=>uid===DB.session?true:!!(SEEN[uid]&&Date.now()-SEEN[uid]<ONLINE_MS);
+function heartbeat(){
+  const u=me(); if(!FB||!u||document.hidden&&!(G&&G.online)) return;
+  u.seen=Date.now(); FB.db.collection('users').doc(DB.session).update({seen:u.seen}).catch(()=>{});
+}
+// обновить, кто в сети: друзья (для страницы «Игры») и игроки текущей партии по сети
+async function refreshSeen(){
+  if(!FB||!me()) return;
+  const ids=new Set((me().friends||[]));
+  if(G&&G.online) G.players.forEach(p=>{ if(p.uid&&p.uid!==DB.session) ids.add(p.uid); });
+  await Promise.all([...ids].map(uid=>loadUser(uid).then(a=>{ if(a) SEEN[uid]=a.seen||0; }).catch(()=>{})));
+  if(G&&G.online&&$('#landing').classList.contains('hide')) render();
+  else if(['games','friends'].includes(PAGE)&&!$('#dlg').innerHTML&&!$('#modal').innerHTML) renderSite();
+}
+setInterval(heartbeat,45000); setInterval(refreshSeen,40000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) heartbeat(); });
+const dot=on=>`<span class="odot ${on?'on':''}" title="${on?'в сети':'не в сети'}"></span>`;
+// друзья онлайн — блок на странице «Игры»
+function friendsOnlineHTML(u){
+  const fr=(u.friends||[]).map(l=>DB.accounts[l]).filter(Boolean).sort((a,b)=>(isOnlineAcc(b)?1:0)-(isOnlineAcc(a)?1:0));
+  const myRoom=(DB.rooms||[]).find(r=>r.uids.includes(DB.session));
+  return `<div class="cardw"><div class="ch"><h3>Друзья ${fr.filter(isOnlineAcc).length?`<span class="muted" style="font-size:14px">· онлайн ${fr.filter(isOnlineAcc).length}</span>`:''}</h3><a data-go="friends" class="muted" style="cursor:pointer">все ›</a></div>
+    ${fr.length?fr.slice(0,8).map(a=>`<div class="top"><span data-uprof="${esc(a.login)}" style="cursor:pointer">${avc(a,30)}</span><span class="n" data-uprof="${esc(a.login)}" style="cursor:pointer">${dot(isOnlineAcc(a))} ${esc(a.name)}<br><span class="muted" style="font-size:11px">${isOnlineAcc(a)?'в сети':a.seen?'был(а) '+agoText(a.seen):'не в сети'}</span></span>
+      ${isOnlineAcc(a)?`<button class="sm" data-act="callFriend" data-r="${myRoom?myRoom.id:''}">${myRoom?'Позвать':'Создать игру'}</button>`:''}</div>`).join('')
+      :'<p class="muted">Добавьте друзей по нику — здесь будет видно, кто сейчас в сети.</p>'}</div>`;
+}
+const agoText=t=>{ const m=Math.round((Date.now()-t)/60000); return m<60?`${Math.max(1,m)} мин назад`:m<1440?`${Math.round(m/60)} ч назад`:`${Math.round(m/1440)} дн назад`; };
+
+// ====== ПРИГЛАШЕНИЕ В КОМНАТУ ПО ССЫЛКЕ (?room=ID) ======
+const roomLink=rid=>SITE_URL+'?room='+rid;
+(function(){ const r=new URLSearchParams(location.search).get('room'); if(r){ sessionStorage.setItem('bizemp_join',r); history.replaceState(null,'',location.pathname); } })();
+async function joinFromLink(){
+  const rid=sessionStorage.getItem('bizemp_join'); if(!rid||!FB||!me()) return; sessionStorage.removeItem('bizemp_join');
+  try{ const s=await roomRef(rid).get(); if(!s.exists) return toast('Эта игра уже закрыта');
+    const r={id:s.id,...s.data()};
+    if(r.uids.includes(DB.session)) return watchRoom(rid);
+    if(r.status!=='waiting') return toast('Эта игра уже началась');
+    go('games'); await joinRoom(rid); }catch(e){ toast('Не удалось войти в игру: '+(e.message||e)); }
+}
+async function copyRoomLink(rid){
+  const url=roomLink(rid), t=`Залетай ко мне в игру в Кубитале! ${url}`;
+  try{ if(navigator.share&&matchMedia('(pointer:coarse)').matches) await navigator.share({title:'Кубитал',text:t,url}); else { await navigator.clipboard.writeText(t); toast('✔ Ссылка на комнату скопирована — отправьте другу'); } }
+  catch(e){ if(e&&e.name==='AbortError') return; askText('Ссылка на комнату',url); }
+}
+
+// ====== ПРОФИЛЬ ЛЮБОГО ИГРОКА (по нажатию на имя/аватар) ======
+async function showUserProfile(uid){
+  if(!uid) return; let a=DB.accounts[uid];
+  try{ a=await loadUser(uid)||a; }catch(e){}
+  if(!a) return toast('Профиль не найден');
+  const li=levelInfo(a.xp||0), rk=rankOf(li.lvl), u=me(), isMe=uid===DB.session, isFr=u&&(u.friends||[]).includes(uid);
+  const achs=ACH.map(x=>{ const t=achTier(a,x); return t?`<span title="${x.n} ${ACH_TIER[t-1]}">${x.ic}</span>`:''; }).join('');
+  $('#modal').innerHTML=`<div class="ov" id="upov"><div class="box lt" style="width:380px">
+    <div style="display:flex;gap:14px;align-items:center">${avc(a,72)}<div><h2 style="margin:0">${isVip(a)?'<span style="color:#ffb627">★</span> ':''}${esc(a.name)}</h2>
+      <div class="muted">@${esc(a.nick||'')} · ${dot(isOnlineAcc(a)||isMe)} ${isOnlineAcc(a)||isMe?'в сети':a.seen?'был(а) '+agoText(a.seen):'не в сети'}</div>
+      <div>${rk[2]} ${rk[1]} · ур. ${li.lvl}${li.lvl>=10?` · 🏆 ${a.rating||1000}`:''}</div></div></div>
+    <div class="stats" style="margin:14px 0 6px"><div><b>${a.matches||0}</b><span>матчей</span></div><div><b>${a.wins||0}</b><span>побед</span></div><div><b>${(a.friends||[]).length}</b><span>друзей</span></div></div>
+    ${achs?`<div style="font-size:22px;letter-spacing:3px;margin:6px 0">${achs}</div>`:''}
+    ${(a.badges||[]).length?`<div>${a.badges.map(b=>`<span class="badge">${b.ic} ${esc(b.t)}</span>`).join('')}</div>`:''}
+    <div style="text-align:center;margin-top:12px">${!isMe&&u&&!isFr?`<button data-upadd="${esc(a.nick||'')}">➕ В друзья</button>`:''}${!isMe&&u&&typeof showDM==='function'&&FEATURES.dm?`<button class="sec" data-updm="${esc(uid)}">✉️ Написать</button>`:''}${!isMe&&u&&FEATURES.report?`<button class="sec" data-uprep="${esc(uid)}">⚠ Пожаловаться</button>`:''}<button class="sec" id="upx">Закрыть</button></div></div></div>`;
+  $('#upov').onclick=async e=>{ if(e.target.id==='upov'||e.target.id==='upx') return closeModal();
+    const ad=e.target.closest('[data-upadd]'); if(ad){ closeModal(); await addFriend(ad.dataset.upadd); }
+    const dm=e.target.closest('[data-updm]'); if(dm) showDM(dm.dataset.updm);
+    const rp=e.target.closest('[data-uprep]'); if(rp) reportUser(rp.dataset.uprep); };
+}
+const FEATURES={dm:false,report:false}; // включаются во второй части (нужны правила базы)
+document.addEventListener('click',e=>{ const t=e.target.closest('[data-uprof]'); if(t&&t.dataset.uprof){ e.stopPropagation(); showUserProfile(t.dataset.uprof); } },true);
+
+// ====== НАЙТИ ИГРУ: свободная комната или новая «Обычная игра» ======
+async function quickPlay(){
+  const u=me(); if(!u||!FB) return go('auth');
+  if((DB.rooms||[]).some(r=>r.uids.includes(DB.session))) return toast('Вы уже в комнате — ждём начала');
+  const lvl=levelInfo(u.xp).lvl, fr=new Set(u.friends||[]);
+  const ok=(DB.rooms||[]).filter(r=>r.status==='waiting'&&r.players.length+(r.bots||0)<r.max&&(!r.friendsOnly||(r.hostFriends||[]).includes(DB.session))
+    &&!(MODES[r.mode]&&MODES[r.mode].ranked&&lvl<MODES.ranked.needLvl))
+    .sort((a,b)=>(b.uids.some(x=>fr.has(x))?1:0)-(a.uids.some(x=>fr.has(x))?1:0)||b.players.length-a.players.length);
+  if(ok.length){ toast('🔎 Нашли игру — заходим!'); return joinRoom(ok[0].id); }
+  const room={host:DB.session,hostName:u.name,mode:'classic',max:4,friendsOnly:false,hostFriends:u.friends||[],
+    opt:{timer:90,auction:true,credit:true,mortLimit:true},status:'waiting',created:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
+  try{ const ref=await FB.db.collection('rooms').add(room); watchRoom(ref.id); toast('Свободных игр нет — создали новую. Ждём игроков!'); }
+  catch(e){ toast('Не удалось создать игру: '+(e.message||e)); }
+}
+
+// ====== НАГРАДА ЗА ВХОД КАЖДЫЙ ДЕНЬ: опыт растёт с серией, на 7-й день — набор ======
+function dailyLogin(a){
+  if(!a) return; const d=today(); const y=new Date(); y.setDate(y.getDate()-1); const yd=y.toLocaleDateString('sv');
+  const L=a.login0||{}; if(L.day===d) return;
+  const streak=L.day===yd?(L.streak||0)+1:1, xp=Math.min(100,20+streak*10), box=streak%7===0;
+  a.login0={day:d,streak}; a.xp=(a.xp||0)+xp; if(box) addItem(a,'set_start'); saveDB();
+  setTimeout(()=>{ $('#modal').innerHTML=`<div class="ov" id="dlov"><div class="box lt" style="width:340px;text-align:center"><div style="font-size:48px">🎁</div>
+    <h2 style="margin:4px 0">Награда за вход</h2><p>День <b>${streak}</b> подряд: <b>+${xp} XP</b>${box?'<br>и 🎁 <b>Набор Prima</b> в инвентарь!':''}</p>
+    <div style="display:flex;justify-content:center;gap:4px;margin:8px 0">${[1,2,3,4,5,6,7].map(k=>{ const n=((streak-1)%7)+1; return `<span style="width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:${k<=n?'#22b8a5':'#e9ecf3'};color:${k<=n?'#fff':'#8a93a6'}">${k===7?'🎁':k}</span>`; }).join('')}</div>
+    <p class="muted" style="font-size:13px">Заходите каждый день — на 7-й день подряд будет набор.</p><button id="dlok">Забрать</button></div></div>`;
+    $('#dlok').onclick=closeModal; },900);
+}
+
+// ====== ТУРНИР ВЫХОДНЫХ: победы в играх по сети в субботу и воскресенье ======
+const weekendKey=(d=new Date())=>'wt_'+weekKey(d).replace('-','_');
+const isWeekend=(d=new Date())=>[0,6].includes(d.getDay());
+const WT_PRIZE=[['🥇',300],['🥈',200],['🥉',100]];
+async function checkWeekendAward(a){
+  if(!FB||!a) return; const d=new Date(); d.setDate(d.getDate()-7); const k=weekendKey(d);
+  if(!a[k]) return; a.wtDone=a.wtDone||{}; if(a.wtDone[k]) return;
+  if(isWeekend()&&weekendKey()===k) return;
+  try{ const s=await FB.db.collection('users').orderBy(k,'desc').limit(3).get(); const place=s.docs.findIndex(x=>x.id===a.login);
+    a.wtDone[k]=true; if(place>=0){ const [ic,xp]=WT_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${place+1} место · турнир выходных`}]; a.xp+=xp; setTimeout(()=>toast(`${ic} Турнир выходных: ${place+1} место! +${xp} XP`),1500); }
+    saveDB(); }catch(e){ console.error('wt',e); }
+}
+async function loadWeekend(){ if(!FB||!me()) return; const k=weekendKey();
+  try{ DB.wt=(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0); if(PAGE==='games') renderSite(); }catch(e){ console.error('wt',e); } }
+function weekendHTML(u){ const k=weekendKey(), on=isWeekend();
+  return `<div class="cardw"><div class="ch"><h3>🏟 Турнир выходных</h3><span class="muted">${on?'идёт сейчас!':'в субботу и воскресенье'}</span></div>
+    <p class="muted" style="margin-top:-6px">Только игры по сети: победа +3, матч +1. Тройка лучших получает значок и опыт (+300 / +200 / +100 XP). Ваши очки: <b>${u[k]||0}</b></p>
+    ${(DB.wt||[]).length?DB.wt.map((a,i)=>`<div class="top"><span class="pos">${i<3?WT_PRIZE[i][0]:i+1}</span><span data-uprof="${esc(a.login)}" style="cursor:pointer">${avc(a,28)}</span><span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[k]} очк.</b></div>`).join('')
+      :`<p class="muted">${on?'Пока ни у кого нет очков — сыграйте по сети!':'Турнир начнётся в субботу.'}</p>`}</div>`;
+}
+
+// ====== ЖУРНАЛ ПОСЛЕДНИХ ПАРТИЙ (хранится на этом устройстве) ======
+const LOGS_KEY='bizemp_logs';
+const savedLogs=()=>{ try{ return JSON.parse(localStorage.getItem(LOGS_KEY))||[]; }catch(e){ return []; } };
+function saveMatchLog(){
+  if(!G) return; const w=G.players[G.winner];
+  const rec={t:Date.now(),mode:G.mode,online:!!G.online,winner:w?w.name:'',players:G.players.map(p=>({n:p.name,c:p.color,m:netWorth(p),out:p.out})),log:G.log.slice(-300)};
+  try{ localStorage.setItem(LOGS_KEY,JSON.stringify([rec,...savedLogs()].slice(0,5))); }catch(e){}
+}
+function showMatchLog(k){
+  const r=savedLogs()[k]; if(!r) return; const m=MODES[r.mode]||MODES.classic;
+  $('#modal').innerHTML=`<div class="ov" id="mlov"><div class="box" style="width:520px;max-height:86vh;display:flex;flex-direction:column">
+    <h2 style="margin:0 0 4px">📜 ${m.ic} ${m.n}</h2><div class="muted">${new Date(r.t).toLocaleString('ru',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})} · победитель: <b>${esc(r.winner||'—')}</b></div>
+    <div style="margin:8px 0">${r.players.map(p=>`<span class="badge" style="background:${p.c};color:#fff">${esc(p.n)}: ${p.out?'банкрот':fmt(p.m)}</span>`).join('')}</div>
+    <div class="mlog">${r.log.slice().reverse().map(x=>`<div>${x}</div>`).join('')}</div>
+    <div style="text-align:center;margin-top:8px"><button class="sec" id="mlx">Закрыть</button></div></div></div>`;
+  $('#mlov').onclick=e=>{ if(e.target.id==='mlov'||e.target.id==='mlx') closeModal(); };
+}
+function logsHTML(){ const L=savedLogs(); if(!L.length) return '';
+  return `<div class="cardw"><div class="ch"><h3>📜 Последние партии</h3><span class="muted">на этом устройстве</span></div>
+    ${L.map((r,k)=>{ const m=MODES[r.mode]||MODES.classic; return `<div class="top"><span class="pos">${m.ic}</span><span class="n">${m.n}${r.online?' 🌐':''}<br><span class="muted" style="font-size:11px">${new Date(r.t).toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · 🏆 ${esc(r.winner||'—')}</span></span><button class="sm sec" data-act="mlog" data-k="${k}">Журнал</button></div>`; }).join('')}</div>`;
+}
+
+// ====== АВТОЗАВЕРШЕНИЕ ХОДА (настройка): через 3 с, если ничего не нажимали ======
+let autoEndT=null, autoEndKey='';
+document.addEventListener('pointerdown',()=>{ if(autoEndT){ clearTimeout(autoEndT); autoEndT=null; } },true);
+function maybeAutoEnd(){
+  if(!THEME.autoEnd||!G||G.phase!=='end'||!canAct()) { if(autoEndT&&(!G||G.phase!=='end')){ clearTimeout(autoEndT); autoEndT=null; } return; }
+  const key=(G.turnNo||0)+'_'+G.cur; if(autoEndKey===key) return; autoEndKey=key;
+  autoEndT=setTimeout(()=>{ autoEndT=null; if(G&&G.phase==='end'&&canAct()&&!(TR&&!TR.view)&&!$('#modal').innerHTML) answer('end'); },3000);
+}
+
 // ====== ЧАТ: в партии по сети и общий на странице «Игры» ======
 // грубые слова прячем звёздочками (простой фильтр), ссылки не показываем ссылками
 const BAD_RE=/(^|[^а-яёa-z])((?:х[уy][йиеёю]|пизд|[её]б[аеиоуы]|бля|сук|пид[оа]р|муд[аио]|г[ао]вн)[а-яё]*)/gi;
@@ -1394,7 +1553,7 @@ function gchatHTML(){
     <form class="gcf" id="gcf" autocomplete="off"><input class="inp" id="gcIn" maxlength="120" placeholder="Введите сообщение и нажмите Enter"><button type="submit">➤</button></form></div>`;
 }
 function gchatLines(adm){
-  return (DB.gchat||[]).map(m=>`<div><span class="muted" style="font-size:11px">${new Date(m.at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</span> <b style="color:${esc(m.color||'#3b8fd6')}">${esc(m.name||'игрок')}</b> — ${esc(cleanChat(m.text))}${adm||m.uid===DB.session?` <a class="gdel" data-gdel="${m.id}" title="Удалить">✕</a>`:''}</div>`).join('')||'<div class="muted">Пока тихо. Напишите первым!</div>';
+  return (DB.gchat||[]).map(m=>`<div><span class="muted" style="font-size:11px">${new Date(m.at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</span> <b style="color:${esc(m.color||'#3b8fd6')};cursor:pointer" data-uprof="${esc(m.uid||"")}">${esc(m.name||'игрок')}</b> — ${esc(cleanChat(m.text))}${adm||m.uid===DB.session?` <a class="gdel" data-gdel="${m.id}" title="Удалить">✕</a>`:''}</div>`).join('')||'<div class="muted">Пока тихо. Напишите первым!</div>';
 }
 function drawGlobalChat(){ const el=$('#gcl'); if(!el) return; const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40; el.innerHTML=gchatLines(isAdminUser()); if(atBottom||!drawGlobalChat.done){ el.scrollTop=el.scrollHeight; drawGlobalChat.done=true; } }
 async function sendGlobalChat(){
@@ -1557,7 +1716,9 @@ const tmRemain=()=>G&&G.tmDeadline?Math.max(0,Math.ceil((G.tmDeadline-Date.now()
 function stopTimer(){ if(tmInt){ clearInterval(tmInt); tmInt=null; } if(G) G.tmDeadline=0; }
 function startTimer(){
   stopTimer();
-  const t=OPT().timer; if(!t||!G||actor().bot) return;
+  let t=OPT().timer; if(!t||!G||actor().bot) return;
+  // игрок по сети не в сети — ждём меньше, чтобы он не тормозил остальных
+  if(isRemote(actor())&&!isOnlineUid(actor().uid)) t=Math.min(t,20);
   G.tmDeadline=Date.now()+t*1000;
   tmInt=setInterval(()=>{ if(G&&G.tmDeadline&&Date.now()>=G.tmDeadline){ stopTimer(); onTimeout(); } },500);
 }
@@ -1566,6 +1727,8 @@ function onTimeout(){
   if(!pending||!G) return;
   const a=actor(), ad=G.askData||askData;
   log(`⏱ Время ${pn(a)} вышло — ход делается автоматически`);
+  // вылетел: 3 хода подряд без ответа по сети — выбывает, чтобы не держать остальных
+  if(isRemote(a)){ a.afk=(a.afk||0)+1; if(a.afk>=AFK_OUT){ log(`📴 ${pn(a)} не отвечает ${AFK_OUT} раза подряд (нет связи) и выбывает из игры`); doSurrender(a); return; } }
   if(!isRemote(a)&&($('#tov')||$('#ov')||$('#ppov'))) closeModal();
   if(!isRemote(a)&&TR&&!TR.view) closeTrade();
   const v={roll:'roll',jail:'roll',buy:'skip',end:'end',debt:G.debt&&a.money>=G.debt.amt?'pay':'give',
@@ -1622,6 +1785,8 @@ function openCard(i){
     owner=`<div class="muted">Владелец: ${s.owner>=0?pn(G.players[s.owner]):'Банк'}${s.mort?' · 🔒 заложено':''}${s.level?' · филиалов: '+s.level:''}${s.hq?' · 🏛 штаб-квартира':''}</div>`;
     if(s.sh&&s.sh.length) owner+=`<div class="muted" style="opacity:1;color:#1e88e5">📊 Акционеры: ${s.sh.map(k=>pn(G.players[k])).join(', ')} — по 10% с аренды</div>`;
     if(s.owner>=0&&!s.mort) owner+=`<div class="muted">Аренда сейчас: <b>${fmt(rentDue(i,G.lastDice))}</b></div>`;
+    if(c.g){ const gc=groupCells(c.g), by={}; gc.forEach(j=>{ const o=G.cells[j].owner; by[o]=(by[o]||0)+1; });
+      owner+=`<div class="grpinfo"><b>Группа «${GROUPS[c.g].n}» (${gc.length}):</b> ${Object.entries(by).map(([o,n])=>o<0?`<span>Банк ${n}</span>`:`<span style="color:${G.players[o].color}">${esc(G.players[o].name)} ${n}/${gc.length}</span>`).join(' · ')}${(()=>{ const me_=myPlayer(); if(!me_) return ''; const mine=by[me_.id]||0; return mine&&mine<gc.length?`<br><span class="muted">Вам до полной группы: ${gc.length-mine}</span>`:mine===gc.length?'<br><span style="color:#2e9e5b">✔ Вся группа ваша — аренда ×2, можно строить</span>':''; })()}</div>`; }
     const bon=G.players.filter(p=>!p.out&&cellBonus(p,i)).map(p=>`${pn(p)} +${cellBonus(p,i)}%`);
     if(bon.length) owner+=`<div class="muted" style="color:#ffb627;opacity:1">🃏 Карточки: ${bon.join(', ')} к аренде (если компания их)</div>`;
   }
@@ -2224,7 +2389,7 @@ function finishGame(w){
     return {uid:p.uid||p.acc,pid:p.id,win,xp:50+(win?150:0),rd,drop:it?it.id:null,tp:(G.tp&&p.uid&&G.tp[p.uid])||null,score};
   });
   render(); netPublishNow();
-  showWinner(w,applyMyResult());
+  saveMatchLog(); showWinner(w,applyMyResult());
 }
 // начислить себе свою награду (один раз) и вернуть строки итогов для окна победителя
 function applyMyResult(){
@@ -2251,6 +2416,7 @@ function applyMyResult(){
 // сезон (месяц): победа +3 очка, матч +1 · неделя среди друзей · лучший результат задачи дня
 function addLeagues(a,r){
   const sk=seasonKey(); a[sk]=(a[sk]||0)+(r.noReward?0:(r.win?3:1));
+  if(G&&G.online&&isWeekend()&&!r.noReward){ const wk2=weekendKey(); a[wk2]=(a[wk2]||0)+(r.win?3:1); }
   const wk=weekKey(); if(!a.wk||a.wk.id!==wk) a.wk={id:wk,w:0,m:0}; a.wk.m++; if(r.win&&!r.noReward) a.wk.w++;
   if(r.score!=null){ const dk=dailyKey(); if(r.score>(a[dk]||0)){ a[dk]=r.score; setTimeout(()=>toast(`🧩 Новый лучший результат дня: ${fmt(r.score)}`),600); } }
 }
@@ -2271,9 +2437,9 @@ async function checkSeasonAward(a){
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
     <h2>Победитель: ${p?pn(p):'никто'}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
-    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
+    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
-  $('#wshare').onclick=showShare;
+  $('#wshare').onclick=showShare; $('#wlog').onclick=()=>showMatchLog(0);
   if($('#wnew')) $('#wnew').onclick=()=>showSetup(G.mode);
   updateRematch();
 }
@@ -2318,7 +2484,10 @@ const weekKey=(d=new Date())=>{ const t=new Date(Date.UTC(d.getFullYear(),d.getM
   const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return t.getUTCFullYear()+'-'+Math.ceil(((t-y0)/86400000+1)/7); };
 const dailyKey=()=>'dl_'+today().replace(/-/g,'');
 const dailyLeft=u=>!u?0:Math.max(0,MODES.daily.tries-((u.dTry&&u.dTry.day===today())?u.dTry.n:0));
-function avc(a,size=44){ const ic=item(a.eq).ic; return `<div class="avc" style="width:${size}px;height:${size}px;background:${a.color};font-size:${size*0.45}px;--ring:${a.color}">${ic||esc((a.name[0]||'?').toUpperCase())}</div>`; }
+// рамка аватара по уровню: 🥉 с 3, серебро с 8, золото с 15, бриллиант с 25
+const FRAME=[[25,'#6fe3ff'],[15,'#ffc83d'],[8,'#c3cad6'],[3,'#cd8a4a']];
+const ringOf=a=>{ const l=a.xp!=null?levelInfo(a.xp).lvl:(a.lvl||0); const f=FRAME.find(x=>l>=x[0]); return f?f[1]:a.color; };
+function avc(a,size=44){ const ic=item(a.eq).ic; return `<div class="avc" style="width:${size}px;height:${size}px;background:${a.color};font-size:${size*0.45}px;--ring:${ringOf(a)}">${ic||esc((a.name[0]||'?').toUpperCase())}</div>`; }
 // почему режим закрыт: 'vip' | 'lvl' | 'guest' | null
 function modeLock(id,u){
   const m=MODES[id];
@@ -2475,6 +2644,7 @@ function hostHandleAction(a){
   const p=G.players.find(x=>x.uid===a.uid);
   if(a.kind==='chat'){ gameChatLog(p,a.name,a.text); return; }
   if(!p) return;
+  p.afk=0; // игрок на связи
   if(a.kind==='answer'){ if(pending&&actor()===p&&G.phase===a.phase) answer(a.v); return; }
   if(a.kind==='reply'){ const r=NET.resolvers[a.askId]; if(r&&G.remoteAsk&&G.remoteAsk.id===a.askId&&G.remoteAsk.pid===p.id) r(a.v); return; }
   if(a.kind!=='cmd') return;
@@ -2540,7 +2710,7 @@ function applyGuestState(r){
   renderLog(); render();
   const ra=G.remoteAsk;
   if(ra&&G.players[ra.pid]&&G.players[ra.pid].uid===DB.session&&NET.handledAsk!==ra.id){ NET.handledAsk=ra.id; handleRemoteAsk(ra); }
-  if(G.over&&!NET.endShown){ NET.endShown=true; showWinner(G.players[G.winner],applyMyResult()); }
+  if(G.over&&!NET.endShown){ NET.endShown=true; saveMatchLog(); showWinner(G.players[G.winner],applyMyResult()); }
   if(G.over) updateRematch();
 }
 // хозяин: начать партию в комнате
@@ -2584,7 +2754,7 @@ function lobbyHTML(u){
   if(!FB) return '';
   const rooms=(DB.rooms||[]).slice().sort((a,b)=>(b.uids.includes(u.login)?1:0)-(a.uids.includes(u.login)?1:0)||b.created-a.created);
   const inRoom=rooms.some(r=>r.uids.includes(u.login));
-  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Позвать друзей">📣 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
+  return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button data-act="quickPlay" title="Найти свободную игру или создать новую">🔎 Найти игру</button><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Позвать друзей">📣 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
     ${rooms.length?rooms.map(r=>roomHTML(r,u)).join(''):'<p class="muted">Пока никто не ждёт игры. Создайте свою — друзья смогут присоединиться!</p>'}</div>`;
 }
 function roomHTML(r,u){
@@ -2592,14 +2762,14 @@ function roomHTML(r,u){
   const total=r.players.length+(r.bots||0), full=total>=r.max;
   const allowed=!r.friendsOnly||host||(r.hostFriends||[]).includes(me_);
   const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
-  const pl=r.players.map(p=>`<div class="lp">${avc({name:p.name,color:p.color,eq:p.eq},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
+  const pl=r.players.map(p=>`<div class="lp" data-uprof="${esc(p.uid||"")}" style="cursor:pointer">${avc({name:p.name,color:p.color,eq:p.eq,lvl:p.lvl},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
     +Array.from({length:r.bots||0},(_,k)=>`<div class="lp"><div class="avc" style="width:74px;height:74px;background:#8892a6;font-size:34px;--ring:#8892a6">🤖</div><div class="lpn">${BOT_NAMES[k]}</div><div class="muted">бот</div></div>`).join('');
   const lowLvl=MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(u.xp).lvl<MODES.ranked.needLvl;
   const slot=inRoom||full?'':lowLvl?`<div class="lp"><div class="plus">🔒</div><div class="muted">с ${MODES.ranked.needLvl} уровня</div></div>`:allowed?`<div class="lp join" data-act="joinRoom" data-r="${r.id}"><div class="plus">+</div><div>присоединиться</div></div>`
     :`<div class="lp"><div class="plus">🔒</div><div class="muted">только друзья</div></div>`;
   const ctrl=host?`<div style="margin-top:10px"><button data-act="startRoom" data-r="${r.id}" ${total<2?'disabled title="Нужно хотя бы 2 игрока"':''}>▶ Начать игру</button>
-      <button class="red sm" data-act="delRoom" data-r="${r.id}">Удалить</button></div>`
-    :inRoom?`<div style="margin-top:10px"><span class="muted">Ждём, когда создатель начнёт игру…</span> <button class="sec sm" data-act="leaveRoom" data-r="${r.id}">Выйти</button></div>`:'';
+      <button class="sec sm" data-act="roomLink" data-r="${r.id}">🔗 Ссылка другу</button><button class="red sm" data-act="delRoom" data-r="${r.id}">Удалить</button></div>`
+    :inRoom?`<div style="margin-top:10px"><span class="muted">Ждём, когда создатель начнёт игру…</span> <button class="sec sm" data-act="roomLink" data-r="${r.id}">🔗 Ссылка другу</button><button class="sec sm" data-act="leaveRoom" data-r="${r.id}">Выйти</button></div>`:'';
   return `<div class="room"><div class="rh"><span class="ric" style="background:linear-gradient(135deg,${m.grad})">${m.ic}</span><b>${m.n}</b>${tags.map(t=>`<span class="rtagl">${t}</span>`).join('')}</div>
     <div class="rps">${pl}${slot}</div>${ctrl}</div>`;
 }
@@ -2773,10 +2943,13 @@ const PAGES={
           <div class="tr">✔ ${d.xp} XP</div></div>`; }).join('')}</div>
       <div class="cardw"><div class="ch"><h3>🗓 Сезон «${seasonName(seasonKey())}»</h3><span class="muted">ещё ${seasonDaysLeft()} дн.</span></div>
         <p class="muted" style="margin-top:-6px">Победа +3 очка, сыгранный матч +1. Места 1–3 в конце месяца получают значок в профиль и опыт (🥇 +500, 🥈 +300, 🥉 +150 XP). Ваши очки: <b>${u[seasonKey()]||0}</b></p>
-        ${(DB.season||[]).length?DB.season.map((a,k)=>`<div class="top"><span class="pos">${k<3?SEASON_PRIZE[k][0]:k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[seasonKey()]} очк.</b></div>`).join(''):'<p class="muted">В этом сезоне ещё нет очков — сыграйте матч!</p>'}</div>
+        ${(DB.season||[]).length?DB.season.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k<3?SEASON_PRIZE[k][0]:k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[seasonKey()]} очк.</b></div>`).join(''):'<p class="muted">В этом сезоне ещё нет очков — сыграйте матч!</p>'}</div>
+      ${FB?weekendHTML(u):""}
+      ${logsHTML()}
       <div class="cardw"><div class="ch"><h3>Топ игроков</h3></div>
-        ${top.length?top.map((a,k)=>`<div class="top"><span class="pos">${k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span class="muted">🏆 ${a.rating||1000} · ур. ${levelInfo(a.xp).lvl}</span></div>`).join(''):'<p class="muted">Загрузка…</p>'}</div>
+        ${top.length?top.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span class="muted">🏆 ${a.rating||1000} · ур. ${levelInfo(a.xp).lvl}</span></div>`).join(''):'<p class="muted">Загрузка…</p>'}</div>
     </div><div>
+      ${FB?friendsOnlineHTML(u):""}
       ${FB?gchatHTML():""}
       ${lobbyHTML(u)}
       <div class="cardw banner"><div style="flex:1"><h3>👑 VIP-статус</h3><p>Открывает все режимы игры и даёт дроп с шансом 100% в рейтинговых матчах. 7 дней — 🪙 25, 30 дней — 🪙 100.</p>
@@ -3158,6 +3331,10 @@ const ACT={
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); addDeal(u,{k:"vip",days:plan.days,price:plan.price}); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
+  quickPlay:()=>quickPlay(),
+  mlog:el=>showMatchLog(+el.dataset.k),
+  roomLink:el=>copyRoomLink(el.dataset.r),
+  callFriend:el=>{ if(el.dataset.r) copyRoomLink(el.dataset.r); else showCreateRoom(); },
   dealf:el=>{ dealFilter=el.dataset.t; renderSite(); },
   listLot:el=>listLot(el.dataset.i),
   buyLot:el=>buyLot(el.dataset.l),
@@ -3328,7 +3505,7 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat();
+  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
 }
 if(FB){
   FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
@@ -3344,7 +3521,7 @@ if(FB){
 }
 // при переходе на страницы подгружаем свежие данные
 const _go=go;
-go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
+go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
 $('#landing').addEventListener('click',e=>{
   if(DD&&!e.target.closest('.dd')&&!e.target.closest('[data-act="dd"]')){ DD=false; renderSite(); }
   // телефон: плитка инвентаря открывается окном с подробностями и кнопками

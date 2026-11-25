@@ -223,6 +223,14 @@ button.sm{padding:5px 12px;font-size:13px}
 @keyframes mvp{from{box-shadow:0 0 0 #ffb62700}to{box-shadow:0 0 16px #ffb627}}
 .cell.pickopt{outline:2px dashed #ffb627;cursor:pointer}
 .grpinfo{font-size:13px;margin:6px 0;line-height:1.5}
+.ctag{color:#8e24aa;font-weight:800;font-size:.85em}
+.pass{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.pass .pc{flex:none;width:92px;text-align:center;opacity:.55}.pass .pc.open{opacity:1}
+.pass .pn{font-weight:800;font-size:13px;margin-bottom:4px}
+.pass .pr{border-radius:8px;padding:6px 4px;font-size:11px;margin-bottom:4px;background:#eef1f7;min-height:30px;display:flex;align-items:center;justify-content:center}
+.pass .pr+.pr{background:linear-gradient(135deg,#fff7e6,#f3ecff)}
+.pass .pr.can{background:#22b8a5!important;color:#fff;cursor:pointer;font-weight:700;box-shadow:0 0 0 2px #22b8a555}
+.pass .pr.got{color:#2e9e5b;font-weight:700}
 .dmb{position:absolute;top:0;right:-2px;background:#e05252;color:#fff;border-radius:10px;font-size:10px;padding:0 5px;line-height:15px}
 .dml{flex:1;overflow:auto;min-height:200px;max-height:55vh;display:flex;flex-direction:column;gap:5px;padding:4px}
 .dml>div{max-width:80%;align-self:flex-start;background:#eef1f7;border-radius:12px 12px 12px 3px;padding:6px 10px;font-size:14px}
@@ -1579,7 +1587,7 @@ async function showUserProfile(uid){
   const li=levelInfo(a.xp||0), rk=rankOf(li.lvl), u=me(), isMe=uid===DB.session, isFr=u&&(u.friends||[]).includes(uid);
   const achs=ACH.map(x=>{ const t=achTier(a,x); return t?`<span title="${x.n} ${ACH_TIER[t-1]}">${x.ic}</span>`:''; }).join('');
   $('#modal').innerHTML=`<div class="ov" id="upov"><div class="box lt" style="width:380px">
-    <div style="display:flex;gap:14px;align-items:center">${avc(a,72)}<div><h2 style="margin:0">${isVip(a)?'<span style="color:#ffb627">★</span> ':''}${esc(a.name)}</h2>
+    <div style="display:flex;gap:14px;align-items:center">${avc(a,72)}<div><h2 style="margin:0">${isVip(a)?'<span style="color:#ffb627">★</span> ':''}${a.clanTag?`<span class="ctag">[${esc(a.clanTag)}]</span> `:""}${esc(a.name)}</h2>
       <div class="muted">@${esc(a.nick||'')} · ${dot(isOnlineAcc(a)||isMe)} ${isOnlineAcc(a)||isMe?'в сети':a.seen?'был(а) '+agoText(a.seen):'не в сети'}</div>
       <div>${rk[2]} ${rk[1]} · ур. ${li.lvl}${li.lvl>=10?` · 🏆 ${a.rating||1000}`:''}</div></div></div>
     <div class="stats" style="margin:14px 0 6px"><div><b>${a.matches||0}</b><span>матчей</span></div><div><b>${a.wins||0}</b><span>побед</span></div><div><b>${(a.friends||[]).length}</b><span>друзей</span></div></div>
@@ -2139,6 +2147,111 @@ async function land(p,dice){
   else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); track(p,'jackpot'); G.jackpot=0; render(); } await casino(p); }
   else if(c.type==='gojail') sendJail(p);
   render();
+}
+
+// ====== ПОДАРОК ДРУГУ: предмет уходит из инвентаря в коллекцию gifts, друг забирает его себе ======
+async function giftItem(id){
+  const u=me(), x=item(id); if(!u||!FB||!x.val) return;
+  const fr=(u.friends||[]).map(l=>DB.accounts[l]).filter(Boolean);
+  if(!fr.length) return toast('Сначала добавьте друзей — дарить можно только им');
+  $('#modal').innerHTML=`<div class="ov" id="gfov"><div class="box lt" style="width:360px"><h2 style="margin-top:0">🎁 Подарить «${esc(x.n)}»</h2>
+    <label class="muted">Кому</label><select class="inp" id="gfTo">${fr.map(a=>`<option value="${esc(a.login)}">${esc(a.name)} @${esc(a.nick||'')}</option>`).join('')}</select>
+    <label class="muted" style="display:block;margin-top:8px">Открытка (необязательно)</label><input class="inp" id="gfText" maxlength="100" placeholder="Например: С днём рождения!">
+    <p class="muted" style="font-size:12px">Предмет сразу пропадёт из вашего инвентаря и появится у друга.</p>
+    <div style="text-align:center"><button class="btn-o" id="gfGo">🎁 Подарить</button><button class="sec" id="gfx">Отмена</button></div></div></div>`;
+  $('#gfx').onclick=closeModal;
+  $('#gfGo').onclick=async()=>{ const to=$('#gfTo').value, text=cleanChat($('#gfText').value).slice(0,100);
+    const used=new Set(Object.values(cleanSlots(u))); let k=u.items.findIndex(it=>it.id===id&&!used.has(it.uid)); if(k<0) k=u.items.findIndex(it=>it.id===id); if(k<0) return;
+    $('#gfGo').disabled=true; const [it]=u.items.splice(k,1); cleanSlots(u);
+    try{ await saveAccount(u); await FB.db.collection('gifts').add({from:DB.session,fromName:u.name,to,item:id,text,at:Date.now()});
+      addDeal(u,{k:'gift',item:id,price:0,who:(DB.accounts[to]||{}).name||''}); saveDB(); closeModal(); renderSite(); toast(`🎁 Подарок отправлен: ${x.n}`); }
+    catch(e){ u.items.push(it); saveDB(); toast('Не отправилось: '+(e.code==='permission-denied'?'подарки ещё не включены':e.message||e)); closeModal(); }
+  };
+}
+let giftUnsub=null;
+function listenGifts(){
+  if(!FB||!me()||giftUnsub) return;
+  giftUnsub=FB.db.collection('gifts').where('to','==',DB.session).onSnapshot(s=>s.docs.forEach(d=>claimGift(d.id)),e=>console.error('gifts',e));
+}
+const claiming=new Set();
+async function claimGift(gid){
+  if(claiming.has(gid)) return; claiming.add(gid);
+  try{ let g=null;
+    await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('gifts').doc(gid), s=await tx.get(ref); g=null; if(!s.exists) return; g=s.data(); if(g.to!==DB.session){ g=null; return; } tx.delete(ref); });
+    const u=me(); if(!g||!u) return; addItem(u,g.item); addDeal(u,{k:'gifted',item:g.item,price:0,who:g.fromName||''}); saveDB(); const x=item(g.item);
+    $('#modal').innerHTML=`<div class="ov" id="ggov"><div class="box lt" style="width:340px;text-align:center"><div class="muted">🎁 Подарок от <b>${esc(g.fromName||'друга')}</b></div>
+      <div style="display:flex;justify-content:center;margin:10px 0">${itemArt(x,200,150)}</div><h2 style="margin:4px 0">${esc(x.n)}</h2>${g.text?`<p style="font-style:italic">«${esc(g.text)}»</p>`:''}<button id="ggok">Спасибо!</button></div></div>`;
+    $('#ggok').onclick=closeModal; SFX.buy(); pushNote('🎁 Подарок от '+(g.fromName||'друга'),x.n,'gift');
+  }catch(e){ console.error('claim',e); claiming.delete(gid); }
+}
+
+// ====== КЛАНЫ: до 20 человек, тег у ника, общий чат ======
+const CLAN_MAX=20; DB.clan=null; DB.clans=[]; let clanUnsub=null, clanChatUnsub=null; DB.clanChat=[];
+function listenClan(){
+  const u=me(); if(!FB||!u) return; if(clanUnsub){ clanUnsub(); clanUnsub=null; } if(clanChatUnsub){ clanChatUnsub(); clanChatUnsub=null; }
+  if(!u.clan){ DB.clan=null; return; }
+  clanUnsub=FB.db.collection('clans').doc(u.clan).onSnapshot(s=>{ if(!s.exists||!(s.data().members||[]).includes(DB.session)){ DB.clan=null; if(me().clan){ me().clan=null; me().clanTag=null; saveDB(); } }
+      else { DB.clan={id:s.id,...s.data()}; (DB.clan.members||[]).forEach(m=>{ if(!DB.accounts[m]) loadUser(m).catch(()=>{}); }); }
+      if(PAGE==='friends') renderSite(); },e=>console.error('clan',e));
+  clanChatUnsub=FB.db.collection('clans').doc(u.clan).collection('chat').orderBy('at','desc').limit(30).onSnapshot(s=>{ DB.clanChat=s.docs.map(d=>d.data()).reverse(); const l=$('#ccl'); if(l){ l.innerHTML=clanChatLines(); l.scrollTop=l.scrollHeight; } },e=>console.error('clanchat',e));
+}
+async function loadClans(){ if(!FB||!me()) return; try{ DB.clans=(await FB.db.collection('clans').orderBy('size','desc').limit(20).get()).docs.map(d=>({id:d.id,...d.data()})); if(PAGE==='friends') renderSite(); }catch(e){ console.error('clans',e); } }
+const clanChatLines=()=>(DB.clanChat||[]).map(m=>`<div><b style="color:${esc(m.color||'#3b8fd6')}">${esc(m.name)}</b> — ${esc(cleanChat(m.text))}</div>`).join('')||'<div class="muted">Напишите что-нибудь клану!</div>';
+function clanHTML(u){
+  const c=DB.clan;
+  if(!c) return `<div class="cardw"><div class="ch"><h3>🛡 Кланы</h3><button class="btn-o sm" data-act="clanNew">Создать клан</button></div>
+    <p class="muted" style="margin-top:-6px">Клан — команда до ${CLAN_MAX} игроков: свой тег у ника, общий чат и рейтинг по победам.</p>
+    ${(DB.clans||[]).length?DB.clans.map(k=>`<div class="top"><span class="pos">🛡</span><span class="n"><b>[${esc(k.tag)}] ${esc(k.name)}</b><br><span class="muted" style="font-size:12px">${k.size||1} из ${CLAN_MAX} игроков</span></span>${(k.size||1)<CLAN_MAX?`<button class="sm" data-act="clanJoin" data-c="${k.id}">Вступить</button>`:'<span class="muted">мест нет</span>'}</div>`).join(''):'<p class="muted">Кланов пока нет — создайте первый!</p>'}</div>`;
+  const mem=(c.members||[]).map(m=>DB.accounts[m]).filter(Boolean), owner=c.owner===DB.session, wins=mem.reduce((s,a)=>s+(a.wins||0),0);
+  return `<div class="cardw"><div class="ch"><h3>🛡 [${esc(c.tag)}] ${esc(c.name)}</h3><span class="muted">${(c.members||[]).length}/${CLAN_MAX} · 🏆 ${wins} побед</span></div>
+    ${mem.map(a=>`<div class="top"><span data-uprof="${esc(a.login)}" style="cursor:pointer">${avc(a,28)}</span><span class="n">${dot(isOnlineAcc(a)||a.login===DB.session)} ${esc(a.name)}${a.login===c.owner?' 👑':''}<br><span class="muted" style="font-size:11px">ур. ${levelInfo(a.xp||0).lvl} · побед ${a.wins||0}</span></span>${owner&&a.login!==DB.session?`<button class="sec sm" data-act="clanKick" data-u="${esc(a.login)}">Исключить</button>`:''}</div>`).join('')}
+    <h4 style="margin:10px 0 4px">💬 Чат клана</h4><div class="gcl" id="ccl" style="height:150px;overflow:auto;font-size:13px">${clanChatLines()}</div>
+    <form class="gcf" id="ccf" autocomplete="off" style="display:flex;gap:6px;margin-top:6px"><input class="inp" id="ccIn" maxlength="120" placeholder="Сообщение клану…"><button type="submit">➤</button></form>
+    <div style="margin-top:8px"><button class="sec sm" data-act="clanInvite">🔗 Позвать в клан</button><button class="red sm" data-act="clanLeave">${owner?'Распустить клан':'Выйти из клана'}</button></div></div>`;
+}
+async function clanCreate(){
+  const u=me(); if(!u||!FB) return; if(u.banned) return toast('⛔ Ваш аккаунт заблокирован');
+  const name=String(await askText('🛡 Название клана','',{ok:'Дальше',note:'От 3 до 20 символов'})||'').trim().slice(0,20); if(name.length<3) return;
+  const tag=String(await askText('Тег клана (2–4 буквы)',name.slice(0,3).toUpperCase(),{ok:'Создать',note:'Тег будет виден у ника участников, например [ABC]'})||'').trim().toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/g,'').slice(0,4); if(tag.length<2) return toast('Тег — 2–4 буквы или цифры');
+  try{ const ref=await FB.db.collection('clans').add({name:cleanChat(name),tag,owner:DB.session,members:[DB.session],size:1,created:Date.now()});
+    u.clan=ref.id; u.clanTag=tag; saveDB(); listenClan(); toast('✔ Клан создан!'); }catch(e){ toast('Не удалось: '+(e.code==='permission-denied'?'кланы ещё не включены':e.message||e)); }
+}
+async function clanJoin(cid){
+  const u=me(); if(!u||!FB||u.clan) return;
+  try{ let tag='';
+    await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('clans').doc(cid), s=await tx.get(ref); if(!s.exists) throw new Error('Клан не найден'); const c=s.data();
+      if((c.members||[]).length>=CLAN_MAX) throw new Error('В клане нет мест'); if(c.members.includes(DB.session)) return; tag=c.tag;
+      tx.update(ref,{members:[...c.members,DB.session],size:c.members.length+1}); });
+    u.clan=cid; u.clanTag=tag; saveDB(); listenClan(); toast('✔ Вы вступили в клан'); }catch(e){ toast(e.message||String(e)); }
+}
+async function clanLeave(kick){
+  const u=me(), c=DB.clan; if(!u||!c) return; const owner=c.owner===DB.session, who=kick||DB.session;
+  if(!await askConfirm(kick?'Исключить игрока из клана?':owner?'Распустить клан? Все участники выйдут из него.':'Выйти из клана?',kick?'Исключить':owner?'Распустить':'Выйти',true)) return;
+  try{ const ref=FB.db.collection('clans').doc(c.id);
+    if(owner&&!kick) await ref.delete();
+    else await FB.db.runTransaction(async tx=>{ const s=await tx.get(ref); if(!s.exists) return; const m=(s.data().members||[]).filter(x=>x!==who); tx.update(ref,{members:m,size:m.length}); });
+    if(!kick){ u.clan=null; u.clanTag=null; DB.clan=null; saveDB(); listenClan(); } renderSite(); }catch(e){ toast(e.message||String(e)); }
+}
+document.addEventListener('submit',e=>{ if(e.target.id!=='ccf') return; e.preventDefault(); const u=me(), inp=$('#ccIn'); if(!u||!DB.clan||!inp) return; const t=cleanChat(inp.value); if(!t||!chatRateOk()) return; inp.value='';
+  FB.db.collection('clans').doc(DB.clan.id).collection('chat').add({uid:DB.session,name:u.name,color:u.color||'#3b8fd6',text:t,at:Date.now()}).catch(err=>toast('Не отправилось: '+(err.message||err))); });
+
+// ====== СЕЗОННЫЙ ПРОПУСК: уровни за очки сезона; бесплатные награды и дополнительные с VIP ======
+const PASS=[[2,['xp',100],['key']],[5,['xp',150],['set_start']],[8,['key'],['key']],[12,['xp',200],['set_elite']],[16,['set_start'],['key']],[20,['xp',300],['case_lux']],[25,['key'],['set_elite']],[30,['set_start'],['key']],[40,['xp',500],['case_coll']],[50,['set_elite'],['set_elite']]];
+const passRewardText=r=>r[0]==='xp'?`+${r[1]} XP`:`${item(r[0]).ic} ${item(r[0]).n}`;
+function passHTML(u){
+  const k=seasonKey(), pts=u[k]||0, cl=(u.pass&&u.pass[k])||{f:[],v:[]}, vip=isVip(u);
+  return `<div class="cardw"><div class="ch"><h3>🎟 Сезонный пропуск</h3><span class="muted">очки сезона: <b>${pts}</b></span></div>
+    <p class="muted" style="margin-top:-6px">Очки за матчи (победа +3, матч +1) открывают уровни. Награды верхнего ряда — всем, нижнего — с 👑 VIP. Пропуск обновляется каждый месяц.</p>
+    <div class="pass">${PASS.map(([need,f,v],i)=>{ const open=pts>=need; const btn=(row,rw,ok)=>{ const got=cl[row].includes(i);
+        return `<div class="pr ${got?'got':''} ${open&&ok&&!got?'can':''}" ${open&&ok&&!got?`data-act="passClaim" data-i="${i}" data-r="${row}"`:''}>${got?'✔ ':''}${passRewardText(rw)}</div>`; };
+      return `<div class="pc ${open?'open':''}"><div class="pn">${need}</div>${btn('f',f,true)}${btn('v',v,vip)}</div>`; }).join('')}</div></div>`;
+}
+function passClaim(i,row){
+  const u=me(), k=seasonKey(); if(!u) return; const lv=PASS[i]; if(!lv||(u[k]||0)<lv[0]) return; if(row==='v'&&!isVip(u)) return toast('Нижний ряд — только с VIP');
+  u.pass=u.pass||{}; const cl=u.pass[k]=u.pass[k]||{f:[],v:[]}; if(cl[row].includes(i)) return;
+  const rw=row==='f'?lv[1]:lv[2]; cl[row].push(i);
+  if(rw[0]==='xp') u.xp+=rw[1]; else addItem(u,rw[0]);
+  saveDB(); renderSite(); toast('🎟 Получено: '+passRewardText(rw));
 }
 
 // ====== КОМАНДНАЯ ИГРА 2 НА 2 (галочка): игроки 1 и 3 против 2 и 4 ======
@@ -2974,7 +3087,7 @@ function startOnlineGame(r){
   playTurn();
 }
 // ====== ЛОББИ «ОЖИДАЮТ ИГРЫ» ======
-const myEntry=()=>{ const u=me(); return {uid:DB.session,name:u.name,nick:u.nick||'',color:u.color,eq:u.eq||'tok_default',skin:item(u.eq).ic||'',vip:isVip(u),bonus:cardBonuses(u),lvl:levelInfo(u.xp).lvl,rating:u.rating||1000}; };
+const myEntry=()=>{ const u=me(); return {uid:DB.session,clanTag:u.clanTag||'',name:u.name,nick:u.nick||'',color:u.color,eq:u.eq||'tok_default',skin:item(u.eq).ic||'',vip:isVip(u),bonus:cardBonuses(u),lvl:levelInfo(u.xp).lvl,rating:u.rating||1000}; };
 let lobbyUnsub=null;
 function listenLobby(){
   if(!FB||lobbyUnsub) return;
@@ -3006,7 +3119,7 @@ function roomHTML(r,u){
   const total=r.players.length+(r.bots||0), full=total>=r.max;
   const allowed=!r.friendsOnly||host||(r.hostFriends||[]).includes(me_);
   const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'',r.opt&&r.opt.jackpot?'💰 Джекпот':'',r.opt&&r.opt.portal?'🌀 Порталы':'',r.opt&&r.opt.teams?'👥 2 на 2':'',r.opt&&r.opt.money?'💰 Старт '+fmt(r.opt.money):'',r.opt&&r.opt.rounds?'⏱️ '+r.opt.rounds+' кругов':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
-  const pl=r.players.map(p=>`<div class="lp" data-uprof="${esc(p.uid||"")}" style="cursor:pointer">${avc({name:p.name,color:p.color,eq:p.eq,lvl:p.lvl},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
+  const pl=r.players.map(p=>`<div class="lp" data-uprof="${esc(p.uid||"")}" style="cursor:pointer">${avc({name:p.name,color:p.color,eq:p.eq,lvl:p.lvl},74)}<div class="lpn">${p.clanTag?`<span class="ctag">[${esc(p.clanTag)}]</span> `:""}${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
     +Array.from({length:r.bots||0},(_,k)=>`<div class="lp"><div class="avc" style="width:74px;height:74px;background:#8892a6;font-size:34px;--ring:#8892a6">🤖</div><div class="lpn">${BOT_NAMES[k]}</div><div class="muted">бот</div></div>`).join('');
   const lowLvl=MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(u.xp).lvl<MODES.ranked.needLvl;
   const slot=inRoom||full?'':lowLvl?`<div class="lp"><div class="plus">🔒</div><div class="muted">с ${MODES.ranked.needLvl} уровня</div></div>`:allowed?`<div class="lp join" data-act="joinRoom" data-r="${r.id}"><div class="plus">+</div><div>присоединиться</div></div>`
@@ -3189,6 +3302,7 @@ const PAGES={
         ${ts.list.map(t=>{ const d=TASK_POOL.find(x=>x.id===t.id); return `<div class="task ${t.done?'done':''}"><div class="tn">${d.t}</div>
           <div class="tp">${d.money?fmt(t.prog)+' / '+fmt(d.goal):t.prog+' / '+d.goal}${t.done?' ✅':''}</div><div class="bar"><i style="width:${t.prog/d.goal*100}%"></i></div>
           <div class="tr">✔ ${d.xp} XP</div></div>`; }).join('')}</div>
+      ${passHTML(u)}
       <div class="cardw"><div class="ch"><h3>🗓 Сезон «${seasonName(seasonKey())}»</h3><span class="muted">ещё ${seasonDaysLeft()} дн.</span></div>
         <p class="muted" style="margin-top:-6px">Победа +3 очка, сыгранный матч +1. Места 1–3 в конце месяца получают значок в профиль и опыт (🥇 +500, 🥈 +300, 🥉 +150 XP). Ваши очки: <b>${u[seasonKey()]||0}</b></p>
         ${(DB.season||[]).length?DB.season.map((a,k)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${k<3?SEASON_PRIZE[k][0]:k+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[seasonKey()]} очк.</b></div>`).join(''):'<p class="muted">В этом сезоне ещё нет очков — сыграйте матч!</p>'}</div>
@@ -3224,6 +3338,7 @@ const PAGES={
         const list=[u,...fr].sort((a,b)=>w(b).w-w(a).w||w(b).m-w(a).m);
         return `<div class="cardw"><div class="ch"><h3>🏆 Неделя среди друзей</h3><span class="muted">с понедельника</span></div>
           ${list.map((a,k)=>`<div class="top"><span class="pos">${k===0&&w(a).w?'👑':k+1}</span>${avc(a,32)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><span><b>${w(a).w}</b> <span class="muted">побед · ${w(a).m} матчей</span></span></div>`).join('')}</div>`; })():''}
+      ${FB?clanHTML(u):""}
       ${fans.length?`<div class="cardw"><div class="ch"><h3>Добавили вас в друзья</h3></div><div class="flist">${fans.map(a=>fcard(a,`<button class="sm" data-act="addfl" data-l="${esc(a.nick||'')}">+ Добавить в ответ</button>`)).join('')}</div></div>`:''}
     </div>`;
   },
@@ -3248,6 +3363,7 @@ const PAGES={
         if(x.type==='set') btn=`<button class="sm btn-o" data-act="open" data-i="${id}">Открыть</button>`;
         if(x.pool) btn+=`<button class="sm sec" data-act="peek" data-i="${id}">👁 Что внутри</button>`;
         if(x.type==='card') btn+=`<button class="sm" data-act="slotCard" data-i="${id}">📌 Надеть на компанию</button>`;
+        if(x.val) btn+=`<button class="sm sec" data-act="gift" data-i="${id}">🎁 Подарить</button>`;
         if(x.type==='card'&&upgradeInfo(x)) btn+=`<button class="sm btn-o" data-act="upgrade" data-i="${id}" ${n>=UPGRADE_N?'':`disabled title="Нужно ${UPGRADE_N} одинаковые карточки"`}>⬆ Улучшить (${Math.min(n,UPGRADE_N)}/${UPGRADE_N})</button>`;
         if(isLotItem(x)) btn+=`<button class="sm btn-o" data-act="listLot" data-i="${id}">💰 Выставить на Маркет</button><button class="sm sec" data-act="sell" data-i="${id}">Банку ${fmtC(bankPrice(x))}</button>`;
         else if(x.val) btn+=`<button class="sm sec" data-act="sell" data-i="${id}">Продать ${fmtC(bankPrice(x))}</button>`;
@@ -3583,6 +3699,13 @@ const ACT={
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); addDeal(u,{k:"vip",days:plan.days,price:plan.price}); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
+  gift:el=>giftItem(el.dataset.i),
+  clanNew:()=>clanCreate(),
+  clanJoin:el=>clanJoin(el.dataset.c),
+  clanKick:el=>clanLeave(el.dataset.u),
+  clanLeave:()=>clanLeave(),
+  clanInvite:async()=>{ const c=DB.clan; if(!c) return; const t=`Вступай в мой клан [${c.tag}] ${c.name} в Кубитале! ${SITE_URL} — раздел «Друзья» → «Кланы»`; try{ await navigator.clipboard.writeText(t); toast('✔ Приглашение скопировано'); }catch(e){ askText('Приглашение в клан',t); } },
+  passClaim:el=>passClaim(+el.dataset.i,el.dataset.r),
   install:()=>doInstall(),
   notifyOn:()=>askNotify(),
   dmList:()=>showDMList(),
@@ -3653,7 +3776,7 @@ async function loadTop(){ if(!FB||!me()) return; try{ const s=await FB.db.collec
 // платит и получает карточку. Продавец забирает выручку сам (правила базы не дают писать в чужой профиль).
 const LOT_FEE=0.1, BANK_CARD=0.5, LOT_MAX=20, LOT_PRICE_MAX=100000;
 // история сделок аккаунта (последние 100): buy — у игрока, sell — игроку, bank — сдал Банку, shop — купил у Маркета, vip
-const DEAL_N={buy:['🛒','Куплено у игрока'],sell:['💰','Продано игроку'],bank:['🏦','Сдано Банку'],shop:['🏪','Куплено у Маркета'],vip:['👑','Куплен VIP']};
+const DEAL_N={gift:['🎁','Подарено другу'],gifted:['🎁','Подарок от друга'],buy:['🛒','Куплено у игрока'],sell:['💰','Продано игроку'],bank:['🏦','Сдано Банку'],shop:['🏪','Куплено у Маркета'],vip:['👑','Куплен VIP']};
 function addDeal(u,d){ u.deals=[{t:Date.now(),...d},...(u.deals||[])].slice(0,100); }
 function dealsHTML(u){
   const list=(u.deals||[]).filter(d=>dealFilter==='all'||(dealFilter==='in'?['buy','shop','vip'].includes(d.k):['sell','bank'].includes(d.k)));
@@ -3765,7 +3888,7 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
+  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); listenGifts(); listenClan(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
 }
 if(FB){
   FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
@@ -3781,7 +3904,7 @@ if(FB){
 }
 // при переходе на страницы подгружаем свежие данные
 const _go=go;
-go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); loadModeLeaders(); } if(PAGE==='friends'){ loadFans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
+go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); loadModeLeaders(); } if(PAGE==='friends'){ loadFans(); loadClans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
 $('#landing').addEventListener('click',e=>{
   if(DD&&!e.target.closest('.dd')&&!e.target.closest('[data-act="dd"]')){ DD=false; renderSite(); }
   // телефон: плитка инвентаря открывается окном с подробностями и кнопками

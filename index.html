@@ -218,6 +218,12 @@ button.sm{padding:5px 12px;font-size:13px}
 @keyframes mvp{from{box-shadow:0 0 0 #ffb62700}to{box-shadow:0 0 16px #ffb627}}
 .cell.pickopt{outline:2px dashed #ffb627;cursor:pointer}
 .grpinfo{font-size:13px;margin:6px 0;line-height:1.5}
+.dmb{position:absolute;top:0;right:-2px;background:#e05252;color:#fff;border-radius:10px;font-size:10px;padding:0 5px;line-height:15px}
+.dml{flex:1;overflow:auto;min-height:200px;max-height:55vh;display:flex;flex-direction:column;gap:5px;padding:4px}
+.dml>div{max-width:80%;align-self:flex-start;background:#eef1f7;border-radius:12px 12px 12px 3px;padding:6px 10px;font-size:14px}
+.dml>div.me{align-self:flex-end;background:#d9f5ee;border-radius:12px 12px 3px 12px}
+.dml small{display:block;color:#8a93a6;font-size:10px;text-align:right}
+.banbox{background:#fdecec;border:1px solid #f5b5b5;color:#8a1f1f;border-radius:10px;padding:10px 14px;margin-bottom:10px}
 .mlog{flex:1;overflow:auto;font-size:13px;line-height:1.5;background:#1e222d;border-radius:8px;padding:8px 10px;min-height:120px}
 .mlog div{border-bottom:1px solid #ffffff0d;padding:2px 0}
 .shbtns{display:flex;flex-direction:column;gap:8px;margin:12px 0}
@@ -1400,6 +1406,97 @@ function friendsOnlineHTML(u){
 }
 const agoText=t=>{ const m=Math.round((Date.now()-t)/60000); return m<60?`${Math.max(1,m)} мин назад`:m<1440?`${Math.round(m/60)} ч назад`:`${Math.round(m/1440)} дн назад`; };
 
+// ====== СМЕНА ВЕДУЩЕГО: если создатель комнаты пропал на 2,5 минуты, партию подхватывает другой игрок ======
+const HOST_GONE_MS=150000;
+setInterval(()=>{ // ведущий отмечается, что жив
+  if(NET.role==='host'&&G&&G.online&&!G.over&&FB) roomRef(G.rid).update({hostSeen:Date.now()}).catch(()=>{});
+},30000);
+setInterval(async()=>{ // гости проверяют ведущего
+  const r=NET.room; if(NET.role!=='guest'||NET.spec||!r||r.status!=='playing'||!G||G.over||!FB) return;
+  if(Date.now()-(r.hostSeen||r.created||0)<HOST_GONE_MS) return;
+  // подхватывает первый по порядку игрок, который сейчас в сети (кроме пропавшего ведущего)
+  const c=G.players.filter(p=>!p.out&&p.uid&&p.uid!==r.host&&isOnlineUid(p.uid));
+  if(!c.length||c[0].uid!==DB.session) return;
+  try{
+    await FB.db.runTransaction(async tx=>{ const ref=roomRef(r.id), s=await tx.get(ref); const d=s.data();
+      if(!s.exists||d.status!=='playing'||d.host!==r.host||Date.now()-(d.hostSeen||0)<HOST_GONE_MS) throw 'skip';
+      tx.update(ref,{host:DB.session,hostName:(me()||{}).name||'',hostSeen:Date.now(),takenBy:DB.session,takenAt:Date.now()}); });
+    toast('🔄 Создатель пропал — партию теперь ведёте вы. Не закрывайте вкладку!');
+  }catch(e){ if(e!=='skip') console.error('takeover',e); }
+},15000);
+
+// ====== ЛИЧНЫЕ СООБЩЕНИЯ (коллекция dm: from, to, name, text, at, read) ======
+DB.dmIn=[]; DB.dmOut=[]; let dmUnsubs=[], dmOpen=null;
+function listenDM(){
+  if(!FB||!me()||dmUnsubs.length) return;
+  const col=FB.db.collection('dm');
+  dmUnsubs=[col.where('to','==',DB.session).onSnapshot(s=>{ const before=DB.dmIn.length; DB.dmIn=s.docs.map(d=>({id:d.id,...d.data()}));
+      if(DB.dmReady&&DB.dmIn.length>before){ const m=DB.dmIn.sort((a,b)=>b.at-a.at)[0]; if(m&&!m.read&&dmOpen!==m.from){ SFX.pop(); toast(`✉️ ${m.name||'Сообщение'}: ${cleanChat(m.text).slice(0,40)}`); } }
+      DB.dmReady=true; dmRefresh(); },e=>console.error('dm',e)),
+    col.where('from','==',DB.session).onSnapshot(s=>{ DB.dmOut=s.docs.map(d=>({id:d.id,...d.data()})); dmRefresh(); },e=>console.error('dm',e))];
+}
+function stopDM(){ dmUnsubs.forEach(f=>f()); dmUnsubs=[]; DB.dmIn=[]; DB.dmOut=[]; DB.dmReady=false; }
+const dmUnread=()=>(DB.dmIn||[]).filter(m=>!m.read).length;
+function dmRefresh(){ const b=document.querySelector('[data-act="dmList"] .cntb'); const n=dmUnread();
+  if(dmOpen) drawDM(); else if($('#dmlov')) showDMList(); else if(!$('#landing').classList.contains('hide')&&!$('#modal').innerHTML&&!$('#dlg').innerHTML) $('#nav').innerHTML=navHTML(); }
+function dmThreads(){ const t={};
+  [...DB.dmIn.map(m=>({...m,other:m.from})),...DB.dmOut.map(m=>({...m,other:m.to}))].forEach(m=>{ (t[m.other]=t[m.other]||[]).push(m); });
+  return Object.entries(t).map(([uid,ms])=>({uid,ms:ms.sort((a,b)=>a.at-b.at)})).sort((a,b)=>b.ms[b.ms.length-1].at-a.ms[a.ms.length-1].at); }
+function showDMList(){
+  dmOpen=null; const th=dmThreads();
+  $('#modal').innerHTML=`<div class="ov" id="dmlov"><div class="box lt" style="width:400px"><h2 style="margin-top:0">✉️ Сообщения</h2>
+    ${th.length?th.map(x=>{ const a=DB.accounts[x.uid], last=x.ms[x.ms.length-1], un=x.ms.filter(m=>m.to===DB.session&&!m.read).length;
+      return `<div class="top" data-dmopen="${esc(x.uid)}" style="cursor:pointer">${a?avc(a,34):''}<span class="n"><b>${esc(a?a.name:(last.from===x.uid?last.name:'Игрок'))}</b>${un?` <span class="badge" style="background:#e05252;color:#fff">${un}</span>`:''}<br><span class="muted" style="font-size:12px">${last.from===DB.session?'Вы: ':''}${esc(cleanChat(last.text)).slice(0,40)}</span></span></div>`; }).join('')
+      :'<p class="muted">Сообщений пока нет. Написать можно из профиля игрока (нажмите на его имя) или из списка друзей.</p>'}
+    <div style="text-align:center;margin-top:10px"><button class="sec" id="dmx">Закрыть</button></div></div></div>`;
+  th.forEach(x=>{ if(!DB.accounts[x.uid]) loadUser(x.uid).then(()=>{ if($('#dmlov')) showDMList(); }).catch(()=>{}); });
+  $('#dmlov').onclick=e=>{ if(e.target.id==='dmlov'||e.target.id==='dmx') return closeModal(); const o=e.target.closest('[data-dmopen]'); if(o) showDM(o.dataset.dmopen); };
+}
+function showDM(uid){ dmOpen=uid; drawDM(true); if(!DB.accounts[uid]) loadUser(uid).then(()=>dmOpen===uid&&drawDM()).catch(()=>{}); }
+function drawDM(first){
+  const uid=dmOpen, a=DB.accounts[uid]; const th=dmThreads().find(x=>x.uid===uid), ms=th?th.ms:[];
+  const keep=$('#dmIn')?$('#dmIn').value:'';
+  $('#modal').innerHTML=`<div class="ov" id="dmov"><div class="box lt" style="width:420px;display:flex;flex-direction:column;max-height:86vh">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">${a?avc(a,36):''}<div style="flex:1"><b>${esc(a?a.name:'Игрок')}</b><br><span class="muted" style="font-size:12px">${dot(isOnlineAcc(a))} ${isOnlineAcc(a)?'в сети':'не в сети'}</span></div><button class="sec sm" id="dmback">← Все</button></div>
+    <div class="dml" id="dml">${ms.map(m=>`<div class="${m.from===DB.session?'me':''}"><span>${esc(cleanChat(m.text))}</span><small>${new Date(m.at).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'})}</small></div>`).join('')||'<p class="muted" style="text-align:center">Напишите первое сообщение</p>'}</div>
+    <form id="dmf" class="gcf" autocomplete="off"><input class="inp" id="dmIn" maxlength="300" placeholder="Сообщение…"><button type="submit">➤</button></form></div></div>`;
+  const l=$('#dml'); l.scrollTop=l.scrollHeight; const inp=$('#dmIn'); inp.value=keep; if(first||keep) inp.focus();
+  $('#dmov').onclick=e=>{ if(e.target.id==='dmov') { dmOpen=null; closeModal(); } if(e.target.id==='dmback') showDMList(); };
+  $('#dmf').onsubmit=e=>{ e.preventDefault(); sendDM(uid); };
+  // прочитано
+  ms.filter(m=>m.to===DB.session&&!m.read).forEach(m=>FB.db.collection('dm').doc(m.id).update({read:true}).catch(()=>{}));
+}
+async function sendDM(uid){
+  const u=me(), inp=$('#dmIn'); if(!u||!inp) return; const t=String(inp.value||'').trim().slice(0,300); if(!t) return;
+  if(u.banned) return toast('Вы заблокированы и не можете писать');
+  if(!chatRateOk()) return; inp.value='';
+  try{ await FB.db.collection('dm').add({from:DB.session,to:uid,name:u.name,text:t,at:Date.now(),read:false}); }
+  catch(e){ toast('Не отправилось: '+(e.code==='permission-denied'?'сообщения ещё не включены':e.message||e)); }
+}
+
+// ====== ЖАЛОБЫ И БАН ======
+const REPORT_REASONS=['Ругается / оскорбляет','Мешает играть (бросает партии)','Спам в чате','Обман / жульничество','Другое'];
+async function reportUser(uid){
+  const u=me(); if(!u||!FB) return;
+  closeModal();
+  $('#modal').innerHTML=`<div class="ov" id="rpov"><div class="box lt" style="width:360px"><h2 style="margin-top:0">⚠ Жалоба</h2><p class="muted">Создатель игры увидит жалобу и решит, что делать.</p>
+    ${REPORT_REASONS.map((r,k)=>`<label style="display:flex;gap:8px;align-items:center;margin:6px 0;cursor:pointer"><input type="radio" name="rr" value="${k}" ${k===0?'checked':''}> ${r}</label>`).join('')}
+    <input class="inp" id="rpText" maxlength="200" placeholder="Подробнее (необязательно)"><div style="text-align:center;margin-top:10px"><button class="red" id="rpGo">Отправить</button><button class="sec" id="rpx">Отмена</button></div></div></div>`;
+  $('#rpx').onclick=closeModal;
+  $('#rpGo').onclick=async()=>{ const k=+document.querySelector('input[name=rr]:checked').value;
+    try{ await FB.db.collection('reports').add({from:DB.session,fromName:u.name,target:uid,targetName:(DB.accounts[uid]||{}).name||'',reason:REPORT_REASONS[k],text:String($('#rpText').value||'').slice(0,200),at:Date.now()}); closeModal(); toast('✔ Жалоба отправлена'); }
+    catch(e){ toast('Не отправилось: '+(e.message||e)); } };
+}
+// панель создателя: список жалоб, бан/разбан
+async function loadReports(){ if(!isAdminUser()||!FB) return;
+  try{ DB.reports=(await FB.db.collection('reports').orderBy('at','desc').limit(50).get()).docs.map(d=>({id:d.id,...d.data()})); if(PAGE==='admin') renderSite(); }catch(e){ console.error('reports',e); } }
+function reportsHTML(){ const R=DB.reports||[];
+  return `<div class="cardw"><div class="ch"><h3>⚠ Жалобы ${R.length?`<span class="muted" style="font-size:14px">(${R.length})</span>`:''}</h3><button class="sec sm" data-act="reportsReload">↻</button></div>
+    ${R.length?R.map(r=>`<div class="top"><span class="n"><b data-uprof="${esc(r.target)}" style="cursor:pointer">${esc(r.targetName||r.target)}</b> — ${esc(r.reason)}${r.text?`<br><span class="muted" style="font-size:12px">«${esc(r.text)}»</span>`:''}<br><span class="muted" style="font-size:11px">от ${esc(r.fromName||'')} · ${new Date(r.at).toLocaleString('ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></span>
+      <button class="red sm" data-act="aBan" data-u="${esc(r.target)}" data-v="1">Бан</button><button class="sec sm" data-act="aBan" data-u="${esc(r.target)}" data-v="0">Разбан</button><button class="sec sm" data-act="aRepDel" data-id="${r.id}">✕</button></div>`).join('')
+      :'<p class="muted">Жалоб нет.</p>'}</div>`;
+}
+
 // ====== ПРИГЛАШЕНИЕ В КОМНАТУ ПО ССЫЛКЕ (?room=ID) ======
 const roomLink=rid=>SITE_URL+'?room='+rid;
 (function(){ const r=new URLSearchParams(location.search).get('room'); if(r){ sessionStorage.setItem('bizemp_join',r); history.replaceState(null,'',location.pathname); } })();
@@ -1437,12 +1534,12 @@ async function showUserProfile(uid){
     const dm=e.target.closest('[data-updm]'); if(dm) showDM(dm.dataset.updm);
     const rp=e.target.closest('[data-uprep]'); if(rp) reportUser(rp.dataset.uprep); };
 }
-const FEATURES={dm:false,report:false}; // включаются во второй части (нужны правила базы)
+const FEATURES={dm:true,report:true};
 document.addEventListener('click',e=>{ const t=e.target.closest('[data-uprof]'); if(t&&t.dataset.uprof){ e.stopPropagation(); showUserProfile(t.dataset.uprof); } },true);
 
 // ====== НАЙТИ ИГРУ: свободная комната или новая «Обычная игра» ======
 async function quickPlay(){
-  const u=me(); if(!u||!FB) return go('auth');
+  const u=me(); if(!u||!FB) return go('auth'); if(u.banned) return toast('⛔ Ваш аккаунт заблокирован');
   if((DB.rooms||[]).some(r=>r.uids.includes(DB.session))) return toast('Вы уже в комнате — ждём начала');
   const lvl=levelInfo(u.xp).lvl, fr=new Set(u.friends||[]);
   const ok=(DB.rooms||[]).filter(r=>r.status==='waiting'&&r.players.length+(r.bots||0)<r.max&&(!r.friendsOnly||(r.hostFriends||[]).includes(DB.session))
@@ -1558,6 +1655,7 @@ function gchatLines(adm){
 function drawGlobalChat(){ const el=$('#gcl'); if(!el) return; const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<40; el.innerHTML=gchatLines(isAdminUser()); if(atBottom||!drawGlobalChat.done){ el.scrollTop=el.scrollHeight; drawGlobalChat.done=true; } }
 async function sendGlobalChat(){
   const u=me(), inp=$('#gcIn'); if(!u||!FB||!inp) return; const t=cleanChat(inp.value); if(!t) return;
+  if(u.banned) return toast('⛔ Вы заблокированы и не можете писать в чат');
   if(!chatRateOk()) return; inp.value='';
   try{ await FB.db.collection('chat').add({uid:DB.session,name:u.name,color:u.color||'#3b8fd6',text:t,at:Date.now()}); }
   catch(e){ toast('Не отправилось: '+(e.code==='permission-denied'?'чат ещё не включён':e.message||e)); }
@@ -2616,7 +2714,7 @@ function netPublishNow(){
   if(NET.role!=='host'||!G||!G.online||!FB) return;
   const snap={...G,log:G.log.slice(-80),awaiting:!!pending,askData:askData||null};
   NET.rev++;
-  roomRef(G.rid).update({state:JSON.stringify(snap),rev:NET.rev,status:G.over?'over':'playing'}).catch(e=>console.error('publish',e));
+  roomRef(G.rid).update({state:JSON.stringify(snap),rev:NET.rev,status:G.over?'over':'playing',hostSeen:Date.now()}).catch(e=>console.error('publish',e));
 }
 function netSend(o){ if(!FB||!NET.rid) return; roomRef().collection('actions').add({...o,uid:DB.session,at:Date.now()}).catch(e=>toast('Не отправилось: '+(e.message||e))); }
 // спросить игрока на другом компьютере; если не ответит за 40 сек — ответ по умолчанию
@@ -2673,7 +2771,9 @@ function watchRoom(rid){
     if(!s.exists){ const was=NET.started; leaveNet(false); if(was){ toast('Комната закрыта'); showLanding(); } else renderSite(); return; }
     const r={id:s.id,...s.data()}; NET.room=r;
     if(r.status==='waiting'){ if(PAGE==='games') renderSite(); return; }
-    if(r.host===DB.session){ if(!NET.started) resumeHost(r); return; }
+    if(r.host===DB.session){ if(!NET.started||NET.role!=='host') resumeHost(r); return; }
+    if(NET.role==='host'){ // ведение партии забрал другой игрок (нас долго не было) — становимся обычным игроком
+      gameId++; pending=null; stopTimer(); if(NET.unsubAct){ NET.unsubAct(); NET.unsubAct=null; } NET.role='guest'; toast('Партию теперь ведёт другой игрок'); }
     applyGuestState(r);
   },e=>{ console.error('room',e); if(NET.spec){ toast('Не удалось открыть игру для просмотра'); leaveNet(false); showLanding(); } });
 }
@@ -2696,7 +2796,7 @@ function resumeHost(r){
   NET.role='host'; NET.started=true; NET.rev=r.rev||0;
   listenActions(); listenReacts(); closeModal(); hideLanding(); renderLog(); render();
   if(G.over){ showWinner(G.players[G.winner],applyMyResult()); return; }
-  log('🔄 Хозяин комнаты вернулся — продолжаем'); playTurn();
+  log(r.takenBy===DB.session&&r.takenAt&&Date.now()-r.takenAt<60000?`🔄 Создатель комнаты пропал — партию теперь ведёт ${pn(G.players.find(p=>p.uid===DB.session)||{name:'игрок',color:'#fff'})}`:'🔄 Ведущий вернулся — продолжаем'); playTurn();
 }
 // гость: показать состояние партии от хозяина
 function applyGuestState(r){
@@ -2774,7 +2874,7 @@ function roomHTML(r,u){
     <div class="rps">${pl}${slot}</div>${ctrl}</div>`;
 }
 function showCreateRoom(modeId){
-  const u=me(); if(!u) return go('auth');
+  const u=me(); if(!u) return go('auth'); if(u.banned) return toast('⛔ Ваш аккаунт заблокирован');
   const ids=Object.keys(MODES).filter(k=>!MODES[k].daily);
   if(modeId) setupMode=modeId; if(!ids.includes(setupMode)) setupMode='classic';
   const mode=MODES[setupMode], lock=modeLock(setupMode,u), maxCap=mode.duel?2:6;
@@ -2807,6 +2907,7 @@ function showCreateRoom(modeId){
   };
 }
 async function joinRoom(rid){
+  if(me()&&me().banned) return toast('⛔ Ваш аккаунт заблокирован');
   try{
     await FB.db.runTransaction(async tx=>{
       const ref=roomRef(rid), s=await tx.get(ref); if(!s.exists) throw new Error('Комната уже закрыта');
@@ -2878,7 +2979,7 @@ function navHTML(){
   if(gameActive()) h+=`<a data-act="back">Вернуться в игру<span class="badge">●</span></a>`;
   h+='<div class="sp"></div>';
   if(u){
-    h+=`${isVip(u)?'<span class="vipb">VIP</span>':''}<span class="coins">${fmtC(u.coins)}</span><div class="avwrap"><div data-act="dd">${avc(u,46)}</div>${DD?`<div class="dd">
+    h+=`<a data-act="dmList" title="Личные сообщения" style="position:relative">✉️${dmUnread()?`<span class="dmb">${dmUnread()}</span>`:""}</a>${isVip(u)?'<span class="vipb">VIP</span>':''}<span class="coins">${fmtC(u.coins)}</span><div class="avwrap"><div data-act="dd">${avc(u,46)}</div>${DD?`<div class="dd">
       <div class="ddh">${avc(u,44)}<div><b>${esc(u.name)}</b><div class="muted">${fmtC(u.coins)} · ур. ${levelInfo(u.xp).lvl}${isVip(u)?' · VIP '+vipLeft(u):''}</div></div></div>
       <a data-act="mtabgo" data-t="vip">👑 VIP-статус</a>
       <a data-go="profile">Профиль</a><a data-go="friends">Друзья</a><a data-go="inventory">Инвентарь</a><a data-act="rename">Сменить имя</a><hr><a data-act="logout">Выйти</a></div>`:''}</div>`;
@@ -2932,7 +3033,7 @@ const PAGES={
     const li=levelInfo(u.xp), rk=rankOf(li.lvl);
     const top=(DB.top||[]).slice(0,10);
     const saved=localStorage.getItem(SAVE_KEY);
-    return `<div class="page cols gcols"><div>
+    return `${u.banned?'<div class="page" style="padding-bottom:0"><div class="banbox">⛔ <b>Ваш аккаунт заблокирован создателем игры.</b> Вы не можете писать в чат, отправлять сообщения и создавать или заходить в игры по сети.</div></div>':''}<div class="page cols gcols"><div>
       <div class="cardw"><div class="ch"><h3>Мой прогресс</h3><a data-go="profile" class="muted" style="cursor:pointer">профиль</a></div>
         <div style="display:flex;gap:14px;align-items:center">${avc(u,56)}<div style="flex:1"><b>${rk[2]} ${rk[1]}</b> · уровень ${li.lvl}
         <div class="bar" style="margin-top:6px"><i style="width:${li.cur/li.need*100}%"></i></div><div class="muted">${li.need-li.cur} XP до ур. ${li.lvl+1}</div></div></div>
@@ -2967,7 +3068,7 @@ const PAGES={
       <div class="crumbs">${avc(u,48)}<a data-go="profile">${esc(u.name)}</a><span class="gt">›</span>Друзья<span class="cnt">${fr.length}</span></div>
       <p class="muted">Ваш ник: <b>@${esc(u.nick||'')}</b> — скажите его друзьям, чтобы они вас добавили.</p>
       <div class="addf"><input class="inp" id="fLogin" data-enter="addf" placeholder="Ник друга"><button data-act="addf">Добавить</button></div><div class="err" id="fErr"></div>
-      ${fr.length?`<div class="flist" style="margin-top:14px">${fr.map(a=>fcard(a,`<button class="sec sm" data-act="delf" data-l="${esc(a.login)}">Удалить</button>`)).join('')}</div>`:
+      ${fr.length?`<div class="flist" style="margin-top:14px">${fr.map(a=>fcard(a,`<button class="sm" data-act="dmTo" data-u="${esc(a.login)}">✉️ Написать</button><button class="sec sm" data-uprof="${esc(a.login)}">Профиль</button><button class="sec sm" data-act="delf" data-l="${esc(a.login)}">Удалить</button>`)).join('')}</div>`:
         `<div class="empty"><div class="e">👥</div><h3>У вас пока нет друзей</h3><p class="muted">Добавьте друга по нику. Друзья могут заходить в ваши игры с пометкой «Только для друзей».</p></div>`}
       </div>
       ${fr.length?(()=>{ const wk=weekKey(), w=a=>a.wk&&a.wk.id===wk?a.wk:{w:0,m:0};
@@ -3093,6 +3194,7 @@ const PAGES={
     const accs=DB.allUsers||[];
     const itemOpts=ITEMS.filter(x=>x.val).map(x=>`<option value="${x.id}">${x.ic} ${x.n} (${fmtC(x.val)})</option>`).join('');
     return `<div class="page">
+      ${reportsHTML()}
       <div class="cardw"><div class="ch"><h3>⚙ Панель создателя</h3><button class="sec sm" data-act="adminReload">↻ Обновить список</button></div>
         <div class="admrow"><b style="width:auto">Имя создателя на сайте:</b><input class="inp" id="aCreator" value="${esc(DB.creatorName||CREATOR)}" style="width:240px"><button class="sm" data-act="adminCreator">Сохранить</button></div>
         <div class="admrow"><b style="width:auto">Найти игрока по нику:</b><input class="inp" id="aFind" data-enter="adminFind" style="width:200px"><button class="sm" data-act="adminFind">Найти</button></div>
@@ -3219,7 +3321,7 @@ function admDone(msg,a){
   renderSite();
 }
 async function adminLoad(){
-  if(!isAdminUser()||!FB) return;
+  if(!isAdminUser()||!FB) return; loadReports();
   const s=await FB.db.collection('users').orderBy('created','desc').limit(100).get();
   DB.allUsers=s.docs.map(d=>{ const a=d.data(); a.login=d.id; migrate(a); return a; });
   if(PAGE==='admin') renderSite();
@@ -3254,7 +3356,7 @@ const ACT={
     if(Object.keys(cleanSlots(u)).length&&!await askConfirm('Разложить карточки заново? Текущие надетые карточки будут переставлены.','Разложить')) return;
     const n=autoEquip(u); saveDB(); renderSite(); toast(`✔ Надето карточек: ${n}`); },
   dd:()=>{ DD=!DD; renderSite(); },
-  logout:()=>{ stopLots(); stopGlobalChat(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
+  logout:()=>{ stopLots(); stopGlobalChat(); stopDM(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),
   scroll:el=>{ if(PAGE!=='home') go('home'); setTimeout(()=>{ const t=document.getElementById(el.dataset.to); if(t) t.scrollIntoView({behavior:'smooth'}); },30); },
   rulespage:()=>ACT.scroll({dataset:{to:'rules'}}),
@@ -3331,6 +3433,12 @@ const ACT={
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); addDeal(u,{k:"vip",days:plan.days,price:plan.price}); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
+  dmList:()=>showDMList(),
+  dmTo:el=>showDM(el.dataset.u),
+  reportsReload:()=>loadReports(),
+  aBan:async el=>{ if(!isAdminUser()) return; const on=el.dataset.v==='1'; if(on&&!await askConfirm('Заблокировать игрока? Он не сможет писать в чат, сообщения и создавать игры.','Заблокировать',true)) return;
+    try{ await FB.db.collection('users').doc(el.dataset.u).update({banned:on}); toast(on?'⛔ Игрок заблокирован':'✔ Игрок разблокирован'); }catch(e){ toast(e.message||e); } },
+  aRepDel:el=>{ FB.db.collection('reports').doc(el.dataset.id).delete().then(loadReports).catch(e=>toast(e.message)); },
   quickPlay:()=>quickPlay(),
   mlog:el=>showMatchLog(+el.dataset.k),
   roomLink:el=>copyRoomLink(el.dataset.r),
@@ -3505,7 +3613,7 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
+  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
 }
 if(FB){
   FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});

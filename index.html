@@ -252,6 +252,10 @@ body.bd-rose{--cell:#fbe6ec;--corner:#f4cfda}
 /* событие круга */
 #evt{display:none;background:linear-gradient(90deg,#ffb627,#ff8a3d);color:#2a1a00;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;text-align:center}
 #evt.on{display:block}
+#jpot{display:none;background:linear-gradient(90deg,#2e9e5b,#22b8a5);color:#fff;border-radius:8px;padding:4px 10px;font-size:13px;text-align:center}
+#jpot.on{display:block}
+.cell.portal{background:linear-gradient(135deg,#efe6ff,#dfe9ff)}
+.crow{display:flex;gap:10px;flex-wrap:wrap}.crow label{display:flex;flex-direction:column;font-size:13px;gap:3px;flex:1;min-width:150px}
 /* реакции */
 #reactBar{position:fixed;left:110px;bottom:14px;z-index:30;display:none;gap:2px;align-items:center}
 #reactBar.on{display:flex}
@@ -270,7 +274,7 @@ body.bd-rose{--cell:#fbe6ec;--corner:#f4cfda}
 @media (max-width:820px),(max-height:520px) and (orientation:landscape){
   #reactBar{left:auto;right:74px;bottom:6px}#reactBar button{padding:4px 6px;font-size:15px}
   .cell .cb{font-size:calc(var(--s)/55);top:11%}
-  #evt{font-size:10px;padding:2px 6px}
+  #evt,#jpot{font-size:10px;padding:2px 6px}
   .tut{font-size:9px;padding:3px 5px;line-height:1.25;margin-bottom:3px}#actions .tut button{padding:2px 7px;font-size:9px;margin:3px 3px 0 0;width:auto}
   #actions{flex:none;max-height:58%;overflow:auto}
 }
@@ -615,7 +619,7 @@ button.big{font-size:18px;padding:12px 28px}
   <div id="players"></div>
   <div id="board"><div id="center">
     <div id="top"><div id="title">Куби<span>тал</span><div id="minfo"></div></div><div id="dice">⚀⚀</div><div><button class="sec" id="sndBtn" title="Звук">🔊</button><button class="sec" id="fsBtn" title="На весь экран">⛶</button><button class="sec" id="newBtn">Новая игра</button></div></div>
-    <div id="evt"></div>
+    <div id="evt"></div><div id="jpot"></div>
     <div id="diceFx"></div><div id="tradeBox"></div><div id="aucBox"></div>
     <div id="actions"></div>
     <div id="log"></div>
@@ -727,7 +731,7 @@ const vipLeft=a=>(a&&a.vipUntil>=VIP_FOREVER)?'навсегда':vipDaysLeft(a)+
 const M=()=>MODES[(G&&G.mode)||'classic']||MODES.classic;
 // за круг: обычная сумма режима; после 10-го круга — 1,000k; после 15-го — ничего
 const SALARY_LOW=1000, SALARY_LOW_R=10, SALARY_OFF_R=15;
-const salary=()=>{ const r=(G&&G.round)||1; if(r>SALARY_OFF_R) return 0; return (r>SALARY_LOW_R?SALARY_LOW:(M().salary||SALARY))*(evOn('bonus')?2:1); };
+const salary=()=>{ const r=(G&&G.round)||1; if(r>SALARY_OFF_R) return 0; return (r>SALARY_LOW_R?SALARY_LOW:(OPT().salary||M().salary||SALARY))*(evOn('bonus')?2:1); };
 
 // ====== АККАУНТЫ В ОБЛАКЕ (Firebase) ======
 const CREATOR='Ваше имя'; // ← имя создателя по умолчанию (его можно поменять в панели создателя)
@@ -1172,7 +1176,7 @@ const avLetter=p=>esc((p.name.replace(/^Бот\s+/,'')[0]||'?').toUpperCase());
 function render(){
   if(!G) return;
   const m=M();
-  $('#minfo').textContent=`${m.ic} ${m.n}${m.rounds?` · круг ${Math.min(G.round||1,m.rounds)} из ${m.rounds}`:''}`;
+  const rl=OPT().rounds||m.rounds; $('#minfo').textContent=`${m.ic} ${m.n}${rl?` · круг ${Math.min(G.round||1,rl)} из ${rl}`:''}`;
   $('#players').innerHTML=G.players.map(p=>{
     const props=G.cells.filter(s=>s.owner===p.id).length;
     const acc=p.acc&&DB.accounts[p.acc];
@@ -1211,6 +1215,9 @@ function render(){
       `<div class="tok" data-pid="${p.id}" style="background:${p.color}" title="${esc(p.name)}"></div>`).join('');
   });
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
+  const jp=$('#jpot'); jp.classList.toggle('on',!!OPT().jackpot&&!G.over); jp.innerHTML=`💰 Джекпот: <b>${fmt(G.jackpot||0)}</b> — забирает тот, кто встанет на 🎰 Казино`;
+  // порталы: две клетки «Шанс» показываем как 🌀
+  PORTALS.forEach(i=>{ const el=$('#c'+i); if(!el||CELLS[i].type!=='chance') return; const on=!!OPT().portal; el.querySelector('.ic').textContent=on?'🌀':CELLS[i].ic; el.querySelector('.cn').textContent=on?'Портал':CELLS[i].name; el.classList.toggle('portal',on); });
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
   $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
   renderAuction(); maybeAutoEnd();
@@ -1787,6 +1794,7 @@ function renderActions(){
       <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
     case 'end': h=`<div class="acard"><b class="t">Ход сделан</b><small>Можно строить филиалы и меняться — или передать ход.</small><button data-a="end">Завершить ход ➜</button></div>`+manage; break;
     case 'move': h=`<div class="acard"><b class="t">🚂 Поезд!</b><small>Нажмите на <b>подсвеченную клетку</b> на поле — туда и поедете.</small><div class="mvchips">${ad.opts.map(n=>{ const t=(a.pos+n)%40; return `<button class="sec" data-a="${n}">+${n} ${CELLS[t].ic}</button>`; }).join('')}</div></div>`; break;
+    case 'portal': { h=`<div class="acard"><b class="t">🌀 Портал</b><small>Можно мгновенно перенестись ко второму порталу на другой стороне поля (за Старт деньги не дают).</small><div class="row2"><button data-a="go">🌀 Перенестись</button><button data-a="stay" class="sec">Остаться</button></div></div>`; break; }
     case 'pick': h=`<div class="acard"><b class="t">🎯 Тройка!</b><small>Нажмите на <b>любую клетку поля</b> — туда и поедете.</small></div>`; break;
     case 'stock': h=`<div class="q">📊 Фондовый рынок: ${pn(a)}, купить акцию? С каждой аренды этой компании вам будет идти ${STOCK_CUT*100}%.</div>`+
       ad.opts.map(i=>`<button data-a="${i}" ${a.money<stockPrice(i)?'disabled':''}>${CELLS[i].ic} ${CELLS[i].name} (${esc(G.players[G.cells[i].owner].name)}) — ${fmt(stockPrice(i))}</button>`).join('')+
@@ -1832,7 +1840,7 @@ function onTimeout(){
   if(!isRemote(a)&&($('#tov')||$('#ov')||$('#ppov'))) closeModal();
   if(!isRemote(a)&&TR&&!TR.view) closeTrade();
   const v={roll:'roll',jail:'roll',buy:'skip',end:'end',debt:G.debt&&a.money>=G.debt.amt?'pay':'give',
-    move:String(ad&&ad.opts?ad.opts[0]:''),pick:'-1',stock:'skip'}[G.phase]||'end';
+    move:String(ad&&ad.opts?ad.opts[0]:''),pick:'-1',stock:'skip',portal:'stay'}[G.phase]||'end';
   answer(v);
 }
 
@@ -1878,7 +1886,7 @@ function openCard(i){
     body=`<table><tr><td>1 компания</td><td>сумма кубиков × 100k</td></tr><tr><td>Обе компании</td><td>сумма кубиков × 250k</td></tr>
       <tr><td>Цена</td><td>${fmt(c.price)}</td></tr><tr><td>Залог / выкуп</td><td>${fmt(c.price/2)} / ${fmt(unmortCost(i))}</td></tr></table>`;
   } else {
-    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
+    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:G&&OPT().portal&&PORTALS.includes(i)?'🌀 Портал: встали сюда — можете мгновенно перенестись ко второму порталу на другой стороне поля.':'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:(G&&OPT().jackpot?`💰 Джекпот сейчас ${fmt(G.jackpot||0)} — забираете его, когда встаёте сюда. `:'')+'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
   }
   let owner='';
   if(G&&isOwnable(c)){
@@ -1900,7 +1908,7 @@ function openCard(i){
     else acts+=`<button data-m="unmort" ${a.money>=unmortCost(i)&&G.phase!=='debt'?'':'disabled'}>Выкупить (${fmt(unmortCost(i))})</button>`;
   }
   $('#modal').innerHTML=`<div class="ov" id="ov"><div class="box card" style="padding:0">
-    <div class="hd" style="background:${col}">${c.ic} ${c.name}</div>
+    <div class="hd" style="background:${col}">${G&&OPT().portal&&PORTALS.includes(i)&&c.type==='chance'?'🌀 Портал':c.ic+' '+c.name}</div>
     <div style="padding:12px 16px">${owner}${body}<div style="text-align:center">${acts}<button class="sec" data-m="close">Закрыть</button></div></div></div></div>`;
   $('#ov').onclick=e=>{
     if(e.target.id==='ov') return closeModal();
@@ -2034,12 +2042,28 @@ async function land(p,dice){
         track(o,'rent',got);
         if(!p.out) payDividends(i,got); }
     }
-  } else if(c.type==='tax'){ if(evOn('taxfree')) log(`🧾 Налоговые каникулы — ${pn(p)} ничего не платит`); else { log(`${pn(p)} платит ${c.name.toLowerCase()} ${fmt(c.amount)}`); await pay(p,c.amount,-1); } }
+  } else if(c.type==='tax'){ if(evOn('taxfree')) log(`🧾 Налоговые каникулы — ${pn(p)} ничего не платит`); else { log(`${pn(p)} платит ${c.name.toLowerCase()} ${fmt(c.amount)}`); await pay(p,c.amount,-1); if(!p.out) toJackpot(c.amount); } }
   else if(c.type==='stock') await stock(p);
+  else if(c.type==='chance'&&OPT().portal&&PORTALS.includes(i)&&!G.noPortal) await portal(p,i);
   else if(c.type==='chance') await chance(p);
-  else if(c.type==='casino') await casino(p);
+  else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); G.jackpot=0; render(); } await casino(p); }
   else if(c.type==='gojail') sendJail(p);
   render();
+}
+
+// ====== ДЖЕКПОТ (галочка в правилах комнаты): налоги и штрафы копятся, забирает тот, кто встал на «Казино» ======
+function toJackpot(a){ if(!OPT().jackpot||!G||!(a>0)) return; G.jackpot=(G.jackpot||0)+a; render(); }
+// ====== ПОРТАЛЫ (галочка): две клетки «Шанс» становятся порталами ======
+const PORTALS=[7,22];
+async function portal(p,i){
+  const to=PORTALS.find(x=>x!==i);
+  let go;
+  if(p.bot) go=Math.random()<0.5;
+  else { const v=await ask('portal',{to}); if(p.out) return; go=v==='go'; }
+  if(!go){ log(`🌀 ${pn(p)} остаётся у портала`); return; }
+  log(`🌀 ${pn(p)} проходит через портал на другую сторону поля`); SFX.event();
+  p.pos=to; render(); await sleep(400);
+  p.pos=to; render(); // на втором портале ничего не происходит — следующий ход уже оттуда
 }
 
 // ====== ФОНДОВЫЙ РЫНОК: акции компаний соперников ======
@@ -2195,13 +2219,13 @@ async function chance(p){
   log(`${pn(p)} — «Шанс»: ${k.t}`);
   await sleep(300);
   if(k.money>0) p.money+=k.money;
-  if(k.money<0){ await pay(p,-k.money,-1); if(!p.out) track(p,'chancepay',-k.money); }
+  if(k.money<0){ await pay(p,-k.money,-1); if(!p.out){ track(p,'chancepay',-k.money); toJackpot(-k.money); } }
   if(k.card) p.jailCards++;
   if(k.jail) sendJail(p);
   if(k.go!==undefined){ const t=CELLS.findIndex(c=>c.name===k.go); await moveTo(p,t); if(t!==0) await land(p,G.lastDice); }
   if(k.back){ p.pos=(p.pos-k.back+40)%40; render(); await land(p,G.lastDice); }
   if(k.each){ for(const o of G.players) if(o!==p&&!o.out&&!p.out) await pay(o,k.each,p.id); }
-  if(k.perLevel){ const t=G.cells.reduce((sum,s)=>sum+(s.owner===p.id?s.level:0),0)*k.perLevel; if(t){ log(`${pn(p)} платит за ремонт ${fmt(t)}`); await pay(p,t,-1); if(!p.out) track(p,'chancepay',t); } }
+  if(k.perLevel){ const t=G.cells.reduce((sum,s)=>sum+(s.owner===p.id?s.level:0),0)*k.perLevel; if(t){ log(`${pn(p)} платит за ремонт ${fmt(t)}`); await pay(p,t,-1); if(!p.out){ track(p,'chancepay',t); toJackpot(t); } } }
   render();
 }
 async function pay(p,amt,to){
@@ -2426,12 +2450,12 @@ async function turnInner(){
       const choice=p.bot?(await sleep(700),p.jailCards?'card':(p.money>4000?'pay':'roll')):await ask('jail');
       if(p.out) break;
       if(choice==='card'){ p.jailCards--; p.inJail=false; log(`${pn(p)} использует карту 🎫 и выходит из тюрьмы`); }
-      else if(choice==='pay'){ log(`${pn(p)} платит ${fmt(JAIL_FINE)} и выходит из тюрьмы`); await pay(p,JAIL_FINE,-1); if(p.out) break; p.inJail=false; }
+      else if(choice==='pay'){ log(`${pn(p)} платит ${fmt(JAIL_FINE)} и выходит из тюрьмы`); await pay(p,JAIL_FINE,-1); if(p.out) break; toJackpot(JAIL_FINE); p.inJail=false; }
       else {
         const [a,b,c]=await rollDice(p);
         if(a===b){ p.inJail=false; log(`${pn(p)} выходит из тюрьмы по дублю`); const mv=await chooseMove(p,a,b,c); if(p.out) break;
           await doMove(p,mv); }
-        else if(++p.jailTries>=3){ log(`${pn(p)} не смог выбросить дубль за 3 попытки и платит ${fmt(JAIL_FINE)}`); await pay(p,JAIL_FINE,-1); if(p.out) break; p.inJail=false;
+        else if(++p.jailTries>=3){ log(`${pn(p)} не смог выбросить дубль за 3 попытки и платит ${fmt(JAIL_FINE)}`); await pay(p,JAIL_FINE,-1); if(p.out) break; toJackpot(JAIL_FINE); p.inJail=false;
           const mv=await chooseMove(p,a,b,c); if(p.out) break;
           await doMove(p,mv); }
         else log(`${pn(p)} остаётся в тюрьме`);
@@ -2463,7 +2487,7 @@ function nextPlayer(){
     if(G.round%5===0) startEvent();
     if(G.round===SALARY_LOW_R+1) log(`💸 Начался ${G.round}-й круг: за проход Старта теперь платят только ${fmt(SALARY_LOW)}`);
     if(G.round===SALARY_OFF_R+1) log(`💸 Начался ${G.round}-й круг: за проход Старта больше не платят`);
-    const lim=M().rounds;
+    const lim=OPT().rounds||M().rounds;
     if(lim){
       if(G.round>lim){ const w=alive.slice().sort((a,b)=>netWorth(b)-netWorth(a))[0]; log(`⏱️ Все ${lim} кругов сыграны! Самый богатый — ${pn(w)} (${fmt(netWorth(w))})`); return finishGame(w); }
       log(`— Круг ${G.round} из ${lim} —`);
@@ -2571,7 +2595,7 @@ let setupMode='classic', setupRows=null;
 const OPTS_KEY='bizemp_opts';
 let setupOpts; try{ setupOpts=JSON.parse(localStorage.getItem(OPTS_KEY)); }catch(e){}
 if(!setupOpts) setupOpts={timer:true,auction:true,credit:true,mortLimit:true};
-const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку']];
+const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал на один — можешь перенестись к другому']];
 function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name:'Вы'},{type:'bot',name:'Бот Алиса'},{type:'bot',name:'Бот Борис'},{type:'bot',name:'Бот Вика'}]; }
 // режимы с заданным составом: рейтинговая — вы и 3 бота, задача дня — вы и 2 бота
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;
@@ -2827,7 +2851,7 @@ function startOnlineGame(r){
   const list=[...r.players.map(pl=>({...pl,bot:false}))];
   G={mode:r.mode,layout,round:1,online:true,rid:r.id,opt:{...r.opt,timer:90},
      players:list.map((pl,k)=>({id:k,name:pl.name,bot:!!pl.bot,uid:pl.uid||null,acc:pl.uid===DB.session?DB.session:null,skin:pl.skin||'',vip:!!pl.vip,bonus:pl.bonus||{},
-       color:COLORS[k],money:mode.money||START_MONEY,pos:0,inJail:false,jailTries:0,jailCards:0,dbl:0,out:false})),
+       color:COLORS[k],money:(r.opt&&r.opt.money)||mode.money||START_MONEY,pos:0,inJail:false,jailTries:0,jailCards:0,dbl:0,out:false})),
      cells:CELLS.map(()=>({owner:-1,level:0,mort:false})),cur:0,phase:'wait',debt:null,log:[],lastDice:7,over:false,turnNo:0,declined:{}};
   NET.role='host'; NET.started=true; NET.rev=0;
   listenActions(); listenReacts(); closeModal(); hideLanding(); renderLog();
@@ -2868,7 +2892,7 @@ function roomHTML(r,u){
   const m=MODES[r.mode]||MODES.classic, me_=u.login, host=r.host===me_, inRoom=r.uids.includes(me_);
   const total=r.players.length+(r.bots||0), full=total>=r.max;
   const allowed=!r.friendsOnly||host||(r.hostFriends||[]).includes(me_);
-  const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
+  const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'',r.opt&&r.opt.jackpot?'💰 Джекпот':'',r.opt&&r.opt.portal?'🌀 Порталы':'',r.opt&&r.opt.money?'💰 Старт '+fmt(r.opt.money):'',r.opt&&r.opt.rounds?'⏱️ '+r.opt.rounds+' кругов':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
   const pl=r.players.map(p=>`<div class="lp" data-uprof="${esc(p.uid||"")}" style="cursor:pointer">${avc({name:p.name,color:p.color,eq:p.eq,lvl:p.lvl},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
     +Array.from({length:r.bots||0},(_,k)=>`<div class="lp"><div class="avc" style="width:74px;height:74px;background:#8892a6;font-size:34px;--ring:#8892a6">🤖</div><div class="lpn">${BOT_NAMES[k]}</div><div class="muted">бот</div></div>`).join('');
   const lowLvl=MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(u.xp).lvl<MODES.ranked.needLvl;
@@ -2895,6 +2919,7 @@ function showCreateRoom(modeId){
       <h3>Кто может войти</h3>
       <label style="display:flex;gap:10px;align-items:center;cursor:pointer"><input type="checkbox" id="crFr" ${showCreateRoom.fr?'checked':''} style="width:18px;height:18px"><span><b>👥 Только для друзей</b><br><span class="muted">Войти смогут только те, кого вы добавили в друзья</span></span></label>
       <h3>Правила</h3>${OPT_LIST.map(([k,t,d])=>`<label style="display:flex;gap:10px;align-items:center;margin:6px 0;cursor:pointer"><input type="checkbox" data-opt="${k}" ${k==='timer'||setupOpts[k]?'checked':''} ${k==='timer'?'disabled':''} style="width:18px;height:18px"><span><b style="font-weight:600">${t}</b><br><span class="muted">${k==='timer'?'В игре по сети таймер включён всегда — чтобы игра не зависла, если кто-то ушёл':d}</span></span></label>`).join('')}
+      <h3>Свои правила</h3><div class="crow">${[['cMoney','💰 Стартовый капитал',[[0,'как в режиме'],[10000,fmt(10000)],[15000,fmt(15000)],[20000,fmt(20000)],[30000,fmt(30000)]]],['cSalary','🔄 За круг (до 10-го)',[[0,'как в режиме'],[1000,fmt(1000)],[2000,fmt(2000)],[3000,fmt(3000)],[4000,fmt(4000)]]],['cRounds','⏱️ Лимит кругов',[[0,mode.rounds?mode.rounds+' (как в режиме)':'без лимита'],[15,'15'],[20,'20'],[30,'30'],[40,'40']]]].map(([k,t,o])=>`<label>${t}<select class="inp" data-copt="${k}">${o.map(([v,n])=>`<option value="${v}" ${+(setupOpts[k]||0)===v?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}</div>
       <div class="sbtns"><button class="btn-o big" id="crGo" ${lock?'disabled':''}>Создать комнату</button></div><div class="err" id="crErr"></div>
     </div></div></div>`;
   $('#crov').onclick=e=>{
@@ -2903,11 +2928,12 @@ function showCreateRoom(modeId){
     const mx=e.target.closest('[data-max]'); if(mx){ showCreateRoom.max=+mx.dataset.max; showCreateRoom.fr=$('#crFr').checked; showCreateRoom(); }
   };
   document.querySelectorAll('#crov [data-opt]').forEach(cb=>cb.onchange=()=>{ setupOpts[cb.dataset.opt]=cb.checked; try{ localStorage.setItem(OPTS_KEY,JSON.stringify(setupOpts)); }catch(e){} });
+  document.querySelectorAll('#crov [data-copt]').forEach(sel=>sel.onchange=()=>{ setupOpts[sel.dataset.copt]=+sel.value; try{ localStorage.setItem(OPTS_KEY,JSON.stringify(setupOpts)); }catch(e){} });
   $('#crGo').onclick=async()=>{
     if(modeLock(setupMode,me())) return;
     $('#crGo').disabled=true;
     const room={host:DB.session,hostName:u.name,mode:setupMode,max:cur,friendsOnly:!!$('#crFr').checked,hostFriends:u.friends||[],
-      opt:{timer:90,auction:!!setupOpts.auction,credit:!!setupOpts.credit,mortLimit:!!setupOpts.mortLimit},
+      opt:{timer:90,auction:!!setupOpts.auction,credit:!!setupOpts.credit,mortLimit:!!setupOpts.mortLimit,jackpot:!!setupOpts.jackpot,portal:!!setupOpts.portal,money:+setupOpts.cMoney||0,salary:+setupOpts.cSalary||0,rounds:+setupOpts.cRounds||0},
       status:'waiting',created:Date.now(),hostSeen:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
     try{ const ref=await FB.db.collection('rooms').add(room); closeModal(); watchRoom(ref.id); toast('✔ Комната создана — ждём игроков'); }
     catch(e){ $('#crErr').textContent='Не удалось создать комнату: '+(e.message||e); $('#crGo').disabled=false; }

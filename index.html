@@ -1410,6 +1410,8 @@ const agoText=t=>{ const m=Math.round((Date.now()-t)/60000); return m<60?`${Math
 const HOST_GONE_MS=150000;
 setInterval(()=>{ // ведущий отмечается, что жив
   if(NET.role==='host'&&G&&G.online&&!G.over&&FB) roomRef(G.rid).update({hostSeen:Date.now()}).catch(()=>{});
+  // комната ещё ждёт игроков — создатель отмечается, что он на месте (иначе комнату спрячут из лобби)
+  else if(FB&&NET.rid&&NET.room&&NET.room.status==='waiting'&&NET.room.host===DB.session) roomRef(NET.rid).update({hostSeen:Date.now()}).catch(()=>{});
 },30000);
 setInterval(async()=>{ // гости проверяют ведущего
   const r=NET.room; if(NET.role!=='guest'||NET.spec||!r||r.status!=='playing'||!G||G.over||!FB) return;
@@ -1547,7 +1549,7 @@ async function quickPlay(){
     .sort((a,b)=>(b.uids.some(x=>fr.has(x))?1:0)-(a.uids.some(x=>fr.has(x))?1:0)||b.players.length-a.players.length);
   if(ok.length){ toast('🔎 Нашли игру — заходим!'); return joinRoom(ok[0].id); }
   const room={host:DB.session,hostName:u.name,mode:'classic',max:4,friendsOnly:false,hostFriends:u.friends||[],
-    opt:{timer:90,auction:true,credit:true,mortLimit:true},status:'waiting',created:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
+    opt:{timer:90,auction:true,credit:true,mortLimit:true},status:'waiting',created:Date.now(),hostSeen:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
   try{ const ref=await FB.db.collection('rooms').add(room); watchRoom(ref.id); toast('Свободных игр нет — создали новую. Ждём игроков!'); }
   catch(e){ toast('Не удалось создать игру: '+(e.message||e)); }
 }
@@ -2554,7 +2556,7 @@ async function rematchHost(){
   $('#rmGo').disabled=true;
   const humans=G.players.filter(p=>!p.bot).length, bots=0;
   const room={host:DB.session,hostName:u.name,mode:G.mode,max:Math.max(2,old.max||humans+bots),friendsOnly:!!old.friendsOnly,hostFriends:u.friends||[],
-    opt:{...G.opt,timer:90},status:'waiting',created:Date.now(),uids:[DB.session],players:[myEntry()],bots,state:null,rev:0};
+    opt:{...G.opt,timer:90},status:'waiting',created:Date.now(),hostSeen:Date.now(),uids:[DB.session],players:[myEntry()],bots,state:null,rev:0};
   try{
     const ref=await FB.db.collection('rooms').add(room), oldId=G.rid;
     G.rematch=ref.id; netPublishNow();
@@ -2855,7 +2857,9 @@ async function rejoinMyRoom(){
 }
 function lobbyHTML(u){
   if(!FB) return '';
-  const rooms=(DB.rooms||[]).slice().sort((a,b)=>(b.uids.includes(u.login)?1:0)-(a.uids.includes(u.login)?1:0)||b.created-a.created);
+  // брошенные комнаты прячем: создатель не отмечался 3 минуты (старые комнаты без отметки — 10 минут после создания)
+  const alive=r=>r.uids.includes(u.login)||(r.hostSeen?Date.now()-r.hostSeen<180000:Date.now()-(r.created||0)<600000);
+  const rooms=(DB.rooms||[]).filter(alive).slice().sort((a,b)=>(b.uids.includes(u.login)?1:0)-(a.uids.includes(u.login)?1:0)||b.created-a.created);
   const inRoom=rooms.some(r=>r.uids.includes(u.login));
   return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button data-act="quickPlay" title="Найти свободную игру или создать новую">🔎 Найти игру</button><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Позвать друзей">📣 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
     ${rooms.length?rooms.map(r=>roomHTML(r,u)).join(''):'<p class="muted">Пока никто не ждёт игры. Создайте свою — друзья смогут присоединиться!</p>'}</div>`;
@@ -2904,7 +2908,7 @@ function showCreateRoom(modeId){
     $('#crGo').disabled=true;
     const room={host:DB.session,hostName:u.name,mode:setupMode,max:cur,friendsOnly:!!$('#crFr').checked,hostFriends:u.friends||[],
       opt:{timer:90,auction:!!setupOpts.auction,credit:!!setupOpts.credit,mortLimit:!!setupOpts.mortLimit},
-      status:'waiting',created:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
+      status:'waiting',created:Date.now(),hostSeen:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
     try{ const ref=await FB.db.collection('rooms').add(room); closeModal(); watchRoom(ref.id); toast('✔ Комната создана — ждём игроков'); }
     catch(e){ $('#crErr').textContent='Не удалось создать комнату: '+(e.message||e); $('#crGo').disabled=false; }
   };
@@ -3314,7 +3318,7 @@ function showShare(){
   };
 }
 // ====== ПАНЕЛЬ СОЗДАТЕЛЯ ======
-function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),Math.min(6000,1800+String(msg).length*35)); }
 function xpForLevel(L){ let xp=0,need=100; for(let l=1;l<L;l++){ xp+=need; need=100+(l+1)*25; } return xp; }
 function admAcc(el){ if(!isAdminUser()) return null; const c=el.closest('.adm'); if(!c) return null; const a=(DB.allUsers||[]).find(x=>x.login===c.dataset.l); return a?{a,c}:null; }
 // сохранить изменённый аккаунт в облако (если это я — обновить и мой кэш)

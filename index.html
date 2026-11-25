@@ -1198,6 +1198,7 @@ function render(){
       <div class="nm">${G.online&&p.uid&&!p.out?dot(isOnlineUid(p.uid))+' ':''}${p.vip?'<span title="VIP" style="color:#ffd54f">★</span> ':''}${esc(p.name)}${p.bot?' 🤖':''}</div>
       ${acc?`<div class="tag">${rankOf(levelInfo(acc.xp).lvl)[2]} ур. ${levelInfo(acc.xp).lvl}</div>`:''}
       <div class="mn">${p.out?'Банкрот':fmt(p.money)}</div>
+      ${OPT().teams&&p.team!=null?`<div class="tag" style="color:${TEAM_C[p.team]};opacity:1;font-weight:700">${teamName(p.team)}</div>`:''}
       <div class="tag">🏢 ${props}${p.inJail?' · 🚔 в тюрьме':''}${p.jailCards?' · 🎫 '+p.jailCards:''}${p.credit?` · 🏦 ${creditLeft(p)} ход.`:''}</div>
       ${G.tmDeadline&&G.awaiting&&p===actor()?`<div class="tmr">⏱ <span id="tmv">${tmRemain()}</span></div>`:''}</div>${plMenu===p.id?playerMenu(p):''}`;
   }).join('');
@@ -1775,6 +1776,7 @@ function playerMenu(p){
   const a=actor(), myTurn=canAct();
   let h=`<div class="pmenu"><div class="pmi" data-pm="profile">👤 Профиль</div>`;
   if(myTurn&&p!==a&&!p.out&&!a.out) h+=`<div class="pmi" data-pm="trade">🤝 Обмен</div>`;
+  if(myTurn&&OPT().teams&&p!==a&&!p.out&&p.team===a.team) h+=`<div class="pmi" data-pm="give">💸 Отправить деньги напарнику</div>`;
   // кредит — в меню своего игрока, когда сейчас ваш ход
   if(myTurn&&p===a&&OPT().credit&&!p.out){
     if(p.credit) h+=`<div class="pmi ${p.money<CREDIT_BACK?'dis':''}" data-pm="repay">🏦 Вернуть кредит ${fmt(CREDIT_BACK)} · осталось ${creditLeft(p)} ход.</div>`;
@@ -1791,6 +1793,7 @@ $('#players').onclick=e=>{
   if(m){ const p=G.players[plMenu]; plMenu=null; render();
     if(m.dataset.pm==='profile') showPlayerProfile(p);
     if(m.dataset.pm==='trade') openTrade(p.id);
+    if(m.dataset.pm==='give') askGive(p);
     if(m.dataset.pm==='give') surrender(p);
     if((m.dataset.pm==='credit'||m.dataset.pm==='repay')&&!m.classList.contains('dis')&&canAct()&&actor()===p){
       if(NET.role==='guest') netSend({kind:'cmd',name:m.dataset.pm});
@@ -1824,11 +1827,13 @@ function afterSurrender(){
 // остался один игрок — партия заканчивается сразу, не дожидаясь конца чужого хода
 function endIfLastStanding(){
   if(!G||G.over) return false;
-  const alive=G.players.filter(x=>!x.out); if(alive.length>1) return false;
+  const alive=G.players.filter(x=>!x.out), oneTeam=OPT().teams&&alive.length&&new Set(alive.map(x=>x.team)).size===1;
+  if(alive.length>1&&!oneTeam) return false;
+  if(oneTeam){ G.winTeam=alive[0].team; log(`🏆 Победила команда ${teamName(G.winTeam)}!`); }
   gameId++; stopTimer(); const r=pending; pending=null; G.awaiting=false; G.askData=null; askData=null;
   if(typeof TR!=='undefined'&&TR) closeTrade();
 
-  closeModal(); finishGame(alive[0]);
+  closeModal(); finishGame(alive.slice().sort((a,b)=>netWorth(b)-netWorth(a))[0]);
   return true;
 }
 const EARLY_SURRENDER=5; // сдался за первые 5 своих ходов — награды за матч нет
@@ -2117,7 +2122,8 @@ async function land(p,dice){
         else { log(`${pn(p)} ${p.money<c.price?'не покупает (не хватает денег)':'отказывается покупать'} ${cn(i)}`); if(OPT().auction) await auction(i,p); }
       } else { log(`${pn(p)} не хватает денег на ${cn(i)}`); if(OPT().auction) await auction(i,p); }
     } else if(s.owner!==p.id){
-      if(s.mort) log(`${pn(p)} попадает на ${cn(i)} — компания заложена, платить не нужно`);
+      if(OPT().teams&&G.players[s.owner].team===p.team) log(`${pn(p)} попадает на ${cn(i)} напарника — платить не нужно 🤝`);
+      else if(s.mort) log(`${pn(p)} попадает на ${cn(i)} — компания заложена, платить не нужно`);
       else { const o=G.players[s.owner], bon=cellBonus(o,i), r=rentDue(i,dice);
         const hasHQ=!!c.g&&groupCells(c.g).some(j=>G.cells[j].hq&&G.cells[j].owner===o.id);
         const notes=[bon?`+${bon}% карточка`:'',evOn('crisis')?'−30% кризис':'',evOn('boom')&&c.g===G.event.g?'+50% бум':'',hasHQ?'+25% 🏛':''].filter(Boolean);
@@ -2133,6 +2139,22 @@ async function land(p,dice){
   else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); track(p,'jackpot'); G.jackpot=0; render(); } await casino(p); }
   else if(c.type==='gojail') sendJail(p);
   render();
+}
+
+// ====== КОМАНДНАЯ ИГРА 2 НА 2 (галочка): игроки 1 и 3 против 2 и 4 ======
+const TEAM_C=['#ff8a3d','#3b8fd6'];
+const teamName=t=>t===0?'🟧 Оранжевые':'🟦 Синие';
+function giveMoney(from,to,amt){
+  if(!G||!OPT().teams||!from||!to||from===to||from.team!==to.team||to.out||from.out) return;
+  amt=Math.floor(amt); if(!(amt>0)||amt>from.money) return;
+  from.money-=amt; to.money+=amt; log(`💸 ${pn(from)} отправляет напарнику ${pn(to)} ${fmt(amt)}`); render();
+}
+async function askGive(to){
+  const a=actor(); if(!canAct()||!to) return;
+  const v=await askText(`💸 Деньги напарнику ${esc(to.name)}`,'1000',{num:1,ok:'Отправить',note:`У вас ${fmt(a.money)}. Сумма в тысячах (k).`});
+  if(v===null) return; const amt=Math.floor(+String(v).replace(/\s/g,'')||0);
+  if(!(amt>0)||amt>a.money) return toast('Неверная сумма');
+  if(NET.role==='guest') netSend({kind:'cmd',name:'give',to:to.id,amt}); else giveMoney(a,to,amt);
 }
 
 // ====== ДЖЕКПОТ (галочка в правилах комнаты): налоги и штрафы копятся, забирает тот, кто встал на «Казино» ======
@@ -2561,7 +2583,9 @@ async function turnInner(){
 }
 function nextPlayer(){
   const alive=G.players.filter(p=>!p.out);
-  if(alive.length<=1) return finishGame(alive[0]);
+  if(alive.length<=1&&!(OPT().teams&&alive.length)) return finishGame(alive[0]);
+  // командная игра: остались игроки только одной команды — она победила
+  if(OPT().teams&&alive.length&&new Set(alive.map(p=>p.team)).size===1){ G.winTeam=alive[0].team; log(`🏆 Победила команда ${teamName(G.winTeam)}!`); return finishGame(alive.slice().sort((a,b)=>netWorth(b)-netWorth(a))[0]); }
   const prev=G.cur;
   do{ G.cur=(G.cur+1)%G.players.length; }while(G.players[G.cur].out);
   if(G.cur<=prev){
@@ -2588,7 +2612,7 @@ function finishGame(w){
   const ranked=!!M().ranked;
   G.winner=w?w.id:-1;
   G.results=G.players.filter(p=>p.uid||p.acc).map(p=>{
-    const win=p===w, a=p.acc&&DB.accounts[p.acc];
+    const win=G.winTeam!=null&&OPT().teams?p.team===G.winTeam:p===w, a=p.acc&&DB.accounts[p.acc];
     const vip=a?isVip(a):!!p.vip;
     const rd=ranked?(win?25:-15):0;
     const score=M().daily?Math.round(netWorth(p)):null;
@@ -2647,7 +2671,7 @@ async function checkSeasonAward(a){
 }
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
-    <h2>Победитель: ${p?pn(p):'никто'}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
+    <h2>${G&&OPT().teams&&G.winTeam!=null?`Победила команда ${teamName(G.winTeam)}<br><small style="font-size:15px">${G.players.filter(x=>x.team===G.winTeam).map(pn).join(" и ")}</small>`:`Победитель: ${p?pn(p):"никто"}`}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
     <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wgraph">📈 График</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
   $('#wshare').onclick=showShare; $('#wlog').onclick=()=>showMatchLog(0); $('#wgraph').onclick=()=>{ const r=savedLogs()[0]; if(r) showGraph(r.players,r.hist); };
@@ -2682,7 +2706,7 @@ let setupMode='classic', setupRows=null;
 const OPTS_KEY='bizemp_opts';
 let setupOpts; try{ setupOpts=JSON.parse(localStorage.getItem(OPTS_KEY)); }catch(e){}
 if(!setupOpts) setupOpts={timer:true,auction:true,credit:true,mortLimit:true};
-const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал на один — можешь перенестись к другому']];
+const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал на один — можешь перенестись к другому'],['teams','👥 Командная игра 2 на 2','Игроки 1 и 3 против 2 и 4. Напарнику аренду не платят, деньги можно передавать. Нужно ровно 4 игрока']];
 function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name:'Вы'},{type:'bot',name:'Бот Алиса'},{type:'bot',name:'Бот Борис'},{type:'bot',name:'Бот Вика'}]; }
 // режимы с заданным составом: рейтинговая — вы и 3 бота, задача дня — вы и 2 бота
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;
@@ -2866,6 +2890,7 @@ function hostHandleAction(a){
   if(a.name==='repay') repayCredit(p);
   if(a.name==='cell'&&['roll','end','debt','jail','buy'].includes(G.phase)&&G.cells[a.i]) { cellAction(p,+a.i,a.m); render(); }
   if(a.name==='trade'&&a.t&&a.t.from===p.id) proposeTrade(a.t);
+  if(a.name==='give') giveMoney(p,G.players[a.to],+a.amt);
 }
 // гость: ответить на вопрос хозяина (аукцион, казино, обмен)
 async function handleRemoteAsk(ra){
@@ -2938,11 +2963,12 @@ function startOnlineGame(r){
   const list=[...r.players.map(pl=>({...pl,bot:false}))];
   G={mode:r.mode,layout,round:1,online:true,rid:r.id,opt:{...r.opt,timer:90},
      players:list.map((pl,k)=>({id:k,name:pl.name,bot:!!pl.bot,uid:pl.uid||null,acc:pl.uid===DB.session?DB.session:null,skin:pl.skin||'',vip:!!pl.vip,bonus:pl.bonus||{},
-       color:COLORS[k],money:(r.opt&&r.opt.money)||mode.money||START_MONEY,pos:0,inJail:false,jailTries:0,jailCards:0,dbl:0,out:false})),
+       team:r.opt&&r.opt.teams?k%2:undefined,color:COLORS[k],money:(r.opt&&r.opt.money)||mode.money||START_MONEY,pos:0,inJail:false,jailTries:0,jailCards:0,dbl:0,out:false})),
      cells:CELLS.map(()=>({owner:-1,level:0,mort:false})),cur:0,phase:'wait',debt:null,log:[],lastDice:7,over:false,turnNo:0,declined:{}};
   NET.role='host'; NET.started=true; NET.rev=0;
   listenActions(); listenReacts(); closeModal(); hideLanding(); renderLog();
   log(`🌐 Игра по сети началась! Режим: ${mode.ic} ${mode.n}. Удачи!`);
+  if(G.opt.teams) log(`👥 Командная игра: ${teamName(0)} — ${G.players.filter(p=>p.team===0).map(pn).join(' и ')} против ${teamName(1)} — ${G.players.filter(p=>p.team===1).map(pn).join(' и ')}`);
   if(mode.deal){ const own=CELLS.map((c,i)=>i).filter(i=>isOwnable(CELLS[i])).sort(()=>Math.random()-0.5); own.forEach((i,k)=>G.cells[i].owner=k%G.players.length); log('🃏 Все компании розданы игрокам!'); }
   netPublishNow();
   playTurn();
@@ -2979,7 +3005,7 @@ function roomHTML(r,u){
   const m=MODES[r.mode]||MODES.classic, me_=u.login, host=r.host===me_, inRoom=r.uids.includes(me_);
   const total=r.players.length+(r.bots||0), full=total>=r.max;
   const allowed=!r.friendsOnly||host||(r.hostFriends||[]).includes(me_);
-  const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'',r.opt&&r.opt.jackpot?'💰 Джекпот':'',r.opt&&r.opt.portal?'🌀 Порталы':'',r.opt&&r.opt.money?'💰 Старт '+fmt(r.opt.money):'',r.opt&&r.opt.rounds?'⏱️ '+r.opt.rounds+' кругов':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
+  const tags=[MODES[r.mode]&&MODES[r.mode].ranked?`🏆 На рейтинг · с ${MODES.ranked.needLvl} ур.`:'',r.friendsOnly?'👥 Только для друзей':'',r.opt&&r.opt.auction?'🔨 Аукцион':'',r.opt&&r.opt.credit?'🏦 Кредиты':'',r.opt&&r.opt.jackpot?'💰 Джекпот':'',r.opt&&r.opt.portal?'🌀 Порталы':'',r.opt&&r.opt.teams?'👥 2 на 2':'',r.opt&&r.opt.money?'💰 Старт '+fmt(r.opt.money):'',r.opt&&r.opt.rounds?'⏱️ '+r.opt.rounds+' кругов':'','⏱ 90 сек на ход',`${total} / ${r.max}`].filter(Boolean);
   const pl=r.players.map(p=>`<div class="lp" data-uprof="${esc(p.uid||"")}" style="cursor:pointer">${avc({name:p.name,color:p.color,eq:p.eq,lvl:p.lvl},74)}<div class="lpn">${esc(p.name)}${p.uid===r.host?' 👑':''}</div><div class="muted">ур. ${p.lvl||1}${MODES[r.mode]&&MODES[r.mode].ranked?` · 🏆${p.rating||1000}`:""}</div></div>`).join('')
     +Array.from({length:r.bots||0},(_,k)=>`<div class="lp"><div class="avc" style="width:74px;height:74px;background:#8892a6;font-size:34px;--ring:#8892a6">🤖</div><div class="lpn">${BOT_NAMES[k]}</div><div class="muted">бот</div></div>`).join('');
   const lowLvl=MODES[r.mode]&&MODES[r.mode].ranked&&levelInfo(u.xp).lvl<MODES.ranked.needLvl;
@@ -3020,7 +3046,7 @@ function showCreateRoom(modeId){
     if(modeLock(setupMode,me())) return;
     $('#crGo').disabled=true;
     const room={host:DB.session,hostName:u.name,mode:setupMode,max:cur,friendsOnly:!!$('#crFr').checked,hostFriends:u.friends||[],
-      opt:{timer:90,auction:!!setupOpts.auction,credit:!!setupOpts.credit,mortLimit:!!setupOpts.mortLimit,jackpot:!!setupOpts.jackpot,portal:!!setupOpts.portal,money:+setupOpts.cMoney||0,salary:+setupOpts.cSalary||0,rounds:+setupOpts.cRounds||0},
+      opt:{timer:90,auction:!!setupOpts.auction,credit:!!setupOpts.credit,mortLimit:!!setupOpts.mortLimit,jackpot:!!setupOpts.jackpot,portal:!!setupOpts.portal,teams:!!setupOpts.teams,money:+setupOpts.cMoney||0,salary:+setupOpts.cSalary||0,rounds:+setupOpts.cRounds||0},
       status:'waiting',created:Date.now(),hostSeen:Date.now(),uids:[DB.session],players:[myEntry()],bots:0,state:null,rev:0};
     try{ const ref=await FB.db.collection('rooms').add(room); closeModal(); watchRoom(ref.id); toast('✔ Комната создана — ждём игроков'); }
     catch(e){ $('#crErr').textContent='Не удалось создать комнату: '+(e.message||e); $('#crGo').disabled=false; }
@@ -3060,6 +3086,7 @@ Object.assign(ACT_EXTRA,{
     if(n+r.players.length>r.max) return; roomRef(r.id).update({bots:n}).catch(e=>toast(e.message)); },
   startRoom:async el=>{ const s=await roomRef(el.dataset.r).get(); if(!s.exists) return; const r={id:s.id,...s.data()};
     if(r.players.length+(r.bots||0)<2) return toast('Нужно хотя бы 2 игрока');
+    if(r.opt&&r.opt.teams&&r.players.length+(r.bots||0)!==4) return toast('Для командной игры 2 на 2 нужно ровно 4 игрока');
     if(MODES[r.mode]&&MODES[r.mode].ranked&&(r.players.length<2||r.bots)) return toast('Для рейтинговой игры нужно хотя бы 2 живых игрока, без ботов');
     watchRoom(r.id); startOnlineGame(r); }
 });

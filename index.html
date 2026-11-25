@@ -2790,13 +2790,16 @@ function leaveNet(forget){
 // хозяин: запуск или продолжение партии (например, после перезагрузки страницы)
 function resumeHost(r){
   if(!r.state){ return; }
+  // смена ведущего: экран не переключаем — кто был в меню, остаётся в меню
+  const takeover=r.takenBy===DB.session&&r.takenAt&&Date.now()-r.takenAt<60000, inMenu=!$('#landing').classList.contains('hide');
   gameId++; pending=null; stopTimer();
   G=JSON.parse(r.state); applyLayout(G.layout);
   G.phase='wait'; G.awaiting=false; G.remoteAsk=null; G.askData=null;
   NET.role='host'; NET.started=true; NET.rev=r.rev||0;
-  listenActions(); listenReacts(); closeModal(); hideLanding(); renderLog(); render();
+  listenActions(); listenReacts(); if(!(takeover&&inMenu)){ closeModal(); hideLanding(); } renderLog(); render();
   if(G.over){ showWinner(G.players[G.winner],applyMyResult()); return; }
-  log(r.takenBy===DB.session&&r.takenAt&&Date.now()-r.takenAt<60000?`🔄 Создатель комнаты пропал — партию теперь ведёт ${pn(G.players.find(p=>p.uid===DB.session)||{name:'игрок',color:'#fff'})}`:'🔄 Ведущий вернулся — продолжаем'); playTurn();
+  if(takeover&&inMenu) toast('🔄 Создатель партии пропал — её ведёт ваш браузер. Вернуться к полю: «Игры» → «Вернуться в игру»');
+  log(takeover?`🔄 Создатель комнаты пропал — партию теперь ведёт ${pn(G.players.find(p=>p.uid===DB.session)||{name:'игрок',color:'#fff'})}`:'🔄 Ведущий вернулся — продолжаем'); playTurn();
 }
 // гость: показать состояние партии от хозяина
 function applyGuestState(r){

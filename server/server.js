@@ -14,7 +14,8 @@ async function siteCfg(env){ if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(
 async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; return (await siteCfg(env)).admins.includes(uid); }
 const FS=`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents`;
 const DOCNAME=p=>`projects/${PID}/databases/(default)/documents/${p}`;
-const ECO=['coins','items','vipUntil','prem','srv'];
+const ECO=['coins','items','vipUntil','prem','srv','rating','matches','wins','lb'];
+const SITE='https://arik57086-commits.github.io/biz-empire/';
 class UErr extends Error{}            // ошибка, которую можно показать игроку
 const fail=m=>{ throw new UErr(m); };
 
@@ -23,6 +24,16 @@ const mskDate=(d=new Date())=>new Date(d.getTime()+3*3600000);
 const today=()=>mskDate().toISOString().slice(0,10);
 const pad2=n=>String(n).padStart(2,'0');
 const seasonKey=(d=new Date())=>{ const m=mskDate(d); return `sp_${m.getUTCFullYear()}_${pad2(m.getUTCMonth()+1)}`; };
+// неделя и турниры — как в игре (по Москве)
+const weekKey=(d=new Date())=>{ const m=mskDate(d), t=new Date(Date.UTC(m.getUTCFullYear(),m.getUTCMonth(),m.getUTCDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
+  const y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return t.getUTCFullYear()+'-'+Math.ceil(((t-y0)/86400000+1)/7); };
+const weekendKey=()=>'wt_'+weekKey().replace('-','_');
+const isWeekendMsk=()=>[0,6].includes(mskDate().getUTCDay());
+const nyTourKeyS=()=>{ const m=mskDate(); return 'nyt_'+(m.getUTCMonth()===11?m.getUTCFullYear()+1:m.getUTCFullYear()); };
+const nyTourOnS=()=>{ const m=mskDate(), mo=m.getUTCMonth(), d=m.getUTCDate(); return (mo===11&&d===31)||(mo===0&&d===1); };
+const lbAddS=(u,k,v)=>{ u.lb=u.lb||{}; u.lb[k]=(u.lb[k]||u[k]||0)+v; };
+// счётчики для статистики создателя: stats/d_ГГГГ-ММ-ДД (необязательные — ошибка не мешает игре)
+async function bump(env,fields){ try{ await gfetch(env,`${FS}:commit`,{method:'POST',body:JSON.stringify({writes:[{transform:{document:DOCNAME('stats/d_'+today()),fieldTransforms:Object.entries(fields).map(([f,v])=>({fieldPath:f,increment:Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v}}))}}]})}); }catch(e){ console.error('bump',e); } }
 
 // ---------- предметы игрока ----------
 const newUid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -110,10 +121,10 @@ async function tx(env,fn){
   }
   fail('Сервер занят, попробуйте ещё раз');
 }
-const ecoOf=u=>({coins:r2(u.coins||0),items:u.items||[],vipUntil:u.vipUntil||0,prem:u.prem||{},srv:u.srv||{}});
+const ecoOf=u=>({coins:r2(u.coins||0),items:u.items||[],vipUntil:u.vipUntil||0,prem:u.prem||{},srv:u.srv||{},rating:u.rating==null?1000:u.rating,matches:u.matches||0,wins:u.wins||0,lb:u.lb||{}});
 const saveEco=(t,uid,u)=>t.update('users/'+uid,ecoOf(u),ECO);
-async function getUser(t,uid){ const u=await t.get('users/'+uid); if(!u) fail('Профиль не найден'); u.srv=u.srv||{}; u.prem=u.prem||{}; u.items=u.items||[]; u.coins=r2(u.coins||0); return u; }
-const pub=u=>({coins:r2(u.coins||0),items:u.items||[],vipUntil:u.vipUntil||0,prem:u.prem||{}});
+async function getUser(t,uid){ const u=await t.get('users/'+uid); if(!u) fail('Профиль не найден'); u.srv=u.srv||{}; u.prem=u.prem||{}; u.lb=u.lb||{}; u.items=u.items||[]; u.coins=r2(u.coins||0); return u; }
+const pub=u=>({coins:r2(u.coins||0),items:u.items||[],vipUntil:u.vipUntil||0,prem:u.prem||{},rating:u.rating==null?1000:u.rating,matches:u.matches||0,wins:u.wins||0,lb:u.lb||{}});
 
 // ---------- проверка входа: токен Firebase ----------
 let JWKS=null;
@@ -137,7 +148,7 @@ const ACTIONS={
   // открыть кейс/набор
   async open(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||!x.pool||x.id!==b.id) fail('Это нельзя открыть');
     if(!hasItem(u,x.id)) fail('У вас нет этого предмета'); if(x.type==='case'&&!hasItem(u,'key')) fail('Нужен ключ 🔑');
-    if(x.type==='case') takeItem(u,'key'); takeItem(u,x.id); const got=pickFrom(x); addItem(u,got.id); saveEco(t,uid,u); return {got:got.id,user:pub(u)}; }); },
+    if(x.type==='case') takeItem(u,'key'); takeItem(u,x.id); const got=pickFrom(x); addItem(u,got.id); saveEco(t,uid,u); return {got:got.id,user:pub(u)}; }).then(async res=>{ await bump(env,{opens:1}); return res; }); },
   // купить у Маркета (ключи и фишки)
   async shop(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val||isLotItem(x)||x.ny) fail('Маркет это не продаёт');
     if(u.coins<x.val) fail('Не хватает монет'); u.coins=r2(u.coins-x.val); addItem(u,x.id); saveEco(t,uid,u); return {user:pub(u)}; }); },
@@ -154,7 +165,7 @@ const ACTIONS={
     return {k,extra:extra||null,xp:(u.xp||0)-xp0,user:pub(u)}; }); },
   // награда сезонного пропуска: f — бесплатный ряд, v — премиум
   async pass(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), k=seasonKey(), i=+b.i, row=b.row==='v'?'v':'f', lv=PASS[i]; if(!lv) fail('Нет такого уровня');
-    if((u[k]||0)<lv[0]) fail('Не хватает очков сезона'); if(row==='v'&&!u.prem[k]) fail('Нижний ряд — с премиум-пропуском');
+    if(((u.lb&&u.lb[k])||u[k]||0)<lv[0]) fail('Не хватает очков сезона'); if(row==='v'&&!u.prem[k]) fail('Нижний ряд — с премиум-пропуском');
     const cl=u.srv.pass=u.srv.pass||{}; const got=cl[k]=cl[k]||{f:[],v:[]}; if(got[row].includes(i)) fail('Награда уже получена');
     got[row].push(i); const rw=lv[row==='f'?1:2]; if(rw[0]!=='xp') addItem(u,rw[0]); saveEco(t,uid,u); return {xp:rw[0]==='xp'?rw[1]:0,item:rw[0]!=='xp'?rw[0]:null,user:pub(u)}; }); },
   // адвент-календарь: 1–31 декабря, одна награда в день (только когда включено новогоднее событие)
@@ -175,9 +186,20 @@ const ACTIONS={
     return tx(env,async t=>{ const room=await t.get('rooms/'+rid); if(!room||room.status!=='over'||!room.state) fail('Партия ещё не закончилась');
       const st=JSON.parse(room.state), r=(st.results||[]).find(x=>x.uid===uid); if(!r) fail('Вы не играли в этой партии');
       if(await t.get(`claims/${rid}_${uid}`)) fail('Награда уже получена');
-      const u=await getUser(t,uid); let drop=null;
-      if(!r.noReward){ const ranked=st.mode==='ranked'; const it=rollDrop(ranked&&(u.vipUntil||0)>Date.now()); if(it){ drop=it.id; addItem(u,drop); } }
-      t.create(`claims/${rid}_${uid}`,{uid,rid,drop,at:Date.now()}); saveEco(t,uid,u); return {drop,user:pub(u)}; }); },
+      const u=await getUser(t,uid); let drop=null; const ranked=st.mode==='ranked', win=!!r.win&&!r.noReward;
+      if(!r.noReward){ const it=rollDrop(ranked&&(u.vipUntil||0)>Date.now()); if(it){ drop=it.id; addItem(u,drop); } }
+      // итоги матча считает сервер: матчи, победы, рейтинг, очки сезона/турниров/режимов
+      u.matches=(u.matches||0)+1; if(win) u.wins=(u.wins||0)+1;
+      if(ranked) u.rating=Math.max(0,(u.rating==null?1000:u.rating)+(win?25:-15));
+      if(!r.noReward){ lbAddS(u,seasonKey(),win?3:1); if(win&&st.mode) lbAddS(u,'mw_'+st.mode,1);
+        if(isWeekendMsk()) lbAddS(u,weekendKey(),win?3:1);
+        if(NY_ON&&nyTourOnS()) lbAddS(u,nyTourKeyS(),win?3:1); }
+      // «Приведи друга»: после 3 матчей новичка оба получают кейс «Сияние» и ключ
+      let refGift=false;
+      if(u.srv.ref&&!u.srv.refDone&&u.matches>=3){ const f=await t.get('users/'+u.srv.ref);
+        if(f){ f.srv=f.srv||{}; f.items=f.items||[]; addItem(f,'case_lux'); addItem(f,'key'); f.srv.refCount=(f.srv.refCount||0)+1; f.prem=f.prem||{}; f.lb=f.lb||{}; saveEco(t,u.srv.ref,f); }
+        addItem(u,'case_lux'); addItem(u,'key'); u.srv.refDone=true; refGift=true; }
+      t.create(`claims/${rid}_${uid}`,{uid,rid,drop,at:Date.now()}); saveEco(t,uid,u); return {drop,refGift,user:pub(u)}; }).then(async res=>{ await bump(env,{matches:1}); return res; }); },
   // подарить предмет другу — сразу переходит в его инвентарь
   async gift(env,uid,b){ const to=String(b.to||''), text=String(b.text||'').slice(0,120);
     return tx(env,async t=>{ const u=await getUser(t,uid); if(u.banned) fail('Вы заблокированы'); if(!(u.friends||[]).includes(to)||to===uid) fail('Дарить можно только друзьям');
@@ -194,7 +216,7 @@ const ACTIONS={
       if(!l.bank){ const s=await getUser(t,l.seller); s.coins=r2(s.coins+lotNet(l.price)); saveEco(t,l.seller,s);
         t.update('lots/'+lid,{status:'sold',buyer:uid,buyerName:u.name||'',soldAt:Date.now()}); }
       else t.del('lots/'+lid);
-      return {item:l.item,price:l.price,seller:l.sellerName||'',user:pub(u)}; }); },
+      return {item:l.item,price:l.price,seller:l.sellerName||'',user:pub(u)}; }).then(async res=>{ await bump(env,{sales:1,salesCoins:res.price}); return res; }); },
   async lotCancel(env,uid,b){ const lid=String(b.lid||'');
     return tx(env,async t=>{ const l=await t.get('lots/'+lid); if(!l||l.status!=='open') fail('Лот уже продан — монеты пришли'); if(l.seller!==uid) fail('Это не ваш лот');
       const u=await getUser(t,uid); addItem(u,l.item); saveEco(t,uid,u); t.del('lots/'+lid); return {user:pub(u)}; }); },
@@ -228,6 +250,30 @@ const ACTIONS={
   async offerCancel(env,uid,b){ const oid=String(b.oid||'');
     return tx(env,async t=>{ const o=await t.get('offers/'+oid); if(!o||o.status!=='open') fail('Предложение уже неактуально'); if(o.from!==uid) fail('Это не ваше предложение');
       const u=await getUser(t,uid); (o.give||[]).forEach(i=>addItem(u,i)); u.coins=r2(u.coins+(o.coins||0)); saveEco(t,uid,u); t.del('offers/'+oid); return {user:pub(u)}; }); },
+  // ---- промокоды: создатель создаёт, игрок вводит один раз ----
+  async promoCreate(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    const code=String(b.code||'').toUpperCase().trim(); if(!/^[A-Z0-9]{3,20}$/.test(code)) fail('Код — 3–20 латинских букв или цифр');
+    const items=(b.items||[]).map(String).filter(id=>ITEMS.some(x=>x.id===id&&x.id!=='tok_default')).slice(0,6), coins=Math.max(0,Math.min(1000,r2(+b.coins||0))), xp=Math.max(0,Math.min(5000,Math.floor(+b.xp||0)));
+    const max=Math.max(1,Math.min(100000,Math.floor(+b.max||1))), days=Math.max(1,Math.min(365,Math.floor(+b.days||30)));
+    if(!items.length&&!coins&&!xp) fail('Добавьте награду: предмет, монеты или опыт');
+    return tx(env,async t=>{ if(await t.get('promos/'+code)) fail('Такой код уже есть'); t.create('promos/'+code,{code,items,coins,xp,max,used:0,until:Date.now()+days*86400000,by:uid,created:Date.now()}); return {code}; }); },
+  async promoDelete(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников'); const code=String(b.code||'').toUpperCase();
+    return tx(env,async t=>{ if(!await t.get('promos/'+code)) fail('Нет такого кода'); t.del('promos/'+code); return {code}; }); },
+  async promoUse(env,uid,b){ const code=String(b.code||'').toUpperCase().trim(); if(!/^[A-Z0-9]{3,20}$/.test(code)) fail('Нет такого промокода');
+    const res=await tx(env,async t=>{ const p=await t.get('promos/'+code); if(!p) fail('Нет такого промокода'); if(p.until<Date.now()) fail('Срок промокода закончился'); if((p.used||0)>=p.max) fail('Промокод уже использовали все');
+      const u=await getUser(t,uid); const used=u.srv.promos=u.srv.promos||[]; if(used.includes(code)) fail('Вы уже вводили этот промокод');
+      used.push(code); (p.items||[]).forEach(id=>addItem(u,id)); u.coins=r2(u.coins+(p.coins||0)); saveEco(t,uid,u); t.update('promos/'+code,{used:(p.used||0)+1},['used']);
+      return {items:p.items||[],coins:p.coins||0,xp:p.xp||0,user:pub(u)}; });
+    await bump(env,{promos:1}); return res; },
+  // ---- «Приведи друга»: новичок (аккаунт младше 7 дней) один раз указывает ник того, кто его позвал ----
+  async refSet(env,uid,b){ const nick=String(b.nick||'').toLowerCase().replace(/^@/,'').trim(); if(!/^[a-z0-9_]{3,16}$/.test(nick)) fail('Нет игрока с таким ником');
+    const n=await getDoc(env,'nicks/'+nick); if(!n||!n.data.uid) fail('Нет игрока с таким ником'); const ref=n.data.uid; if(ref===uid) fail('Нельзя указать себя');
+    return tx(env,async t=>{ const u=await getUser(t,uid); if(u.srv.ref) fail('Вы уже указали, кто вас позвал'); if(u.created&&Date.now()-u.created>7*86400000) fail('Указать друга можно только в первые 7 дней');
+      if((u.matches||0)>=3) fail('Указать друга можно до 3-го матча'); u.srv.ref=ref; u.srv.refName=nick; saveEco(t,uid,u); return {ref:nick,user:pub(u)}; }); },
+  // ---- статистика для создателя: счётчики за 14 дней ----
+  async stats(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    const days=[]; for(let k=0;k<14;k++){ const d=new Date(mskDate().getTime()-k*86400000).toISOString().slice(0,10); const s=await getDoc(env,'stats/d_'+d); days.push({d,...((s&&s.data)||{})}); }
+    return {days}; },
   // ---- создатель: товары Маркета и правка игроков ----
   async stockFill(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
     const have={}; (await query(env,'lots',[eq('bank',true),eq('status','open')],1000)).forEach(l=>have[l.data.item]=(have[l.data.item]||0)+1);
@@ -264,12 +310,13 @@ async function onTelegram(env,upd){
     const charge=sp.telegram_payment_charge_id;
     await tx(env,async t=>{ if(await t.get('payments/'+charge)) return; const u=await getUser(t,uid); u.prem[k]=true; saveEco(t,uid,u);
       t.create('payments/'+charge,{uid,season:k,stars:sp.total_amount,tg:m.from&&m.from.id||0,at:Date.now()}); });
-    await tg(env,'sendMessage',{chat_id:m.chat.id,text:`✅ Премиум-пропуск на ${monthName(k)} открыт! Вернитесь в игру — нижний ряд наград сезонного пропуска теперь ваш.`});
+    await bump(env,{prem:1,stars:sp.total_amount||0});
+    await tg(env,'sendMessage',{chat_id:m.chat.id,text:`✅ Премиум-пропуск на ${monthName(k)} открыт! Вернитесь в игру — нижний ряд наград сезонного пропуска теперь ваш.`,reply_markup:{inline_keyboard:[[{text:'🎲 Открыть игру',web_app:{url:SITE}}]]}});
     return; }
   const text=String(m.text||'');
   if(text.startsWith('/start')){ const uid=text.split(' ')[1]||'';
     if(!/^[A-Za-z0-9]{20,40}$/.test(uid)||!(await getDoc(env,'users/'+uid))){
-      await tg(env,'sendMessage',{chat_id:m.chat.id,text:'👋 Это бот игры «Кубитал». Чтобы купить премиум-пропуск, откройте игру → страница «Игры» → «Сезонный пропуск» → «⭐ Купить премиум».'}); return; }
+      await tg(env,'sendMessage',{chat_id:m.chat.id,text:'👋 Это бот игры «Кубитал» — экономическая игра с друзьями. Нажмите «🎲 Играть», чтобы открыть игру прямо в Telegram.\n\nПремиум-пропуск покупается из игры: «Игры» → «Сезонный пропуск» → «⭐ Купить премиум».',reply_markup:{inline_keyboard:[[{text:'🎲 Играть',web_app:{url:SITE}}]]}}); return; }
     const u=(await getDoc(env,'users/'+uid)).data, k=seasonKey();
     if(u.prem&&u.prem[k]){ await tg(env,'sendMessage',{chat_id:m.chat.id,text:`У ${u.name||'вас'} уже есть премиум-пропуск на ${monthName(k)} ✅`}); return; }
     await tg(env,'sendInvoice',{chat_id:m.chat.id,title:`Премиум-пропуск · ${monthName(k)}`,
@@ -296,6 +343,7 @@ export default {
       if(url.pathname==='/setup'){ // подключить бота к серверу (можно открыть ещё раз — ничего не сломается)
         const r=await tg(env,'setWebhook',{url:`${url.origin}/tg`,secret_token:await tgSecret(env),allowed_updates:['message','pre_checkout_query']});
         await tg(env,'setMyCommands',{commands:[{command:'start',description:'Начать'},{command:'paysupport',description:'Помощь с оплатой'}]});
+        await tg(env,'setChatMenuButton',{menu_button:{type:'web_app',text:'🎲 Играть',web_app:{url:SITE}}});
         return json({webhook:r.ok,info:r.description}); }
       if(url.pathname==='/info'){ if(!BOTINFO){ const r=await tg(env,'getMe',{}); BOTINFO=r.ok?r.result.username:null; } return json({ok:true,bot:BOTINFO,price:premPrice(env),season:seasonKey()}); }
       const m=url.pathname.match(/^\/api\/(\w+)$/);

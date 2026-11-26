@@ -47,7 +47,14 @@ const ITEMS=[
  {id:'tok_crown',type:'token',n:'Фишка «Корона»',ic:'👑',r:3,val:18},
  {id:'tok_phoenix',type:'token',n:'Фишка «Феникс»',ic:'🔥',r:4,val:38},
  {id:'tok_galaxy',type:'token',n:'Фишка «Галактика»',ic:'🌌',r:5,val:85},
- {id:'key',type:'key',n:'Ключ от кейса',ic:'🔑',r:1,val:3}
+ {id:'key',type:'key',n:'Ключ от кейса',ic:'🔑',r:1,val:3},
+ // новогодние фишки (ny): только из кейса «Снегопад» и адвент-календаря
+ {id:'tok_ny_tree',type:'token',n:'Фишка «Ёлка»',ic:'🎄',r:0,val:1.5,ny:1},
+ {id:'tok_ny_snowman',type:'token',n:'Фишка «Снеговик»',ic:'⛄',r:1,val:3.5,ny:1},
+ {id:'tok_ny_deer',type:'token',n:'Фишка «Олень»',ic:'🦌',r:2,val:8,ny:1},
+ {id:'tok_ny_santa',type:'token',n:'Фишка «Дед Мороз»',ic:'🎅',r:3,val:16,ny:1},
+ {id:'tok_ny_flake',type:'token',n:'Фишка «Снежинка»',ic:'❄️',r:4,val:40,ny:1},
+ {id:'tok_ny_salute',type:'token',n:'Фишка «Салют»',ic:'🎆',r:5,val:90,ny:1}
 ];
 // ====== КОЛЛЕКЦИИ КАРТОЧЕК ======
 // Каждая коллекция связана с группой клеток поля. Карточка-бренд даёт бонус к аренде
@@ -108,7 +115,9 @@ COLL_KEYS.forEach((k,ki)=>{
   });
 });
 const CARDS=ITEMS.filter(x=>x.type==='card');
-const TOKENS=ITEMS.filter(x=>x.type==='token'&&x.val);
+const TOKENS=ITEMS.filter(x=>x.type==='token'&&x.val&&!x.ny);
+const NY_TOKENS=ITEMS.filter(x=>x.type==='token'&&x.ny);
+let NY_ON=false; // новогоднее событие включено (config/site.ny) — меняет выпадение и задания
 // odds — шанс редкости внутри (обычный, редкий, эпический, легендарный), %.
 // Цена считается автоматически: в среднем открытие возвращает только 80% стоимости.
 // названия наборов по коллекциям
@@ -117,6 +126,7 @@ const BOXES=[
  {id:'case_emp',type:'case',n:'Кейс «Отблеск»',ic:'✦',r:1,grad:'#ff9a8b,#ff6a88,#ff99ac',desc:'Открывается ключом 🔑. Внутри — фишка для игры.',odds:[60,28,10,1.6,0.32,0.08],pool:TOKENS},
  {id:'case_lux',type:'case',n:'Кейс «Сияние»',ic:'◆',r:2,grad:'#a18cd1,#fbc2eb,#8fd3f4',desc:'Открывается ключом 🔑. Только редкие фишки и лучше.',odds:[0,70,24,4.8,0.96,0.24],pool:TOKENS},
  {id:'case_coll',type:'case',n:'Кейс «Олимп»',ic:'♛',r:3,grad:'#f6d365,#fda085,#f093fb',desc:'Открывается ключом 🔑. Эпические и легендарные бренды из всех коллекций — и шанс на уникальный или мифический.',odds:[0,0,85,12,2.4,0.6],pool:CARDS},
+ {id:'case_snow',type:'case',n:'Кейс «Снегопад»',ic:'❄',r:2,ny:1,grad:'#e3f6ff,#9fd8ff,#ffffff',desc:'Открывается ключом 🔑. Новогодние фишки: Ёлка, Снеговик, Олень, Дед Мороз — и редкие Снежинка и Салют.',odds:[50,30,14,4.5,1.2,0.3],pool:NY_TOKENS},
  {id:'set_start',type:'set',n:'Набор Prima',ic:'Ⅰ',r:0,emb:'#3b5bdb',desc:'Без ключа. Бренд из любой коллекции.',odds:[85,13,1.7,0.24,0.05,0.01],pool:CARDS},
  {id:'set_elite',type:'set',n:'Набор Aurum',ic:'Ⅱ',r:1,emb:'#c99700',desc:'Без ключа. Редкий бренд или лучше из любой коллекции.',odds:[0,85,12,2.4,0.48,0.12],pool:CARDS},
  ...Object.entries(COLLECTIONS).map(([k,cl])=>({id:'set_'+k,type:'set',n:`Набор «${SET_NAMES[k]}»`,ic:cl.ic,r:0,coll:k,emb:k in GROUPS?GROUPS[k].c:cl.c,
@@ -153,7 +163,7 @@ function rollDrop(guaranteed){
   const tot=tab.reduce((s,x)=>s+x[1],0); let r=Math.random()*tot, k=tab[tab.length-1][0];
   for(const [n,w] of tab){ r-=w; if(r<0){ k=n; break; } }
   if(k==='none') return null;
-  if(k==='box'){ const b=Math.random();
+  if(k==='box'){ if(NY_ON&&Math.random()<0.35) return item('case_snow'); const b=Math.random();
     return b<0.6?item('set_'+randOf(COLL_KEYS)):b<0.8?item('set_start'):b<0.9?item('set_elite'):item(randOf(['case_emp','case_lux','case_coll'])); }
   return randOf(CARDS.filter(x=>x.r===+k.slice(4)));
 }
@@ -215,6 +225,11 @@ const WHEEL=[
   {t:'Набор Aurum',ic:'Ⅱ',c:'#c99700',w:4,give:u=>addItem(u,'set_elite')},
   {t:'Эпическая карточка',ic:'💎',c:'#e53935',w:1,give:u=>{ const c=randOf(CARDS.filter(x=>x.r===2)); addItem(u,c.id); return c.n; }}
 ];
+// адвент-календарь 1–31 декабря (новогоднее событие): одна награда в день
+const ADVENT=[['xp',100],['key'],['xp',150],['tok_ny_tree'],['set_start'],['xp',200],['case_snow'],
+  ['key'],['xp',150],['tok_ny_snowman'],['xp',200],['set_start'],['key'],['case_snow'],
+  ['xp',250],['set_elite'],['key'],['xp',200],['tok_ny_deer'],['set_start'],['case_snow'],
+  ['xp',300],['key'],['set_elite'],['case_snow'],['xp',300],['key'],['case_snow'],['set_elite'],['key'],['tok_ny_santa']];
 // =====================================================================
 // СЕРВЕР КУБИТАЛА (Cloudflare Worker)
 // Монеты, предметы, VIP и премиум меняет только он. Игроки шлют запросы
@@ -227,7 +242,8 @@ const WHEEL=[
 const PID='biz-empire-2b4de';
 const ADMINS=['E97EvVzBHbW8FJo7NF1wju3qfCV2']; // создатель; помощники — в config/site.admins
 let CFG=null;
-async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(env,'config/site'); CFG={admins:(c&&c.data.admins)||[],exp:Date.now()+60000}; } return CFG.admins.includes(uid); }
+async function siteCfg(env){ if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(env,'config/site'); CFG={admins:(c&&c.data.admins)||[],ny:!!(c&&c.data.ny),exp:Date.now()+60000}; } return CFG; }
+async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; return (await siteCfg(env)).admins.includes(uid); }
 const FS=`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents`;
 const DOCNAME=p=>`projects/${PID}/databases/(default)/documents/${p}`;
 const ECO=['coins','items','vipUntil','prem','srv'];
@@ -355,7 +371,7 @@ const ACTIONS={
     if(!hasItem(u,x.id)) fail('У вас нет этого предмета'); if(x.type==='case'&&!hasItem(u,'key')) fail('Нужен ключ 🔑');
     if(x.type==='case') takeItem(u,'key'); takeItem(u,x.id); const got=pickFrom(x); addItem(u,got.id); saveEco(t,uid,u); return {got:got.id,user:pub(u)}; }); },
   // купить у Маркета (ключи и фишки)
-  async shop(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val||isLotItem(x)) fail('Маркет это не продаёт');
+  async shop(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val||isLotItem(x)||x.ny) fail('Маркет это не продаёт');
     if(u.coins<x.val) fail('Не хватает монет'); u.coins=r2(u.coins-x.val); addItem(u,x.id); saveEco(t,uid,u); return {user:pub(u)}; }); },
   // продать Банку/Маркету
   async bank(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val) fail('Это нельзя продать');
@@ -373,6 +389,11 @@ const ACTIONS={
     if((u[k]||0)<lv[0]) fail('Не хватает очков сезона'); if(row==='v'&&!u.prem[k]) fail('Нижний ряд — с премиум-пропуском');
     const cl=u.srv.pass=u.srv.pass||{}; const got=cl[k]=cl[k]||{f:[],v:[]}; if(got[row].includes(i)) fail('Награда уже получена');
     got[row].push(i); const rw=lv[row==='f'?1:2]; if(rw[0]!=='xp') addItem(u,rw[0]); saveEco(t,uid,u); return {xp:rw[0]==='xp'?rw[1]:0,item:rw[0]!=='xp'?rw[0]:null,user:pub(u)}; }); },
+  // адвент-календарь: 1–31 декабря, одна награда в день (только когда включено новогоднее событие)
+  async advent(env,uid){ if(!(await siteCfg(env)).ny) fail('Новогоднее событие сейчас выключено');
+    const m=mskDate(); if(m.getUTCMonth()!==11) fail('Календарь работает с 1 по 31 декабря'); const d=m.getUTCDate(), y=String(m.getUTCFullYear());
+    return tx(env,async t=>{ const u=await getUser(t,uid); const adv=u.srv.adv=u.srv.adv||{}; const got=adv[y]=adv[y]||[]; if(got.includes(d)) fail('Подарок за сегодня уже открыт');
+      got.push(d); const rw=ADVENT[d-1]; if(rw[0]!=='xp') addItem(u,rw[0]); saveEco(t,uid,u); return {day:d,xp:rw[0]==='xp'?rw[1]:0,item:rw[0]!=='xp'?rw[0]:null,user:pub(u)}; }); },
   // набор за 7 дней входа подряд — не чаще раза в 6 дней
   async login7(env,uid){ return tx(env,async t=>{ const u=await getUser(t,uid); if(u.srv.loginBox&&Date.now()-u.srv.loginBox<6*86400000) fail('Набор за вход уже получен');
     u.srv.loginBox=Date.now(); addItem(u,'set_start'); saveEco(t,uid,u); return {user:pub(u)}; }); },
@@ -382,7 +403,7 @@ const ACTIONS={
     for(let k=0;k<UPGRADE_N;k++) takeItem(u,x.id); const ok=Math.random()<inf.p; let got=null;
     if(ok){ got=randOf(inf.next); addItem(u,got.id); } else addItem(u,x.id); saveEco(t,uid,u); return {ok,got:got&&got.id,user:pub(u)}; }); },
   // награда за матч по сети: сервер сам бросает выпадение, один раз на игрока за партию
-  async reward(env,uid,b){ const rid=String(b.rid||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)) fail('Нет такой партии');
+  async reward(env,uid,b){ const rid=String(b.rid||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)) fail('Нет такой партии'); NY_ON=(await siteCfg(env)).ny;
     return tx(env,async t=>{ const room=await t.get('rooms/'+rid); if(!room||room.status!=='over'||!room.state) fail('Партия ещё не закончилась');
       const st=JSON.parse(room.state), r=(st.results||[]).find(x=>x.uid===uid); if(!r) fail('Вы не играли в этой партии');
       if(await t.get(`claims/${rid}_${uid}`)) fail('Награда уже получена');

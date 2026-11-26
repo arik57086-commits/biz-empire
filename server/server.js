@@ -10,7 +10,8 @@
 const PID='biz-empire-2b4de';
 const ADMINS=['E97EvVzBHbW8FJo7NF1wju3qfCV2']; // создатель; помощники — в config/site.admins
 let CFG=null;
-async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(env,'config/site'); CFG={admins:(c&&c.data.admins)||[],exp:Date.now()+60000}; } return CFG.admins.includes(uid); }
+async function siteCfg(env){ if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(env,'config/site'); CFG={admins:(c&&c.data.admins)||[],ny:!!(c&&c.data.ny),exp:Date.now()+60000}; } return CFG; }
+async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; return (await siteCfg(env)).admins.includes(uid); }
 const FS=`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents`;
 const DOCNAME=p=>`projects/${PID}/databases/(default)/documents/${p}`;
 const ECO=['coins','items','vipUntil','prem','srv'];
@@ -138,7 +139,7 @@ const ACTIONS={
     if(!hasItem(u,x.id)) fail('У вас нет этого предмета'); if(x.type==='case'&&!hasItem(u,'key')) fail('Нужен ключ 🔑');
     if(x.type==='case') takeItem(u,'key'); takeItem(u,x.id); const got=pickFrom(x); addItem(u,got.id); saveEco(t,uid,u); return {got:got.id,user:pub(u)}; }); },
   // купить у Маркета (ключи и фишки)
-  async shop(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val||isLotItem(x)) fail('Маркет это не продаёт');
+  async shop(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val||isLotItem(x)||x.ny) fail('Маркет это не продаёт');
     if(u.coins<x.val) fail('Не хватает монет'); u.coins=r2(u.coins-x.val); addItem(u,x.id); saveEco(t,uid,u); return {user:pub(u)}; }); },
   // продать Банку/Маркету
   async bank(env,uid,b){ return tx(env,async t=>{ const u=await getUser(t,uid), x=item(b.id); if(!x||x.id!==b.id||!x.val) fail('Это нельзя продать');
@@ -156,6 +157,11 @@ const ACTIONS={
     if((u[k]||0)<lv[0]) fail('Не хватает очков сезона'); if(row==='v'&&!u.prem[k]) fail('Нижний ряд — с премиум-пропуском');
     const cl=u.srv.pass=u.srv.pass||{}; const got=cl[k]=cl[k]||{f:[],v:[]}; if(got[row].includes(i)) fail('Награда уже получена');
     got[row].push(i); const rw=lv[row==='f'?1:2]; if(rw[0]!=='xp') addItem(u,rw[0]); saveEco(t,uid,u); return {xp:rw[0]==='xp'?rw[1]:0,item:rw[0]!=='xp'?rw[0]:null,user:pub(u)}; }); },
+  // адвент-календарь: 1–31 декабря, одна награда в день (только когда включено новогоднее событие)
+  async advent(env,uid){ if(!(await siteCfg(env)).ny) fail('Новогоднее событие сейчас выключено');
+    const m=mskDate(); if(m.getUTCMonth()!==11) fail('Календарь работает с 1 по 31 декабря'); const d=m.getUTCDate(), y=String(m.getUTCFullYear());
+    return tx(env,async t=>{ const u=await getUser(t,uid); const adv=u.srv.adv=u.srv.adv||{}; const got=adv[y]=adv[y]||[]; if(got.includes(d)) fail('Подарок за сегодня уже открыт');
+      got.push(d); const rw=ADVENT[d-1]; if(rw[0]!=='xp') addItem(u,rw[0]); saveEco(t,uid,u); return {day:d,xp:rw[0]==='xp'?rw[1]:0,item:rw[0]!=='xp'?rw[0]:null,user:pub(u)}; }); },
   // набор за 7 дней входа подряд — не чаще раза в 6 дней
   async login7(env,uid){ return tx(env,async t=>{ const u=await getUser(t,uid); if(u.srv.loginBox&&Date.now()-u.srv.loginBox<6*86400000) fail('Набор за вход уже получен');
     u.srv.loginBox=Date.now(); addItem(u,'set_start'); saveEco(t,uid,u); return {user:pub(u)}; }); },
@@ -165,7 +171,7 @@ const ACTIONS={
     for(let k=0;k<UPGRADE_N;k++) takeItem(u,x.id); const ok=Math.random()<inf.p; let got=null;
     if(ok){ got=randOf(inf.next); addItem(u,got.id); } else addItem(u,x.id); saveEco(t,uid,u); return {ok,got:got&&got.id,user:pub(u)}; }); },
   // награда за матч по сети: сервер сам бросает выпадение, один раз на игрока за партию
-  async reward(env,uid,b){ const rid=String(b.rid||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)) fail('Нет такой партии');
+  async reward(env,uid,b){ const rid=String(b.rid||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)) fail('Нет такой партии'); NY_ON=(await siteCfg(env)).ny;
     return tx(env,async t=>{ const room=await t.get('rooms/'+rid); if(!room||room.status!=='over'||!room.state) fail('Партия ещё не закончилась');
       const st=JSON.parse(room.state), r=(st.results||[]).find(x=>x.uid===uid); if(!r) fail('Вы не играли в этой партии');
       if(await t.get(`claims/${rid}_${uid}`)) fail('Награда уже получена');

@@ -4813,6 +4813,8 @@ const PAGES={
         <div class="admrow"><b style="width:auto">Имя создателя на сайте:</b><input class="inp" id="aCreator" value="${esc(DB.creatorName||CREATOR)}" style="width:240px"><button class="sm" data-act="adminCreator">Сохранить</button></div>
         <div class="admrow"><b style="width:auto">Найти игрока по нику:</b><input class="inp" id="aFind" data-enter="adminFind" style="width:200px"><button class="sm" data-act="adminFind">Найти</button></div>
         <p class="muted">Показано аккаунтов: ${accs.length}. Изменения сразу сохраняются в облаке.</p></div>
+      <div class="cardw"><h3>🏪 Товары Маркета</h3><p class="muted">Маркет выставляет каждую карточку, кейс и набор по ${MKT_N} шт. по завышенной цене (ориентир ×${MKT_MULT}, не меньше 🪙 1). Игроки могут продавать дешевле — тогда сначала покупают у них. Сейчас выставлено Маркетом: <b>${(DB.lots||[]).filter(l=>l.bank).length}</b> шт.</p>
+        <button class="sm" data-act="stockFill">🏪 Выставить всё по ${MKT_N} шт.</button> <button class="sm sec" data-act="stockClear">Снять товары Маркета</button></div>
       <div class="cardw"><h3>🖼 Свои картинки брендов</h3>
         <p class="muted">Рядом с файлом игры создайте папку <b>logos</b> и положите туда картинки PNG с такими именами. Если картинки нет — показывается табличка с названием.</p>
         <div style="font-size:12px;line-height:1.8;columns:4">${CARDS.map(x=>`${esc(x.n)} → <code>${logoFile(x.n).slice(6)}</code>`).join('<br>')}</div></div>
@@ -5096,6 +5098,8 @@ const ACT={
   clanJoin:el=>clanJoin(el.dataset.c),
   clanKick:el=>clanLeave(el.dataset.u),
   clanLeave:()=>clanLeave(),
+  stockFill:()=>stockFill(),
+  stockClear:()=>stockClear(),
   lang:()=>setLang(LANG==='en'?'ru':'en'),
   clanInvite:async()=>{ const c=DB.clan; if(!c) return; const t=tr(`Вступай в мой клан [${c.tag}] ${c.name} в Кубитале! ${SITE_URL} — раздел «Друзья» → «Кланы»`); try{ await navigator.clipboard.writeText(t); toast('✔ Приглашение скопировано'); }catch(e){ askText('Приглашение в клан',t); } },
   passClaim:el=>passClaim(+el.dataset.i,el.dataset.r),
@@ -5197,7 +5201,7 @@ function lotsByItem(){ const g={}; for(const l of DB.lots||[]) if(l.status==='op
   for(const k in g) g[k].sort((a,b)=>a.price-b.price||a.created-b.created); return g; }
 function listenLots(){
   if(!FB||!me()) return;
-  if(!lotsUnsub) lotsUnsub=FB.db.collection('lots').where('status','==','open').limit(500).onSnapshot(s=>{
+  if(!lotsUnsub) lotsUnsub=FB.db.collection('lots').where('status','==','open').limit(800).onSnapshot(s=>{
     DB.lots=s.docs.map(d=>({id:d.id,...d.data()})); DB.lotsReady=true; if(PAGE==='market'&&!$('#dlg').innerHTML) renderSite();
   },e=>{ console.error('lots',e); DB.lotsReady=true; });
   if(!myLotsUnsub) myLotsUnsub=FB.db.collection('lots').where('seller','==',DB.session).onSnapshot(s=>{
@@ -5215,8 +5219,32 @@ async function collectLot(l){
     let got=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(l.id), s=await tx.get(ref);
       got=null; if(!s.exists) return; const d=s.data(); if(d.status!=='sold'||d.seller!==DB.session) return; got=d; tx.delete(ref); });
-    const u=me(); if(got&&u){ u.coins=r2((u.coins||0)+lotNet(got.price)); let who=""; try{ const b=await loadUser(got.buyer); who=(b&&b.name)||""; }catch(_){} addDeal(u,{k:"sell",item:got.item,price:got.price,net:lotNet(got.price),who}); saveDB(); toast(`💰 Продано: «${item(got.item).n}» за ${fmtC(got.price)} — вам ${fmtC(lotNet(got.price))}`); if(PAGE==='market'||PAGE==='inventory') renderSite(); }
+    const u=me(); if(got&&got.bank) return;
+    if(got&&u){ u.coins=r2((u.coins||0)+lotNet(got.price)); let who=""; try{ const b=await loadUser(got.buyer); who=(b&&b.name)||""; }catch(_){} addDeal(u,{k:"sell",item:got.item,price:got.price,net:lotNet(got.price),who}); saveDB(); toast(`💰 Продано: «${item(got.item).n}» за ${fmtC(got.price)} — вам ${fmtC(lotNet(got.price))}`); if(PAGE==='market'||PAGE==='inventory') renderSite(); }
   }catch(e){ console.error('collect',e); collecting.delete(l.id); }
+}
+// ====== ТОВАРЫ МАРКЕТА: создатель выставляет все карточки/кейсы/наборы по MKT_N шт. по завышенной цене ======
+const MKT_N=3, MKT_MULT=2;
+const mktPrice=x=>Math.max(1,Math.ceil(x.val*MKT_MULT*2)/2);
+async function stockFill(){
+  if(!isAdminUser()||!FB) return;
+  const have={}; (DB.myLots||[]).filter(l=>l.bank&&l.status==='open').forEach(l=>have[l.item]=(have[l.item]||0)+1);
+  const todo=[]; ITEMS.filter(isLotItem).forEach(x=>{ for(let k=have[x.id]||0;k<MKT_N;k++) todo.push(x); });
+  if(!todo.length) return toast('Всё уже выставлено');
+  if(!await askConfirm(`Выставить на Маркет ${todo.length} лотов (каждый предмет до ${MKT_N} шт., цена — ориентир ×${MKT_MULT})?`,'Выставить')) return;
+  try{
+    for(let i=0;i<todo.length;i+=400){ const b=FB.db.batch();
+      todo.slice(i,i+400).forEach(x=>b.set(FB.db.collection('lots').doc(),{seller:DB.session,sellerName:'🏪 Маркет',item:x.id,price:mktPrice(x),status:'open',created:Date.now(),bank:true}));
+      await b.commit(); }
+    toast(`✔ Выставлено лотов: ${todo.length}`);
+  }catch(e){ toast('Ошибка: '+(e.message||e)); }
+}
+async function stockClear(){
+  if(!isAdminUser()||!FB) return;
+  const L=(DB.myLots||[]).filter(l=>l.bank&&l.status==='open'); if(!L.length) return toast('Товаров Маркета нет');
+  if(!await askConfirm(`Снять ${L.length} лотов Маркета?`,'Снять')) return;
+  try{ for(let i=0;i<L.length;i+=400){ const b=FB.db.batch(); L.slice(i,i+400).forEach(l=>b.delete(FB.db.collection('lots').doc(l.id))); await b.commit(); } toast('✔ Сняты'); }
+  catch(e){ toast('Ошибка: '+(e.message||e)); }
 }
 async function listLot(id){
   const u=me(), x=item(id); if(!u||!FB||!isLotItem(x)) return;

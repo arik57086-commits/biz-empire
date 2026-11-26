@@ -1225,6 +1225,9 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом=Only two players, a third die and big capital. A great mode for a quick game with a friend
+Проверьте интернет и обновите страницу.=Check your internet and refresh the page.
+Это старая партия с ботами — она закрыта=This is an old game with bots — it has been closed
 Премиум-пропуск=Premium pass
 нижний ряд наград до конца месяца=the bottom reward row until the end of the month
 Оплата звёздами Telegram в нашем боте. После оплаты вернитесь сюда — пропуск откроется сам.=Pay with Telegram Stars in our bot. After paying, come back here — the pass unlocks by itself.
@@ -2179,7 +2182,7 @@ const MODES={
  deal:{n:'Расклад',s:'Все компании уже розданы.',ic:'🃏',d:'Быстрая игра, в которой все компании случайно и поровну раздаются игрокам в начале. Сразу торгуйтесь и собирайте группы! Когда все игроки пройдут 15 кругов, владельцы получают 75% аренды, после 20 — 50%, после 25 — 25%.',salary:3000,third:true,deal:true,grad:'#e53975,#ff6f91'},
  shuffle:{n:'Перестановка',s:'Поле перемешано, строить можно сразу.',ic:'🔀',d:'Компании перемешаны по всему полю. Филиалы можно строить на любой своей компании, даже без полной группы.',shuffle:true,noMono:true,grad:'#22b8a5,#43a047'},
  timed:{n:'На время',s:'25 кругов — побеждает богатейший.',ic:'⏱️',d:'Игра длится ровно 25 кругов. В конце побеждает тот, у кого больше всего капитала: деньги + стоимость компаний и филиалов.',rounds:25,grad:'#8e24aa,#5a3fd6'},
- duel:{n:'Дуэль',s:'Один на один, быстрые правила.',ic:'⚔️',d:'Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом или ботом.',money:20000,salary:3000,third:true,duel:true,grad:'#262b38,#4a5163'},
+ duel:{n:'Дуэль',s:'Один на один, быстрые правила.',ic:'⚔️',d:'Только два игрока, третий кубик и большой капитал. Отличный режим для быстрой партии с другом.',money:20000,salary:3000,third:true,duel:true,grad:'#262b38,#4a5163'},
  ranked:{n:'Рейтинговая',s:'По сети, без ботов. С 10 уровня.',ic:'🏆',d:'Матч по сети против живых игроков — без ботов. Влияет на рейтинг: победа +25, поражение −15 (сдача тоже считается поражением). Классические правила. Создавать и заходить можно с 10 уровня. VIP-игроки получают предмет после рейтингового матча с шансом 100%.',ranked:true,needLvl:10,grad:'#c0392b,#ff8a3d'},
 };
 // все режимы, кроме обычной, рейтинговой и задачи дня, — только с VIP
@@ -4220,7 +4223,8 @@ function finishGame(w){
   saveMatchLog(); showWinner(w,applyMyResult());
 }
 // начислить себе свою награду (один раз) и вернуть строки итогов для окна победителя
-// награда за матч от сервера (повторяем, если итог партии ещё не успел записаться)async function claimReward(rid){  for(let k=0;k<5;k++){ try{ const j=await api('reward',{rid}); if(j.drop){ const it=item(j.drop); SFX.buy(); toast(`🎁 Выпало: ${it.ic} ${it.n}`); } else toast('Предмет в этот раз не выпал'); saveDB(); return; }    catch(e){ if(!/не закончилась/.test(e.message)) return toast('⚠ '+e.message); await new Promise(r=>setTimeout(r,1500)); } }}
+// награда за матч от сервера (повторяем, если итог партии ещё не успел записаться)
+async function claimReward(rid){  for(let k=0;k<5;k++){ try{ const j=await api('reward',{rid}); if(j.drop){ const it=item(j.drop); SFX.buy(); toast(`🎁 Выпало: ${it.ic} ${it.n}`); } else toast('Предмет в этот раз не выпал'); saveDB(); return; }    catch(e){ if(!/не закончилась/.test(e.message)) return toast('⚠ '+e.message); await new Promise(r=>setTimeout(r,1500)); } }}
 function applyMyResult(){
   const lines=(G.results||[]).map(r=>{ const p=G.players[r.pid]; const it=r.drop&&item(r.drop);
     if(r.noReward) return `${pn(p)}: 🏳️ сдался в первые ${EARLY_SURRENDER} ходов — без награды${r.rd?` · рейтинг ${r.rd}`:''}`;
@@ -4409,7 +4413,9 @@ function watchRoom(rid){
   NET.rid=rid;
   NET.unsub=roomRef(rid).onSnapshot(s=>{
     if(!s.exists){ const was=NET.started; leaveNet(false); if(was){ toast('Комната закрыта'); showLanding(); } else renderSite(); return; }
-    const r={id:s.id,...s.data()}; NET.room=r;
+    const r={id:s.id,...s.data()};
+    if(hasBots(r)){ const was=NET.started; dropBotRoom(r); leaveNet(false); if(G&&G.online) G=null; if(was) toast('Это старая партия с ботами — она закрыта'); showLanding(); return; }
+    NET.room=r;
     if(r.status==='waiting'){ if(PAGE==='games') renderSite(); return; }
     if(r.host===DB.session){ if(!NET.started||NET.role!=='host') resumeHost(r); return; }
     if(NET.role==='host'){ // ведение партии забрал другой игрок (нас долго не было) — становимся обычным игроком
@@ -4478,10 +4484,13 @@ function startOnlineGame(r){
 // ====== ЛОББИ «ОЖИДАЮТ ИГРЫ» ======
 const myEntry=()=>{ const u=me(); return {uid:DB.session,clanTag:u.clanTag||'',name:u.name,nick:u.nick||'',color:u.color,eq:u.eq||'tok_default',skin:item(u.eq).ic||'',vip:isVip(u),bonus:cardBonuses(u),lvl:levelInfo(u.xp).lvl,rating:u.rating||1000}; };
 let lobbyUnsub=null;
+// комнаты с ботами — остатки старой версии (ботов в игре больше нет): не показываем и не возвращаемся в них
+const hasBots=r=>!!r&&((r.bots||0)>0||(()=>{ try{ return !!r.state&&JSON.parse(r.state).players.some(p=>p.bot); }catch(e){ return false; } })());
+function dropBotRoom(r){ if(r&&r.host===DB.session&&FB) roomRef(r.id).delete().catch(()=>{}); }
 function listenLobby(){
   if(!FB||lobbyUnsub) return;
   lobbyUnsub=FB.db.collection('rooms').where('status','==','waiting').onSnapshot(s=>{
-    DB.rooms=s.docs.map(d=>({id:d.id,...d.data()}));
+    DB.rooms=s.docs.map(d=>({id:d.id,...d.data()})).filter(r=>!hasBots(r));
     if(PAGE==='games'&&!$('#landing').classList.contains('hide')&&!$('#modal').innerHTML) renderSite();
   },e=>console.error('lobby',e));
 }
@@ -4490,7 +4499,8 @@ async function rejoinMyRoom(){
   if(!FB||!DB.session||NET.rid) return;
   try{
     const s=await FB.db.collection('rooms').where('uids','array-contains',DB.session).get();
-    const r=s.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.status==='waiting'||x.status==='playing').sort((a,b)=>b.created-a.created)[0];
+    const all=s.docs.map(d=>({id:d.id,...d.data()})); all.filter(hasBots).forEach(dropBotRoom);
+    const r=all.filter(x=>(x.status==='waiting'||x.status==='playing')&&!hasBots(x)).sort((a,b)=>b.created-a.created)[0];
     if(r) watchRoom(r.id);
   }catch(e){ console.error('rejoin',e); }
 }
@@ -4665,7 +4675,7 @@ const PAGES={
       <li>Побеждает последний, кто не обанкротился.</li></ol>
       <p class="center" style="margin-top:30px"><button class="btn-o big" data-act="start">Играть сейчас</button></p></div></section>`,
 
-  auth:()=>!FB?`<div class="page"><div class="cardw empty"><div class="e">📡</div><h3>Нет связи с сервером</h3><p class="muted">Аккаунты и игра по сети работают только при подключении к интернету. Сейчас можно сыграть с ботами — <a style="color:#3b8fd6;cursor:pointer" data-act="guest">как гость</a>.</p></div></div>`
+  auth:()=>!FB?`<div class="page"><div class="cardw empty"><div class="e">📡</div><h3>Нет связи с сервером</h3><p class="muted">Аккаунты и игра по сети работают только при подключении к интернету. Проверьте интернет и обновите страницу.</p></div></div>`
     :`<div class="page"><div class="cardw auth">
       <div class="ap"><h2 style="font-weight:400">Авторизация</h2><p>Войдите при помощи почты и пароля от вашего аккаунта в Кубитале.</p>
         <label>Электронная почта</label><input class="inp" type="email" id="lMail" data-enter="login" placeholder="например, ivan@example.com" autocomplete="email">
@@ -5035,7 +5045,8 @@ function toast(msg){ const t=document.createElement('div'); t.className='toast';
 function xpForLevel(L){ let xp=0,need=100; for(let l=1;l<L;l++){ xp+=need; need=100+(l+1)*25; } return xp; }
 function admAcc(el){ if(!isAdminUser()) return null; const c=el.closest('.adm'); if(!c) return null; const a=(DB.allUsers||[]).find(x=>x.login===c.dataset.l); return a?{a,c}:null; }
 // сохранить изменённый аккаунт в облако (если это я — обновить и мой кэш)
-// правка монет/предметов/VIP/премиума игрока через сервер (если он подключён)async function admApi(a,body,msg){ const j=await apiTry('admin',{uid:a.login,...body}); if(!j) return; Object.assign(a,j.target); if(a.login===DB.session) applyEco(j.target); toast('✔ '+msg(a)); renderSite(); }
+// правка монет/предметов/VIP/премиума игрока через сервер (если он подключён)
+async function admApi(a,body,msg){ const j=await apiTry('admin',{uid:a.login,...body}); if(!j) return; Object.assign(a,j.target); if(a.login===DB.session) applyEco(j.target); toast('✔ '+msg(a)); renderSite(); }
 function admDone(msg,a){
   if(a){ if(a.login===DB.session) DB.accounts[a.login]=a; saveAccount(a).then(()=>toast('✔ '+msg)).catch(e=>toast('Ошибка: '+e.message)); }
   else toast('✔ '+msg);
@@ -5194,11 +5205,11 @@ const ACT={
     if(!FB) return;
     try{
       const s=await FB.db.collection('rooms').where('status','==','playing').limit(30).get(), u=me(), fr=new Set(u.friends||[]);
-      const list=s.docs.map(d=>({id:d.id,...d.data()})).filter(r=>!r.uids.includes(DB.session)&&(!r.friendsOnly||r.uids.some(x=>fr.has(x))))
+      const list=s.docs.map(d=>({id:d.id,...d.data()})).filter(r=>!hasBots(r)&&!r.uids.includes(DB.session)&&(!r.friendsOnly||r.uids.some(x=>fr.has(x))))
         .sort((a,b)=>(b.uids.some(x=>fr.has(x))?1:0)-(a.uids.some(x=>fr.has(x))?1:0)).slice(0,10);
       $('#modal').innerHTML=`<div class="ov" id="wlov"><div class="box lt" style="width:480px"><h2>👁 Идущие игры</h2>
         <p class="muted">Можно смотреть партию как зритель и отправлять реакции. Ходить зритель не может.</p>
-        ${list.length?list.map(r=>{ const m=MODES[r.mode]||MODES.classic; return `<div class="top"><span class="pos">${m.ic}</span><span class="n"><b>${m.n}</b><br><span class="muted">${r.players.map(p=>esc(p.name)+(fr.has(p.uid)?' 👥':'')).join(', ')}${r.bots?` + ботов: ${r.bots}`:''}</span></span><button class="sm" data-w="${r.id}">Смотреть</button></div>`; }).join('')
+        ${list.length?list.map(r=>{ const m=MODES[r.mode]||MODES.classic; return `<div class="top"><span class="pos">${m.ic}</span><span class="n"><b>${m.n}</b><br><span class="muted">${r.players.map(p=>esc(p.name)+(fr.has(p.uid)?' 👥':'')).join(', ')}</span></span><button class="sm" data-w="${r.id}">Смотреть</button></div>`; }).join('')
           :'<p class="muted">Сейчас никто из друзей не играет, открытых партий тоже нет.</p>'}
         <div style="text-align:center;margin-top:10px"><button class="sec" id="wlx">Закрыть</button></div></div></div>`;
       $('#wlov').onclick=e=>{ if(e.target.id==='wlov'||e.target.id==='wlx') return closeModal(); const w=e.target.closest('[data-w]'); if(w) spectate(w.dataset.w); };

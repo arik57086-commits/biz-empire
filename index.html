@@ -1225,6 +1225,21 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+Зову тебя в игру!=Join my game!
+Приглашение отправлено — друг увидит его сразу=Invite sent — your friend will see it right away
+Приглашение в игру=Game invite
+зовёт вас в игру=invites you to a game
+зовёт вас в игру!=invites you to a game!
+Зайти=Join
+Позвать друзей в сети:=Invite online friends:
+Друг=Friend
+ходов=turns
+Товары Маркета=Market stock
+Всё уже выставлено=Everything is already listed
+Выставлено лотов:=Lots listed:
+Снять товары Маркета=Remove Market stock
+Сняты=Removed
+Товаров Маркета нет=No Market stock
 Открывается ключом 🔑. Эпические и легендарные бренды из всех коллекций — и шанс на уникальный или мифический.=Opened with a key 🔑. Epic and legendary brands from all collections — and a chance of unique or mythic.
 Уникальный=Unique
 Мифический=Mythic
@@ -1754,6 +1769,8 @@ button.big{font-size:18px;padding:12px 28px}
 .mrow{display:flex;align-items:center;gap:18px;padding:16px 4px;border-bottom:1px solid #eef}
 .mrow2{display:flex;align-items:center;gap:12px;padding:8px 4px;border-bottom:1px solid #eef}.mrow2 .art{flex:none}.mrow2 .mn2{flex:1;min-width:0}.mrow2 .mnm{font-size:15px}.mrow2 .mq{width:60px;text-align:right;color:#667;font-size:14px}.mrow2 .mp{width:110px;text-align:right;font-weight:700;white-space:nowrap}.mrow2 .mp small{font-weight:400;color:#889}.mrow2 button{width:132px;margin:0;white-space:nowrap;font-size:12px;padding-left:6px;padding-right:6px}
 .pava{display:flex;flex-direction:column;align-items:center;gap:10px}.pbtns{display:flex;flex-direction:column;gap:6px;width:230px}.pbtns button{margin:0;width:100%}.gst{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin:10px 0}.gst b{display:block;font-size:22px}.gst span{font-size:12px;color:#8892a6}.gtab{width:100%;border-collapse:collapse;font-size:14px}.gtab th{font-size:12px;color:#8892a6;font-weight:600;text-align:right;padding:4px}.gtab td{padding:6px 4px;border-top:1px solid #8882;text-align:right}.gtab td:first-child,.gtab th:first-child{text-align:left}
+.invrow{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}.invrow button{margin:0}
+@media (max-width:560px){ .cbox,.sbox{zoom:.62;max-width:none!important;width:560px!important;min-width:560px} .chead{flex-wrap:nowrap} .gtab{font-size:11.5px} .gtab th,.gtab td{padding:4px 2px} .gtab th{font-size:10.5px} .gst b{font-size:18px} }
 .mrow .mi2{font-size:44px;width:70px;text-align:center}
 .mrow .mn2{flex:1;font-size:20px}
 .mrow .mp{font-size:20px;width:110px;text-align:right}
@@ -2751,7 +2768,7 @@ function friendsOnlineHTML(u){
   const myRoom=(DB.rooms||[]).find(r=>r.uids.includes(DB.session));
   return `<div class="cardw"><div class="ch"><h3>Друзья ${fr.filter(isOnlineAcc).length?`<span class="muted" style="font-size:14px">· онлайн ${fr.filter(isOnlineAcc).length}</span>`:''}</h3><a data-go="friends" class="muted" style="cursor:pointer">все ›</a></div>
     ${fr.length?fr.slice(0,8).map(a=>`<div class="top"><span data-uprof="${esc(a.login)}" style="cursor:pointer">${avc(a,30)}</span><span class="n" data-uprof="${esc(a.login)}" style="cursor:pointer">${dot(isOnlineAcc(a))} ${esc(a.name)}<br><span class="muted" style="font-size:11px">${isOnlineAcc(a)?'в сети':a.seen?'был(а) '+agoText(a.seen):'не в сети'}</span></span>
-      ${isOnlineAcc(a)?`<button class="sm" data-act="callFriend" data-r="${myRoom?myRoom.id:''}">${myRoom?'Позвать':'Создать игру'}</button>`:''}</div>`).join('')
+      ${isOnlineAcc(a)?`<button class="sm" data-act="callFriend" data-u="${esc(a.login)}" data-r="${myRoom&&myRoom.status==='waiting'?myRoom.id:''}">${myRoom?'Позвать':'Создать игру'}</button>`:''}</div>`).join('')
       :'<p class="muted">Добавьте друзей по нику — здесь будет видно, кто сейчас в сети.</p>'}</div>`;
 }
 const agoText=t=>{ const m=Math.round((Date.now()-t)/60000); return m<60?`${Math.max(1,m)} мин назад`:m<1440?`${Math.round(m/60)} ч назад`:`${Math.round(m/1440)} дн назад`; };
@@ -2783,7 +2800,7 @@ function listenDM(){
   if(!FB||!me()||dmUnsubs.length) return;
   const col=FB.db.collection('dm');
   dmUnsubs=[col.where('to','==',DB.session).onSnapshot(s=>{ const before=DB.dmIn.length; DB.dmIn=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(DB.dmReady&&DB.dmIn.length>before){ const m=DB.dmIn.sort((a,b)=>b.at-a.at)[0]; if(m&&!m.read&&dmOpen!==m.from){ SFX.pop(); toast(`✉️ ${m.name||'Сообщение'}: ${cleanChat(m.text).slice(0,40)}`); pushNote('✉️ '+(m.name||'Сообщение'),cleanChat(m.text).slice(0,100),'dm'); } }
+      if(DB.dmReady&&DB.dmIn.length>before){ const m=DB.dmIn.sort((a,b)=>b.at-a.at)[0]; if(m&&m.room&&!m.read) showInvite(m); else if(m&&!m.read&&dmOpen!==m.from){ SFX.pop(); toast(`✉️ ${m.name||'Сообщение'}: ${cleanChat(m.text).slice(0,40)}`); pushNote('✉️ '+(m.name||'Сообщение'),cleanChat(m.text).slice(0,100),'dm'); } }
       DB.dmReady=true; dmRefresh(); },e=>console.error('dm',e)),
     col.where('from','==',DB.session).onSnapshot(s=>{ DB.dmOut=s.docs.map(d=>({id:d.id,...d.data()})); dmRefresh(); },e=>console.error('dm',e))];
 }
@@ -2887,6 +2904,24 @@ function appCardHTML(){
 // ====== ПРИГЛАШЕНИЕ В КОМНАТУ ПО ССЫЛКЕ (?room=ID) ======
 const roomLink=rid=>SITE_URL+'?room='+rid;
 (function(){ const r=new URLSearchParams(location.search).get('room'); if(r){ sessionStorage.setItem('bizemp_join',r); history.replaceState(null,'',location.pathname); } })();
+// ====== ПРИГЛАШЕНИЕ ДРУГА В КОМНАТУ: сообщение в личку с номером комнаты; у друга всплывает окно «Зайти» ======
+const INVITE_TTL=10*60000;
+async function inviteFriend(uid,rid){
+  const u=me(); if(!u||!FB||!uid||!rid) return;
+  if(u.banned) return toast('Вы заблокированы и не можете писать');
+  if(!chatRateOk()) return;
+  try{ await FB.db.collection('dm').add({from:DB.session,to:uid,name:u.name,text:`🎲 Зову тебя в игру! ${roomLink(rid)}`,at:Date.now(),read:false,room:rid});
+    toast('✔ Приглашение отправлено — друг увидит его сразу'); }
+  catch(e){ toast('Не отправилось: '+(e.message||e)); }
+}
+const invShown=new Set();
+async function showInvite(m){
+  if(invShown.has(m.id)||!m.room||Date.now()-m.at>INVITE_TTL||G&&!G.over) return; invShown.add(m.id);
+  SFX.turn(); pushNote('🎲 Приглашение в игру',`${m.name||'Друг'} зовёт вас в игру`,'inv');
+  try{ FB.db.collection('dm').doc(m.id).update({read:true}); }catch(e){}
+  if(!await askConfirm(`🎲 <b>${esc(m.name||'Друг')}</b> зовёт вас в игру!`,'Зайти')) return;
+  sessionStorage.setItem('bizemp_join',m.room); showLanding(); joinFromLink();
+}
 async function joinFromLink(){
   const rid=sessionStorage.getItem('bizemp_join'); if(!rid||!FB||!me()) return; sessionStorage.removeItem('bizemp_join');
   try{ const s=await roomRef(rid).get(); if(!s.exists) return toast('Эта игра уже закрыта');
@@ -4126,11 +4161,20 @@ async function checkSeasonAward(a){
     saveDB();
   }catch(e){ console.error('season',e); }
 }
+// итоги партии на экране победы: время, круги, ходы и таблица игроков по местам
+function endSummary(win){
+  const mins=G.t0?Math.max(1,Math.round((Date.now()-G.t0)/60000)):null;
+  const order=G.players.slice().sort((a,b)=>(b===win)-(a===win)||(a.out-b.out)||netWorth(b)-netWorth(a));
+  return `<div class="muted" style="margin:6px 0">${mins?`⏱ ${mins} мин · `:''}🔄 ${G.round||1} круг · 🎲 ${G.turnNo||0} ходов</div>
+    <table class="gtab" style="margin:6px 0 12px"><tr><th>#</th><th style="text-align:left">Игрок</th><th>Активы</th><th>Компаний</th><th>Кругов</th></tr>
+    ${order.map((p,k)=>`<tr${p.out?' style="opacity:.55"':''}><td>${['🥇','🥈','🥉'][k]||k+1}</td><td style="text-align:left"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color}"></span> ${esc(p.name)}</td><td>${p.out?'банкрот':fmt(netWorth(p))}</td><td>${cellsOf(p.id).length}</td><td>${p.laps||0}</td></tr>`).join('')}</table>`;
+}
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
     <h2>${G&&OPT().teams&&G.winTeam!=null?`Победила команда ${teamName(G.winTeam)}<br><small style="font-size:15px">${G.players.filter(x=>x.team===G.winTeam).map(pn).join(" и ")}</small>`:`Победитель: ${p?pn(p):"никто"}`}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
-    <div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wgraph">📈 График</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
+    ${G?endSummary(p):""}<div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wstats">📊 Статистика</button><button class="sec" id="wgraph">📈 График</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
+  $('#wstats').onclick=()=>showGameStats(p);
   $('#wshare').onclick=showShare; $('#wlog').onclick=()=>showMatchLog(0); $('#wgraph').onclick=()=>{ const r=savedLogs()[0]; if(r) showGraph(r.players,r.hist); };
   if($('#wnew')) $('#wnew').onclick=()=>showSetup(G.mode);
   updateRematch();
@@ -4459,6 +4503,8 @@ function lobbyHTML(u){
   return `<div class="cardw lobby"><div class="ch"><h3>Ожидают игры</h3><div><button data-act="quickPlay" title="Найти свободную игру или создать новую">🔎 Найти игру</button><button class="sec" data-act="watchList" title="Посмотреть идущие игры">👁 Смотреть</button><button class="sec" data-act="invite" title="Позвать друзей">📣 Пригласить</button><button class="btn-o" data-act="newRoom" ${inRoom?'disabled title="Вы уже в комнате"':''}>Создать игру</button></div></div>
     ${rooms.length?rooms.map(r=>roomHTML(r,u)).join(''):'<p class="muted">Пока никто не ждёт игры. Создайте свою — друзья смогут присоединиться!</p>'}</div>`;
 }
+// друзья в сети, которых ещё нет в комнате — кнопка «Позвать» отправляет приглашение
+function inviteRow(r,u){ const fr=(u.friends||[]).map(l=>DB.accounts[l]).filter(a=>a&&isOnlineAcc(a)&&!r.uids.includes(a.login)).slice(0,6);  return fr.length?`<div class="invrow"><span class="muted">Позвать друзей в сети:</span> ${fr.map(a=>`<button class="sec sm" data-act="callFriend" data-u="${esc(a.login)}" data-r="${r.id}">${dot(true)} ${esc(a.name)}</button>`).join('')}</div>`:''; }
 function roomHTML(r,u){
   const m=MODES[r.mode]||MODES.classic, me_=u.login, host=r.host===me_, inRoom=r.uids.includes(me_);
   const total=r.players.length+(r.bots||0), full=total>=r.max;
@@ -4473,7 +4519,7 @@ function roomHTML(r,u){
       <button class="sec sm" data-act="roomLink" data-r="${r.id}">🔗 Ссылка другу</button><button class="red sm" data-act="delRoom" data-r="${r.id}">Удалить</button></div>`
     :inRoom?`<div style="margin-top:10px"><span class="muted">Ждём, когда создатель начнёт игру…</span> <button class="sec sm" data-act="roomLink" data-r="${r.id}">🔗 Ссылка другу</button><button class="sec sm" data-act="leaveRoom" data-r="${r.id}">Выйти</button></div>`:'';
   return `<div class="room"><div class="rh"><span class="ric" style="background:linear-gradient(135deg,${m.grad})">${m.ic}</span><b>${m.n}</b>${tags.map(t=>`<span class="rtagl">${t}</span>`).join('')}</div>
-    <div class="rps">${pl}${slot}</div>${ctrl}</div>`;
+    <div class="rps">${pl}${slot}</div>${ctrl}${inRoom&&!full?inviteRow(r,u):''}</div>`;
 }
 function showCreateRoom(modeId){
   const u=me(); if(!u) return go('auth'); if(u.banned) return toast('⛔ Ваш аккаунт заблокирован');
@@ -4555,7 +4601,7 @@ function filterMarket(){ const q=(marketQ||'').trim().toLowerCase(); document.qu
 const AUTH_PAGES=['games','friends','inventory','market','profile'];
 function go(page){ DD=false; if(page==='profile'&&!PROF_KEEP) PROF_UID=null; PAGE=(AUTH_PAGES.includes(page)&&!me())?'auth':page; renderSite(); $('#landing').scrollTop=0; }
 function showLanding(){ $('#landing').classList.remove('hide'); go(me()?(PAGE==='home'||PAGE==='auth'?'games':PAGE):'home'); }
-function hideLanding(){ $('#landing').classList.add('hide'); }
+function hideLanding(){ $('#landing').classList.add('hide'); try{ watchOpenLots(); }catch(e){} }
 // Телефон: страницы сайта показываются как на компьютере — ширина 1000px, уменьшенная под экран
 // (приближать можно пальцами), а сама партия — во весь экран телефона (игроки слева, поле справа).
 const SITE_W=1000;
@@ -4932,7 +4978,7 @@ function openBox(id){
 function spinReveal(box,got){
   const N=56, WIN=48, W=118; // ширина плитки с отступом
   const strip=Array.from({length:N},(_,i)=>i===WIN?got:pickFrom(box));
-  $('#modal').innerHTML=`<div class="ov" id="sov" style="z-index:60"><div class="box lt" style="width:640px;max-width:96vw;text-align:center;overflow:hidden">
+  $('#modal').innerHTML=`<div class="ov" id="sov" style="z-index:60"><div class="box lt sbox" style="width:640px;max-width:96vw;text-align:center;overflow:hidden">
     <div class="muted">${box.ic} ${esc(box.n)} — открываем…</div>
     <div class="spin"><div class="spinl" id="spl">${strip.map(s=>`<div class="ctile ${s.r>=5?'myth':''}" style="border-bottom:5px solid ${RAR[s.r][1]}">${itemArt(s,104,70)}<span class="cn" style="background:linear-gradient(120deg,${RAR_GRAD[s.r]})">${esc(s.n)}</span></div>`).join('')}</div><i class="spinm"></i></div>
     <button class="sec" id="sskip">Пропустить ⏩</button></div></div>`;
@@ -5114,7 +5160,7 @@ const ACT={
   quickPlay:()=>quickPlay(),
   mlog:el=>showMatchLog(+el.dataset.k),
   roomLink:el=>copyRoomLink(el.dataset.r),
-  callFriend:el=>{ if(el.dataset.r) copyRoomLink(el.dataset.r); else showCreateRoom(); },
+  callFriend:el=>{ if(el.dataset.r) inviteFriend(el.dataset.u,el.dataset.r); else showCreateRoom(); },
   dealf:el=>{ dealFilter=el.dataset.t; renderSite(); },
   listLot:el=>listLot(el.dataset.i),
   buyLot:el=>buyLot(el.dataset.l),
@@ -5199,11 +5245,19 @@ DB.lots=[]; DB.myLots=[];
 // открытые лоты по предметам, от дешёвых к дорогим
 function lotsByItem(){ const g={}; for(const l of DB.lots||[]) if(l.status==='open') (g[l.item]=g[l.item]||[]).push(l);
   for(const k in g) g[k].sort((a,b)=>a.price-b.price||a.created-b.created); return g; }
-function listenLots(){
+// открытые лоты всех игроков нужны только на Маркете и в панели — подписываемся там, уходим — отписываемся (экономим чтения базы)
+const LOT_PAGES=['market','admin','inventory'];
+function watchOpenLots(){
   if(!FB||!me()) return;
-  if(!lotsUnsub) lotsUnsub=FB.db.collection('lots').where('status','==','open').limit(800).onSnapshot(s=>{
+  const need=LOT_PAGES.includes(PAGE)&&!$('#landing').classList.contains('hide');
+  if(need&&!lotsUnsub) lotsUnsub=FB.db.collection('lots').where('status','==','open').limit(800).onSnapshot(s=>{
     DB.lots=s.docs.map(d=>({id:d.id,...d.data()})); DB.lotsReady=true; if(PAGE==='market'&&!$('#dlg').innerHTML) renderSite();
   },e=>{ console.error('lots',e); DB.lotsReady=true; });
+  if(!need&&lotsUnsub){ lotsUnsub(); lotsUnsub=null; DB.lotsReady=false; }
+}
+function listenLots(){
+  if(!FB||!me()) return;
+  watchOpenLots();
   if(!myLotsUnsub) myLotsUnsub=FB.db.collection('lots').where('seller','==',DB.session).onSnapshot(s=>{
     DB.myLots=s.docs.map(d=>({id:d.id,...d.data()}));
     DB.myLots.filter(l=>l.status==='sold').forEach(collectLot);
@@ -5325,7 +5379,7 @@ if(FB){
 }
 // при переходе на страницы подгружаем свежие данные
 const _go=go;
-go=function(page){ _go(page); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); loadModeLeaders(); } if(PAGE==='friends'){ loadFans(); loadClans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
+go=function(page){ _go(page); watchOpenLots(); if(PAGE==='games'){ loadTop(); loadBoards(); loadWeekend(); refreshSeen(); loadModeLeaders(); } if(PAGE==='friends'){ loadFans(); loadClans(); loadFriends().then(()=>{ if(PAGE==='friends') renderSite(); }).catch(()=>{}); } if(PAGE==='admin') adminLoad(); };
 $('#landing').addEventListener('click',e=>{
   if(DD&&!e.target.closest('.dd')&&!e.target.closest('[data-act="dd"]')){ DD=false; renderSite(); }
   // телефон: плитка инвентаря открывается окном с подробностями и кнопками

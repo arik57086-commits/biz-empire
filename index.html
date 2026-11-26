@@ -860,7 +860,7 @@
 Портал: встали сюда — можете мгновенно перенестись ко второму порталу на другой стороне поля=Portal: land here — you can instantly jump to the second portal on the other side of the board
 Порталы=Portals
 после 10-го круга —=after lap 10 —
-после 15-го — ничего=after lap 15 — nothing
+после 20-го — ничего=after lap 20 — nothing
 После матча может выпасть карточка, набор или кейс. Продавайте их на Маркете=After a match you may get a card, set or case. Sell them on the Market
 Последние матчи=Recent matches
 Последние партии=Recent games
@@ -2057,8 +2057,8 @@ const vipDaysLeft=a=>Math.max(0,Math.ceil((((a&&a.vipUntil)||0)-Date.now())/8640
 const VIP_FOREVER=Date.UTC(2100,0,1);
 const vipLeft=a=>(a&&a.vipUntil>=VIP_FOREVER)?'навсегда':vipDaysLeft(a)+' дн.';
 const M=()=>MODES[(G&&G.mode)||'classic']||MODES.classic;
-// за круг: обычная сумма режима; после 10-го круга — 1,000k; после 15-го — ничего
-const SALARY_LOW=1000, SALARY_LOW_R=10, SALARY_OFF_R=15;
+// за круг: обычная сумма режима; после 10-го круга — 1,000k; после 20-го — ничего
+const SALARY_LOW=1000, SALARY_LOW_R=10, SALARY_OFF_R=20;
 const salary=()=>{ const r=(G&&G.round)||1; if(r>SALARY_OFF_R) return 0; return (r>SALARY_LOW_R?SALARY_LOW:(OPT().salary||M().salary||SALARY))*(evOn('bonus')?2:1); };
 
 // ====== АККАУНТЫ В ОБЛАКЕ (Firebase) ======
@@ -4610,7 +4610,7 @@ const PAGES={
       <div class="fc"><div class="e">🗓</div><h3>Сезоны</h3><p>Каждый месяц — новый сезон. Лучшие три игрока получают значок в профиль.</p></div>
     </div></div></section>
     <section class="rules" id="rules"><div class="lwrap"><h2>Правила за минуту</h2><ol>
-      <li>Бросайте кубики и двигайтесь по полю. За каждый круг — <b>$2,000k</b>, после 10-го круга — $1,000k, после 15-го — ничего.</li>
+      <li>Бросайте кубики и двигайтесь по полю. За каждый круг — <b>$2,000k</b>, после 10-го круга — $1,000k, после 20-го — ничего.</li>
       <li>Попали на свободную компанию — купите её. На чужую — заплатите аренду владельцу.</li>
       <li>Соберите все компании одного цвета — аренда удвоится, и можно строить филиалы ★.</li>
       <li>Не хватает денег — закладывайте компании, продавайте филиалы или меняйтесь.</li>

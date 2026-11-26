@@ -2335,6 +2335,11 @@ const noHidden=(list,n)=>list.filter(a=>!isHiddenUid(a.login)).slice(0,n);
 const lbv=(a,k)=>(a&&a.lb&&a.lb[k]!=null?a.lb[k]:(a&&a[k]))||0;
 const lbAdd=(a,k,v)=>{ a.lb=a.lb||{}; a.lb[k]=lbv(a,k)+v; };
 const SRVG=()=>srvOn()&&G&&G.online&&!!G.rid;
+// топ таблицы: новые очки (lb.ключ) и старые (ключ в корне профиля) вместе, без соавторов
+async function lbTop(k,n){ await cfgWait(); const lim=n+DB.cfgHidden.length, U=FB.db.collection('users');
+  const [a,b]=await Promise.all([U.orderBy('lb.'+k,'desc').limit(lim).get().catch(()=>({docs:[]})),U.orderBy(k,'desc').limit(lim).get().catch(()=>({docs:[]}))]);
+  const m={}; for(const d of [...a.docs,...b.docs]){ const x=d.data(); x.login=d.id; m[d.id]=x; }
+  return noHidden(Object.values(m).filter(x=>lbv(x,k)>0).sort((p,q)=>lbv(q,k)-lbv(p,k)),n); }
 // сохраняем ТОЛЬКО свой профиль (с задержкой, чтобы не писать в базу слишком часто)
 let saveTimer=null;
 function saveDB(){
@@ -3285,12 +3290,12 @@ async function checkWeekendAward(a){
   if(!FB||!a) return; const d=new Date(); d.setDate(d.getDate()-7); const k=weekendKey(d);
   if(!lbv(a,k)) return; a.wtDone=a.wtDone||{}; if(a.wtDone[k]) return;
   if(isWeekend()&&weekendKey()===k) return;
-  try{ await cfgWait(); const s=await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(3+DB.cfgHidden.length).get(); const place=s.docs.filter(x=>!isHiddenUid(x.id)).slice(0,3).findIndex(x=>x.id===a.login);
+  try{ await cfgWait(); const place=(await lbTop(k,3)).findIndex(x=>x.login===a.login);
     a.wtDone[k]=true; if(place>=0){ const [ic,xp]=WT_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${place+1} место · турнир выходных`}]; a.xp+=xp; feedPost(`занимает ${place+1} место в турнире выходных ${ic}`); setTimeout(()=>toast(`${ic} Турнир выходных: ${place+1} место! +${xp} XP`),1500); }
     saveDB(); }catch(e){ console.error('wt',e); }
 }
 async function loadWeekend(){ if(!FB||!me()) return; const k=weekendKey();
-  try{ await cfgWait(); DB.wt=noHidden((await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>lbv(a,k)>0),10); if(PAGE==='games') renderSite(); }catch(e){ console.error('wt',e); } }
+  try{ await cfgWait(); DB.wt=await lbTop(k,10); if(PAGE==='games') renderSite(); }catch(e){ console.error('wt',e); } }
 function weekendHTML(u){ const k=weekendKey(), on=isWeekend();
   return `<div class="cardw"><div class="ch"><h3>🏟 Турнир выходных</h3><span class="muted">${on?'идёт сейчас!':'в субботу и воскресенье'}</span></div>
     <p class="muted" style="margin-top:-6px">Только игры по сети: победа +3, матч +1. Тройка лучших получает значок и опыт (+300 / +200 / +100 XP). Ваши очки: <b>${lbv(u,k)||0}</b></p>
@@ -3336,7 +3341,7 @@ function showGraph(players,hist,title){
 // ====== ЛУЧШИЕ ПО РЕЖИМАМ (поле mw_<режим> — победы в режиме) ======
 let lbMode='classic';
 async function loadModeLeaders(){ if(!FB||!me()) return; const k='mw_'+lbMode;
-  try{ await cfgWait(); DB.lbm=noHidden((await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>lbv(a,k)>0),10); DB.lbmKey=k; if(PAGE==='games') renderSite(); }catch(e){ console.error('lbm',e); } }
+  try{ await cfgWait(); DB.lbm=await lbTop(k,10); DB.lbmKey=k; if(PAGE==='games') renderSite(); }catch(e){ console.error('lbm',e); } }
 function modeLeadersHTML(u){ const k='mw_'+lbMode;
   return `<div class="cardw"><div class="ch"><h3>🏅 Лучшие по режимам</h3><select class="inp" style="width:auto" onchange="lbMode=this.value;DB.lbm=null;loadModeLeaders()">${Object.entries(MODES).map(([id,m])=>`<option value="${id}" ${id===lbMode?'selected':''}>${m.ic} ${m.n}</option>`).join('')}</select></div>
     ${DB.lbm&&DB.lbmKey===k?(DB.lbm.length?DB.lbm.map((a,i)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${i+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${lbv(a,k)} побед</b></div>`).join(''):'<p class="muted">В этом режиме ещё никто не побеждал.</p>'):'<p class="muted">Загрузка…</p>'}</div>`;
@@ -4391,8 +4396,8 @@ async function checkSeasonAward(a){
   const k=prevSeasonKey(); if(!FB||!a||!lbv(a,k)) return;
   a.seasonDone=a.seasonDone||{}; if(a.seasonDone[k]) return;
   try{
-    await cfgWait(); const s=await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(3+DB.cfgHidden.length).get();
-    const place=s.docs.filter(d=>!isHiddenUid(d.id)).slice(0,3).findIndex(d=>d.id===a.login);
+    const top=await lbTop(k,3);
+    const place=top.findIndex(d=>d.login===a.login);
     a.seasonDone[k]=true;
     if(place>=0){ const [ic,xp]=SEASON_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${place+1} место · сезон ${seasonName(k)}`}]; a.xp+=xp;
       feedPost(`занимает ${place+1} место в сезоне «${seasonName(k)}» ${ic}`); setTimeout(()=>toast(`${ic} Сезон «${seasonName(k)}» окончен: вы на ${place+1} месте! +${xp} XP`),800); }
@@ -5563,7 +5568,7 @@ async function cancelLot(lid){
 // таблицы лидеров сезона и задачи дня (одиночные поля сортируются без отдельных индексов)
 const seasonDaysLeft=()=>{ const n=new Date(), e=new Date(n.getFullYear(),n.getMonth()+1,1); return Math.max(1,Math.ceil((e-n)/86400000)); };
 async function loadBoards(){ if(!FB||!me()) return;
-  const q=async k=>{ await cfgWait(); return noHidden((await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>lbv(a,k)>0),10); };
+  const q=k=>lbTop(k,10);
   try{ DB.season=await q(seasonKey()); if(PAGE==='games') renderSite(); }catch(e){ console.error('boards',e); } }
 // зритель: смотреть чужую партию
 function spectate(rid){ closeModal(); watchRoom(rid); NET.spec=true; }
@@ -5939,7 +5944,7 @@ async function claimAdvent(){
 }
 // ---- праздничный турнир 31.12–1.01 ----
 async function loadNyTour(){ if(!FB||!me()||!NY_ON) return; const k=nyTourKey();
-  try{ await cfgWait(); DB.nyt=noHidden((await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>lbv(a,k)>0),10); if(PAGE==='games') renderSite(); }catch(e){ console.error('nyt',e); } }
+  try{ await cfgWait(); DB.nyt=await lbTop(k,10); if(PAGE==='games') renderSite(); }catch(e){ console.error('nyt',e); } }
 function nyTourHTML(u){
   const {mo,d}=nyDate(); if(!(mo===11&&d>=20)&&!(mo===0&&d<=10)) return '';
   const k=nyTourKey(), L=DB.nyt||[];
@@ -5951,7 +5956,7 @@ const NYT_PRIZE=[['🏆','Чемпион',1000],['🥈','Призёр',600],['�
 async function checkNyTourAward(a){
   const {mo,d}=nyDate(); if(!(mo===0&&d>=2)||!FB||!a) return; const y=mskNow().getFullYear(), k='nyt_'+y; if(!lbv(a,k)) return;
   a.nytDone=a.nytDone||{}; if(a.nytDone[k]) return;
-  try{ await cfgWait(); const s=await FB.db.collection('users').orderBy('lb.'+k,'desc').limit(3+DB.cfgHidden.length).get(); const place=s.docs.filter(x=>!isHiddenUid(x.id)).slice(0,3).findIndex(x=>x.id===a.login);
+  try{ await cfgWait(); const place=(await lbTop(k,3)).findIndex(x=>x.login===a.login);
     a.nytDone[k]=true; if(place>=0){ const [ic,t,xp]=NYT_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${t} ${y} · новогодний турнир`}]; a.xp+=xp; feedPost(`становится «${t} ${y}» в новогоднем турнире ${ic}`); setTimeout(()=>{ toast(`${ic} Новогодний турнир: ${place+1} место! +${xp} XP`); fireworks(); SFX.bells(); },900); }
     saveDB(); }catch(e){ console.error('nyt award',e); }
 }

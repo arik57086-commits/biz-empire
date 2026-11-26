@@ -2216,7 +2216,13 @@ try{ if(window.firebase){ firebase.initializeApp(firebaseConfig); FB={auth:fireb
 // DB — кэш в памяти: мой аккаунт (DB.session = мой uid) и загруженные аккаунты других игроков (только для чтения)
 let DB={accounts:{},session:null,creatorName:null,ready:false};
 const me=()=>DB.session?DB.accounts[DB.session]||null:null;
-const isAdminUser=()=>!!(DB.session&&ADMIN_UIDS.includes(DB.session));
+// создатель (владелец) — в ADMIN_UIDS; помощники с доступом к панели и соавторы (скрыты из таблиц) — в config/site: admins, hidden
+DB.cfgAdmins=[]; DB.cfgHidden=[]; DB.cfgP=null;
+const isOwnerUser=()=>!!(DB.session&&ADMIN_UIDS.includes(DB.session));
+const isAdminUser=()=>!!(DB.session&&(ADMIN_UIDS.includes(DB.session)||(DB.cfgAdmins||[]).includes(DB.session)));
+const isHiddenUid=id=>(DB.cfgHidden||[]).includes(id);
+const cfgWait=()=>DB.cfgP||Promise.resolve();
+const noHidden=(list,n)=>list.filter(a=>!isHiddenUid(a.login)).slice(0,n);
 // сохраняем ТОЛЬКО свой профиль (с задержкой, чтобы не писать в базу слишком часто)
 let saveTimer=null;
 function saveDB(){
@@ -3157,12 +3163,12 @@ async function checkWeekendAward(a){
   if(!FB||!a) return; const d=new Date(); d.setDate(d.getDate()-7); const k=weekendKey(d);
   if(!a[k]) return; a.wtDone=a.wtDone||{}; if(a.wtDone[k]) return;
   if(isWeekend()&&weekendKey()===k) return;
-  try{ const s=await FB.db.collection('users').orderBy(k,'desc').limit(3).get(); const place=s.docs.findIndex(x=>x.id===a.login);
+  try{ await cfgWait(); const s=await FB.db.collection('users').orderBy(k,'desc').limit(3+DB.cfgHidden.length).get(); const place=s.docs.filter(x=>!isHiddenUid(x.id)).slice(0,3).findIndex(x=>x.id===a.login);
     a.wtDone[k]=true; if(place>=0){ const [ic,xp]=WT_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${place+1} место · турнир выходных`}]; a.xp+=xp; setTimeout(()=>toast(`${ic} Турнир выходных: ${place+1} место! +${xp} XP`),1500); }
     saveDB(); }catch(e){ console.error('wt',e); }
 }
 async function loadWeekend(){ if(!FB||!me()) return; const k=weekendKey();
-  try{ DB.wt=(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0); if(PAGE==='games') renderSite(); }catch(e){ console.error('wt',e); } }
+  try{ await cfgWait(); DB.wt=noHidden((await FB.db.collection('users').orderBy(k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0),10); if(PAGE==='games') renderSite(); }catch(e){ console.error('wt',e); } }
 function weekendHTML(u){ const k=weekendKey(), on=isWeekend();
   return `<div class="cardw"><div class="ch"><h3>🏟 Турнир выходных</h3><span class="muted">${on?'идёт сейчас!':'в субботу и воскресенье'}</span></div>
     <p class="muted" style="margin-top:-6px">Только игры по сети: победа +3, матч +1. Тройка лучших получает значок и опыт (+300 / +200 / +100 XP). Ваши очки: <b>${u[k]||0}</b></p>
@@ -3208,7 +3214,7 @@ function showGraph(players,hist,title){
 // ====== ЛУЧШИЕ ПО РЕЖИМАМ (поле mw_<режим> — победы в режиме) ======
 let lbMode='classic';
 async function loadModeLeaders(){ if(!FB||!me()) return; const k='mw_'+lbMode;
-  try{ DB.lbm=(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0); DB.lbmKey=k; if(PAGE==='games') renderSite(); }catch(e){ console.error('lbm',e); } }
+  try{ await cfgWait(); DB.lbm=noHidden((await FB.db.collection('users').orderBy(k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0),10); DB.lbmKey=k; if(PAGE==='games') renderSite(); }catch(e){ console.error('lbm',e); } }
 function modeLeadersHTML(u){ const k='mw_'+lbMode;
   return `<div class="cardw"><div class="ch"><h3>🏅 Лучшие по режимам</h3><select class="inp" style="width:auto" onchange="lbMode=this.value;DB.lbm=null;loadModeLeaders()">${Object.entries(MODES).map(([id,m])=>`<option value="${id}" ${id===lbMode?'selected':''}>${m.ic} ${m.n}</option>`).join('')}</select></div>
     ${DB.lbm&&DB.lbmKey===k?(DB.lbm.length?DB.lbm.map((a,i)=>`<div class="top" data-uprof="${esc(a.login)}" style="cursor:pointer"><span class="pos">${i+1}</span>${avc(a,28)}<span class="n">${esc(a.name)}${a.login===u.login?' <span class="muted">(вы)</span>':''}</span><b>${a[k]} побед</b></div>`).join(''):'<p class="muted">В этом режиме ещё никто не побеждал.</p>'):'<p class="muted">Загрузка…</p>'}</div>`;
@@ -4262,8 +4268,8 @@ async function checkSeasonAward(a){
   const k=prevSeasonKey(); if(!FB||!a||!a[k]) return;
   a.seasonDone=a.seasonDone||{}; if(a.seasonDone[k]) return;
   try{
-    const s=await FB.db.collection('users').orderBy(k,'desc').limit(3).get();
-    const place=s.docs.findIndex(d=>d.id===a.login);
+    await cfgWait(); const s=await FB.db.collection('users').orderBy(k,'desc').limit(3+DB.cfgHidden.length).get();
+    const place=s.docs.filter(d=>!isHiddenUid(d.id)).slice(0,3).findIndex(d=>d.id===a.login);
     a.seasonDone[k]=true;
     if(place>=0){ const [ic,xp]=SEASON_PRIZE[place]; a.badges=[...(a.badges||[]),{ic,t:`${place+1} место · сезон ${seasonName(k)}`}]; a.xp+=xp;
       setTimeout(()=>toast(`${ic} Сезон «${seasonName(k)}» окончен: вы на ${place+1} месте! +${xp} XP`),800); }
@@ -4871,9 +4877,10 @@ const PAGES={
       ${reportsHTML()}
       <div class="cardw"><div class="ch"><h3>⚙ Панель создателя</h3><button class="sec sm" data-act="adminReload">↻ Обновить список</button></div>
         <div class="admrow"><b style="width:auto">Имя создателя на сайте:</b><input class="inp" id="aCreator" value="${esc(DB.creatorName||CREATOR)}" style="width:240px"><button class="sm" data-act="adminCreator">Сохранить</button></div>
-        <div class="admrow"><b style="width:auto">Адрес сервера:</b><input class="inp" id="aApi" value="${esc(SRV.url)}" placeholder="https://kubital.….workers.dev" style="width:300px"><button class="sm" data-act="adminApi">Сохранить</button><button class="sm sec" data-act="adminApiCheck">Проверить</button><span class="muted">${SRV.url?(SRV.bot?'✅ подключён, бот @'+esc(SRV.bot):'⏳ нет ответа'):'не подключён — монеты меняет браузер игрока'}</span></div>
+        ${isOwnerUser()?"":"<!--"}<div class="admrow"><b style="width:auto">Адрес сервера:</b><input class="inp" id="aApi" value="${esc(SRV.url)}" placeholder="https://kubital.….workers.dev" style="width:300px"><button class="sm" data-act="adminApi">Сохранить</button><button class="sm sec" data-act="adminApiCheck">Проверить</button><span class="muted">${SRV.url?(SRV.bot?'✅ подключён, бот @'+esc(SRV.bot):'⏳ нет ответа'):'не подключён — монеты меняет браузер игрока'}</span></div>${isOwnerUser()?"":"-->"}
         <div class="admrow"><b style="width:auto">Найти игрока по нику:</b><input class="inp" id="aFind" data-enter="adminFind" style="width:200px"><button class="sm" data-act="adminFind">Найти</button></div>
-        <p class="muted">Показано аккаунтов: ${accs.length}. Изменения сразу сохраняются в облаке.</p></div>
+        <p class="muted">Показано аккаунтов: ${accs.length}. Изменения сразу сохраняются в облаке.</p>
+        <p class="muted">👥 Соавторы (скрыты из таблиц): <b>${admNames(DB.cfgHidden)}</b><br>🔑 Доступ к панели: <b>${admNames(DB.cfgAdmins)}</b>${isOwnerUser()?"":" · вы помощник: адрес сервера и доступы меняет только создатель"}</p></div>
       <div class="cardw"><h3>🏪 Товары Маркета</h3><p class="muted">Маркет выставляет каждую карточку, кейс и набор по ${MKT_N} шт. по завышенной цене (ориентир ×${MKT_MULT}, не меньше 🪙 1). Игроки могут продавать дешевле — тогда сначала покупают у них. Сейчас выставлено Маркетом: <b>${(DB.lots||[]).filter(l=>l.bank).length}</b> шт.</p>
         <button class="sm" data-act="stockFill">🏪 Выставить всё по ${MKT_N} шт.</button> <button class="sm sec" data-act="stockClear">Снять товары Маркета</button></div>
       <div class="cardw"><h3>🖼 Свои картинки брендов</h3>
@@ -4882,6 +4889,7 @@ const PAGES={
       ${accs.length?accs.map(a=>{ const li=levelInfo(a.xp); return `<div class="cardw adm" data-l="${esc(a.login)}">
         <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">${avc(a,48)}<div style="flex:1"><b style="font-size:18px">${isVip(a)?'<span style="color:#ffb627">★</span> ':''}${esc(a.name)}</b> <span class="muted">@${esc(a.nick||'')}${a.login===DB.session?' · это вы':''}</span><br>
           <span class="muted">ур. ${li.lvl} · ${a.xp} XP · ${fmtC(a.coins)} · рейтинг ${a.rating||1000} · предметов ${(a.items||[]).length} · ${isVip(a)?'VIP '+vipLeft(a):'без VIP'}</span></div></div>
+        <div class="admrow"><b>Особые</b><button class="sm ${isHiddenUid(a.login)?'btn-o':'sec'}" data-act="aHide">👥 Соавтор${isHiddenUid(a.login)?' ✓':''}</button>${isOwnerUser()&&!ADMIN_UIDS.includes(a.login)?`<button class="sm ${(DB.cfgAdmins||[]).includes(a.login)?'btn-o':'sec'}" data-act="aAdmin">🔑 Доступ к панели${(DB.cfgAdmins||[]).includes(a.login)?' ✓':''}</button>`:''}<span class="muted">соавтора не видно в таблицах лидеров</span></div>
         <div class="admrow"><b>Премиум</b><button class="sm btn-o" data-act="aPrem">⭐ Выдать на этот месяц</button><span class="muted">${(r=>r&&r.prem&&r.prem[seasonKey()]?"есть":"нет")(a)}</span></div>
         <div class="admrow"><b>VIP</b><button class="sm btn-o" data-act="aVip" data-d="7">+7 дней</button><button class="sm btn-o" data-act="aVip" data-d="30">+30 дней</button><button class="sm btn-o" data-act="aVip" data-d="forever">Навсегда</button><button class="sm red" data-act="aVip" data-d="0">Забрать</button></div>
         <div class="admrow"><b>Монеты</b><input class="inp" type="number" step="0.01" min="0" data-f="coins" value="25" style="width:110px"><button class="sm" data-act="aCoins" data-s="1">Начислить</button><button class="sm sec" data-act="aCoins" data-s="-1">Списать</button></div>
@@ -5047,6 +5055,7 @@ function admAcc(el){ if(!isAdminUser()) return null; const c=el.closest('.adm');
 // сохранить изменённый аккаунт в облако (если это я — обновить и мой кэш)
 // правка монет/предметов/VIP/премиума игрока через сервер (если он подключён)
 async function admApi(a,body,msg){ const j=await apiTry('admin',{uid:a.login,...body}); if(!j) return; Object.assign(a,j.target); if(a.login===DB.session) applyEco(j.target); toast('✔ '+msg(a)); renderSite(); }
+const admNames=ids=>(ids||[]).length?ids.map(id=>{ const a=(DB.allUsers||[]).find(x=>x.login===id)||DB.accounts[id]; return esc(a?a.name:id.slice(0,6)+'…'); }).join(', '):'нет';
 function admDone(msg,a){
   if(a){ if(a.login===DB.session) DB.accounts[a.login]=a; saveAccount(a).then(()=>toast('✔ '+msg)).catch(e=>toast('Ошибка: '+e.message)); }
   else toast('✔ '+msg);
@@ -5071,6 +5080,14 @@ const ADMIN_ACT={
   adminApiCheck:async()=>{ if(!SRV.url) return toast('Адрес не задан'); try{ const j=await (await fetch(SRV.url+'/info')).json(); toast(j.ok?`✅ Сервер отвечает. Бот: @${j.bot||'не подключён'}, премиум ${j.price} ⭐`:'Сервер ответил с ошибкой'); }catch(e){ toast('Сервер не отвечает'); } },
   adminCreator:()=>{ if(!isAdminUser()) return; DB.creatorName=$('#aCreator').value.trim().slice(0,30)||CREATOR; $('#creator').textContent=DB.creatorName;
     FB.db.collection('config').doc('site').set({creatorName:DB.creatorName},{merge:true}).then(()=>toast('✔ Имя создателя сохранено')).catch(e=>toast('Ошибка: '+e.message)); },
+  // соавтор: не попадает в таблицы лидеров и призы; доступ к панели — только создатель выдаёт и забирает
+  aHide:async el=>{ const r=admAcc(el); if(!r) return; const id=r.a.login, on=!isHiddenUid(id), FV=firebase.firestore.FieldValue;
+    try{ await FB.db.collection('config').doc('site').set({hidden:on?FV.arrayUnion(id):FV.arrayRemove(id)},{merge:true}); DB.cfgHidden=on?[...DB.cfgHidden,id]:DB.cfgHidden.filter(x=>x!==id);
+      toast(on?`👥 ${r.a.name} — соавтор, скрыт из таблиц лидеров`:`${r.a.name} снова виден в таблицах`); renderSite(); }catch(e){ toast('Ошибка: '+(e.message||e)); } },
+  aAdmin:async el=>{ const r=admAcc(el); if(!r||!isOwnerUser()) return; const id=r.a.login, on=!(DB.cfgAdmins||[]).includes(id), FV=firebase.firestore.FieldValue;
+    if(on&&!await askConfirm(`Дать <b>${esc(r.a.name)}</b> доступ к панели создателя?<br><br>Он сможет выдавать монеты, предметы и VIP, блокировать игроков и смотреть жалобы. Давать и забирать доступ можете только вы.`,'Дать доступ',true)) return;
+    try{ await FB.db.collection('config').doc('site').set({admins:on?FV.arrayUnion(id):FV.arrayRemove(id)},{merge:true}); DB.cfgAdmins=on?[...DB.cfgAdmins,id]:DB.cfgAdmins.filter(x=>x!==id);
+      toast(on?`🔑 ${r.a.name} получил доступ к панели`:`Доступ к панели у ${r.a.name} забран`); renderSite(); }catch(e){ toast('Ошибка: '+(e.message||e)); } },
   aVip:el=>{ const r=admAcc(el); if(!r) return; const d=el.dataset.d, a=r.a;
     if(srvOn()) return admApi(a,{vipDays:d==='0'?-1:d==='forever'?36500:+d},a=>d==='0'?`VIP забран у ${a.name}`:`VIP для ${a.name}: ${vipLeft(a)}`);
     if(d==='0') a.vipUntil=0; else if(d==='forever') a.vipUntil=VIP_FOREVER; else a.vipUntil=Math.max(Date.now(),a.vipUntil||0)+(+d)*86400000;
@@ -5250,8 +5267,8 @@ async function addFriend(nick){
   }catch(e){ if(err) err.textContent='Ошибка: '+(e.message||e); }
 }
 // загрузка данных для страниц (топ, «добавили вас в друзья», список для создателя)
-async function loadTop(){ if(!FB||!me()) return; try{ const s=await FB.db.collection('users').orderBy('rating','desc').limit(10).get();
-  DB.top=s.docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }); if(PAGE==='games') renderSite(); }catch(e){ console.error('top',e); } }
+async function loadTop(){ if(!FB||!me()) return; try{ await cfgWait(); const s=await FB.db.collection('users').orderBy('rating','desc').limit(10+DB.cfgHidden.length).get();
+  DB.top=noHidden(s.docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }),10); if(PAGE==='games') renderSite(); }catch(e){ console.error('top',e); } }
 // ====== РЫНОК ИГРОКОВ: карточки продают только игроки, по своей цене ======
 // lots/{id}: {seller, sellerName, item, price, status:'open'|'sold', buyer, created, soldAt}
 // Выставить: карточка уходит из инвентаря в лот. Купить: лот помечается проданным (транзакция), покупатель
@@ -5400,7 +5417,7 @@ async function cancelLot(lid){
 // таблицы лидеров сезона и задачи дня (одиночные поля сортируются без отдельных индексов)
 const seasonDaysLeft=()=>{ const n=new Date(), e=new Date(n.getFullYear(),n.getMonth()+1,1); return Math.max(1,Math.ceil((e-n)/86400000)); };
 async function loadBoards(){ if(!FB||!me()) return;
-  const q=async k=>(await FB.db.collection('users').orderBy(k,'desc').limit(10).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0);
+  const q=async k=>{ await cfgWait(); return noHidden((await FB.db.collection('users').orderBy(k,'desc').limit(10+DB.cfgHidden.length).get()).docs.map(d=>{ const a=d.data(); a.login=d.id; return a; }).filter(a=>a[k]>0),10); };
   try{ DB.season=await q(seasonKey()); if(PAGE==='games') renderSite(); }catch(e){ console.error('boards',e); } }
 // зритель: смотреть чужую партию
 function spectate(rid){ closeModal(); watchRoom(rid); NET.spec=true; }
@@ -5416,7 +5433,7 @@ async function onSignedIn(){
   listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); listenMe(); listenGifts(); listenClan(); listenOffers(); watchOrders(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
 }
 if(FB){
-  FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().api){ SRV.url=s.data().api; loadSrvInfo(); } if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
+  DB.cfgP=FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists){ DB.cfgAdmins=s.data().admins||[]; DB.cfgHidden=s.data().hidden||[]; } if(s.exists&&s.data().api){ SRV.url=s.data().api; loadSrvInfo(); } if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
   FB.auth.onAuthStateChanged(async user=>{
     if(!user){ DB.session=null; DB.accounts={}; DB.ready=true; if(AUTH_PAGES.includes(PAGE)) go('auth'); else renderSite(); return; }
     if(REGISTERING) return; // профиль сейчас создаётся в register()

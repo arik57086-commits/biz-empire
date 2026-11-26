@@ -225,7 +225,9 @@ const WHEEL=[
 // Необязательно: PREM_PRICE — цена премиум-пропуска в звёздах (по умолчанию 100)
 // =====================================================================
 const PID='biz-empire-2b4de';
-const ADMINS=['E97EvVzBHbW8FJo7NF1wju3qfCV2'];
+const ADMINS=['E97EvVzBHbW8FJo7NF1wju3qfCV2']; // создатель; помощники — в config/site.admins
+let CFG=null;
+async function isAdm(env,uid){ if(ADMINS.includes(uid)) return true; if(!CFG||CFG.exp<Date.now()){ const c=await getDoc(env,'config/site'); CFG={admins:(c&&c.data.admins)||[],exp:Date.now()+60000}; } return CFG.admins.includes(uid); }
 const FS=`https://firestore.googleapis.com/v1/projects/${PID}/databases/(default)/documents`;
 const DOCNAME=p=>`projects/${PID}/databases/(default)/documents/${p}`;
 const ECO=['coins','items','vipUntil','prem','srv'];
@@ -438,16 +440,16 @@ const ACTIONS={
     return tx(env,async t=>{ const o=await t.get('offers/'+oid); if(!o||o.status!=='open') fail('Предложение уже неактуально'); if(o.from!==uid) fail('Это не ваше предложение');
       const u=await getUser(t,uid); (o.give||[]).forEach(i=>addItem(u,i)); u.coins=r2(u.coins+(o.coins||0)); saveEco(t,uid,u); t.del('offers/'+oid); return {user:pub(u)}; }); },
   // ---- создатель: товары Маркета и правка игроков ----
-  async stockFill(env,uid){ if(!ADMINS.includes(uid)) fail('Только для создателя');
+  async stockFill(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
     const have={}; (await query(env,'lots',[eq('bank',true),eq('status','open')],1000)).forEach(l=>have[l.data.item]=(have[l.data.item]||0)+1);
     const todo=[]; ITEMS.filter(isLotItem).forEach(x=>{ for(let k=have[x.id]||0;k<MKT_N;k++) todo.push(x); });
     for(let i=0;i<todo.length;i+=400) await gfetch(env,`${FS}:commit`,{method:'POST',body:JSON.stringify({writes:todo.slice(i,i+400).map(x=>({update:{name:DOCNAME('lots/'+newUid()+i),fields:fieldsOf({seller:'bank',sellerName:'🏪 Маркет',item:x.id,price:mktPrice(x),status:'open',created:Date.now(),bank:true})}}))})});
     return {n:todo.length}; },
-  async stockClear(env,uid){ if(!ADMINS.includes(uid)) fail('Только для создателя');
+  async stockClear(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
     const L=await query(env,'lots',[eq('bank',true),eq('status','open')],1000);
     for(let i=0;i<L.length;i+=400) await gfetch(env,`${FS}:commit`,{method:'POST',body:JSON.stringify({writes:L.slice(i,i+400).map(l=>({delete:DOCNAME('lots/'+l.id)}))})});
     return {n:L.length}; },
-  async admin(env,uid,b){ if(!ADMINS.includes(uid)) fail('Только для создателя'); const who=String(b.uid||'');
+  async admin(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников'); const who=String(b.uid||'');
     return tx(env,async t=>{ const u=await getUser(t,who);
       if(b.coins) u.coins=Math.max(0,r2(u.coins+(+b.coins)));
       if(b.item){ if(!ITEMS.some(x=>x.id===b.item)) fail('Нет такого предмета'); addItem(u,b.item); }

@@ -3291,7 +3291,7 @@ function canManage(i){
 function cellAction(a,i,m){
   const c=CELLS[i], s=G.cells[i]; if(s.owner!==a.id) return;
   if(m==='build'&&canBuild(i)) doBuild(a,i);
-  if(m==='sell'&&canSell(i)){ a.money+=c.house/2; s.level--; log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
+  if(m==='sell'&&canSell(i)){ sellBranch(a,i); log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
   if(m==='mort'&&canMortgage(i)){ a.money+=c.price/2; s.mort=true; s.mortR=G.round||1; log(`${pn(a)} закладывает ${cn(i)} и получает ${fmt(c.price/2)}`); }
   if(m==='unmort'&&s.mort&&a.money>=unmortCost(i)){ a.money-=unmortCost(i); s.mort=false; log(`${pn(a)} выкупает ${cn(i)}`); }
   if(m==='hq'&&canHQ(i)){ a.money-=hqCost(i); s.hq=true; log(`🏛 ${pn(a)} строит <b>штаб-квартиру</b> в ${cn(i)} — аренда всей группы «${GROUPS[c.g].n}» +${Math.round((HQ_MULT-1)*100)}%`); track(a,'build'); track(a,'hq'); }
@@ -3306,7 +3306,10 @@ function canBuild(i){
 }
 function canSell(i){ const c=CELLS[i],s=G.cells[i]; if(c.type!=='prop'||!s.level) return false; if(M().noMono) return true; return s.level===Math.max(...groupCells(c.g).map(j=>G.cells[j].level)); }
 function canMortgage(i){ const c=CELLS[i],s=G.cells[i]; if(s.mort||s.hq) return false; if(c.type!=='prop') return true; if(M().noMono) return !s.level; return groupCells(c.g).every(j=>!G.cells[j].level); }
-function doBuild(p,i){ const c=CELLS[i],s=G.cells[i]; p.money-=houseCost(i); s.level++; log(`${pn(p)} строит филиал в ${cn(i)}${s.level===5?' — теперь это небоскрёб 🏨':''}`); track(p,'build'); }
+// продажа филиала возвращает полную цену, которую за него заплатили (s.paid — цены по уровням)
+const branchBack=i=>{ const s=G.cells[i]; return s.paid&&s.paid.length?s.paid[s.paid.length-1]:CELLS[i].house; };
+const sellBranch=(p,i)=>{ const s=G.cells[i], v=branchBack(i); p.money+=v; if(s.paid) s.paid.pop(); s.level--; return v; };
+function doBuild(p,i){ const c=CELLS[i],s=G.cells[i], cost=houseCost(i); p.money-=cost; (s.paid=s.paid||[]).push(cost); s.level++; log(`${pn(p)} строит филиал в ${cn(i)}${s.level===5?' — теперь это небоскрёб 🏨':''}`); track(p,'build'); }
 function openCard(i){
   const c=CELLS[i], s=G?G.cells[i]:{owner:-1,level:0};
   const col=c.g?GROUPS[c.g].c:'#4a5163';
@@ -3341,7 +3344,7 @@ function openCard(i){
     const a=actor();
     if(c.type==='prop'&&(M().noMono||ownsGroup(a.id,c.g))) acts+=`<button data-m="build" ${canBuild(i)?'':'disabled'}>Построить филиал (${fmt(houseCost(i))})</button>`;
     if(canHQ(i)) acts+=`<button data-m="hq" class="btn-o">🏛 Штаб-квартира (${fmt(hqCost(i))})</button>`;
-    if(canSell(i)) acts+=`<button data-m="sell" class="sec">Продать филиал (+${fmt(c.house/2)})</button>`;
+    if(canSell(i)) acts+=`<button data-m="sell" class="sec">Продать филиал (+${fmt(branchBack(i))})</button>`;
     if(!s.mort) acts+=`<button data-m="mort" class="sec" ${canMortgage(i)?'':'disabled'}>Заложить (+${fmt(c.price/2)})</button>`;
     else acts+=`<button data-m="unmort" ${a.money>=unmortCost(i)&&G.phase!=='debt'?'':'disabled'}>Выкупить (${fmt(unmortCost(i))})</button>`;
   }
@@ -3799,7 +3802,7 @@ async function pay(p,amt,to){
 function bankrupt(p,to){
   if(p.out) return;
   const cred=to>=0?G.players[to]:null;
-  G.cells.forEach((s,i)=>{ if(s.owner===p.id&&s.level){ p.money+=s.level*CELLS[i].house/2; s.level=0; } });
+  G.cells.forEach((s,i)=>{ if(s.owner===p.id) while(s.level>0) sellBranch(p,i); });
   if(cred){ cred.money+=Math.max(0,p.money); track(cred,'kill'); }
   G.cells.forEach(s=>{ if(s.owner===p.id){ if(cred) s.owner=cred.id; else { s.owner=-1; s.mort=false; resetCell(s); } } });
   p.money=0; p.out=true; p.inJail=false; p.credit=null; checkRentStage();
@@ -3958,7 +3961,7 @@ function botWantsBuy(p,i){
 function autoLiquidate(p,amt){
   while(p.money<amt){
     const withLv=cellsOf(p.id).filter(i=>canSell(i)).sort((a,b)=>G.cells[b].level-G.cells[a].level);
-    if(withLv.length){ const i=withLv[0]; G.cells[i].level--; p.money+=CELLS[i].house/2; log(`${pn(p)} продаёт филиал в ${cn(i)}`); continue; }
+    if(withLv.length){ const i=withLv[0]; sellBranch(p,i); log(`${pn(p)} продаёт филиал в ${cn(i)}`); continue; }
     const m=cellsOf(p.id).filter(i=>canMortgage(i)).sort((a,b)=>CELLS[a].price-CELLS[b].price);
     if(canTakeCredit(p)){ takeCredit(p); continue; }
     if(m.length){ const i=m[0]; G.cells[i].mort=true; G.cells[i].mortR=G.round||1; p.money+=CELLS[i].price/2; log(`${pn(p)} закладывает ${cn(i)}`); continue; }

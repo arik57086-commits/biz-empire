@@ -1225,6 +1225,25 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+Премиум-пропуск=Premium pass
+нижний ряд наград до конца месяца=the bottom reward row until the end of the month
+Оплата звёздами Telegram в нашем боте. После оплаты вернитесь сюда — пропуск откроется сам.=Pay with Telegram Stars in our bot. After paying, come back here — the pass unlocks by itself.
+Премиум-пропуск на этот месяц открыт=Premium pass for this month is active
+с ⭐ премиум-пропуском=with ⭐ premium pass
+Нижний ряд — с премиум-пропуском ⭐=Bottom row — with premium pass ⭐
+загрузка…=loading…
+Выпало:=Dropped:
+Сервер недоступен=Server unavailable
+Колесо уже крутили сегодня — приходите завтра=The wheel was already spun today — come back tomorrow
+Награда уже получена=Reward already received
+Сервер занят, попробуйте ещё раз=Server is busy, try again
+Вход устарел — обновите страницу=Sign-in expired — refresh the page
+Не хватает очков сезона=Not enough season points
+Партия ещё не закончилась=The game isn't over yet
+Дарить можно только друзьям=You can only gift to friends
+Выдать на этот месяц=Grant for this month
+Адрес сервера:=Server address:
+Проверить=Check
 Книга коллекций=Collection book
 Собрано брендов:=Brands collected:
 Карточки, надетые на все компании коллекции, дают каждой ещё=Cards equipped on all companies of a collection give each another
@@ -1863,6 +1882,7 @@ button.big{font-size:18px;padding:12px 28px}
 .mrow2{display:flex;align-items:center;gap:12px;padding:8px 4px;border-bottom:1px solid #eef}.mrow2 .art{flex:none}.mrow2 .mn2{flex:1;min-width:0}.mrow2 .mnm{font-size:15px}.mrow2 .mq{width:60px;text-align:right;color:#667;font-size:14px}.mrow2 .mp{width:110px;text-align:right;font-weight:700;white-space:nowrap}.mrow2 .mp small{font-weight:400;color:#889}.mrow2 button{width:132px;margin:0;white-space:nowrap;font-size:12px;padding-left:6px;padding-right:6px}
 .pava{display:flex;flex-direction:column;align-items:center;gap:10px}.pbtns{display:flex;flex-direction:column;gap:6px;width:230px}.pbtns button{margin:0;width:100%}.gst{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin:10px 0}.gst b{display:block;font-size:22px}.gst span{font-size:12px;color:#8892a6}.gtab{width:100%;border-collapse:collapse;font-size:14px}.gtab th{font-size:12px;color:#8892a6;font-weight:600;text-align:right;padding:4px}.gtab td{padding:6px 4px;border-top:1px solid #8882;text-align:right}.gtab td:first-child,.gtab th:first-child{text-align:left}
 .invrow{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}.invrow button{margin:0}
+.premb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;background:linear-gradient(120deg,#fff6d6,#ffe1f1);border-radius:8px;padding:10px 12px;margin-bottom:8px;color:#3a2a00}.premb .btn-o{text-decoration:none;white-space:nowrap}.premok{background:#e7f8ef;color:#1e7a46;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-weight:700}
 .cbk{margin-bottom:14px}.ctile.miss{opacity:.35;filter:grayscale(1)}.ctile.sel{outline:3px solid #22b8a5}.ctile[data-o]{cursor:pointer}.ocols{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ogrid{display:flex;flex-wrap:wrap;gap:6px;max-height:40vh;overflow:auto;margin-top:6px}.ogrid .ctile{width:84px}.offr{padding:10px 4px;border-bottom:1px solid #eef;line-height:1.8}.oit{display:inline-block;border:2px solid;border-radius:6px;padding:0 6px;margin:1px;font-size:13px;line-height:1.6}.mrow2 .ordb{width:40px!important;padding:0!important}.wheel{position:relative;width:280px;height:280px;margin:14px auto 0}.wdisc{width:280px;height:280px;border-radius:50%;position:relative;box-shadow:0 0 0 6px #fff,0 4px 20px #0005}.wdisc span{position:absolute;left:50%;top:50%;font-size:26px;width:34px;height:34px;margin:-17px 0 0 -17px;display:flex;align-items:center;justify-content:center;text-shadow:0 1px 3px #0006}.wpin{position:absolute;left:50%;top:-10px;margin-left:-13px;border:13px solid transparent;border-top:24px solid #ffb627;z-index:2;filter:drop-shadow(0 2px 2px #0006)}.wmini{width:64px;height:64px;border-radius:50%;flex:none;box-shadow:0 0 0 3px #fff,0 2px 6px #0003}
 @media (max-width:560px){ .cbox,.sbox{zoom:.62;max-width:none!important;width:560px!important;min-width:560px} .chead{flex-wrap:nowrap} .gtab{font-size:11.5px} .gtab th,.gtab td{padding:4px 2px} .gtab th{font-size:10.5px} .gst b{font-size:18px} }
 .mrow .mi2{font-size:44px;width:70px;text-align:center}
@@ -2108,6 +2128,7 @@ function askText(title,value='',o={}){
 }
 </script>
 <script>
+//@econ{
 // ====== ДАННЫЕ ПОЛЯ ======
 const GROUPS={brown:{c:'#8d6e63',h:500,n:'Еда'},lb:{c:'#29b6f6',h:500,n:'Сервисы'},pink:{c:'#ec407a',h:1000,n:'Мода'},orange:{c:'#fb8c00',h:1000,n:'Фастфуд'},red:{c:'#e53935',h:1500,n:'Развлечения'},yellow:{c:'#fbc02d',h:1500,n:'Связь'},green:{c:'#43a047',h:2000,n:'Технологии'},blue:{c:'#3949ab',h:2000,n:'Финансы'}};
 const P=(name,ic,g,price)=>({type:'prop',name,ic,g,price});
@@ -2130,6 +2151,7 @@ const BASE_CELLS=[
 ];
 BASE_CELLS.forEach(c=>{ if(c.type==='prop'){ const b=Math.max(20,Math.round(c.price*0.07/10)*10); c.rent=[b,b*5,b*14,b*35,b*45,b*55]; c.house=GROUPS[c.g].h; } });
 let CELLS=BASE_CELLS.slice();
+//@econ}
 const CHANCE=[
  {t:'Вы выиграли конкурс стартапов! +1,000k',money:1000},
  {t:'Налоговая проверка. Заплатите 1,500k',money:-1500},
@@ -2162,10 +2184,12 @@ const MODES={
 };
 // все режимы, кроме обычной, рейтинговой и задачи дня, — только с VIP
 Object.keys(MODES).forEach(k=>{ if(!['classic','ranked','daily'].includes(k)) MODES[k].vip=true; });
+//@econ{
 const VIP_PLANS=[{days:7,price:25},{days:30,price:100}];
 const isVip=a=>!!(a&&a.vipUntil>Date.now());
 const vipDaysLeft=a=>Math.max(0,Math.ceil((((a&&a.vipUntil)||0)-Date.now())/86400000));
 const VIP_FOREVER=Date.UTC(2100,0,1);
+//@econ}
 const vipLeft=a=>(a&&a.vipUntil>=VIP_FOREVER)?'навсегда':vipDaysLeft(a)+' дн.';
 const M=()=>MODES[(G&&G.mode)||'classic']||MODES.classic;
 // за круг: обычная сумма режима; после 10-го круга — 1,000k; после 20-го — ничего
@@ -2195,10 +2219,52 @@ let saveTimer=null;
 function saveDB(){
   const u=me(); if(!FB||!u) return;
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{ const d={...me()}; FB.db.collection('users').doc(DB.session).set(d).catch(e=>console.error('save',e)); },400);
+  saveTimer=setTimeout(()=>{ writeUser(me()).catch(e=>console.error('save',e)); },400);
 }
 // записать чужой аккаунт (только создатель — так разрешают правила базы)
-function saveAccount(a){ if(!FB||!a) return Promise.resolve(); return FB.db.collection('users').doc(a.login).set({...a}); }
+function saveAccount(a){ return writeUser(a); }
+// ====== СЕРВЕР ЭКОНОМИКИ ======
+// Когда в настройках сайта (config/site.api) указан адрес сервера, монеты, предметы, VIP и премиум
+// меняет только сервер: игра шлёт ему запрос, он проверяет и записывает. Без адреса — всё как раньше.
+const SRV={url:'',bot:'',price:100};
+const ECO_F=['coins','items','vipUntil','prem','srv'];
+const srvOn=()=>!!(SRV.url&&FB&&FB.auth&&FB.auth.currentUser);
+async function api(name,body={}){
+  if(!srvOn()) throw new Error('Сервер недоступен');
+  const tok=await FB.auth.currentUser.getIdToken();
+  let r,j;
+  try{ r=await fetch(SRV.url.replace(/\/$/,'')+'/api/'+name,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)}); j=await r.json(); }
+  catch(e){ throw new Error('Нет связи с сервером. Проверьте интернет'); }
+  if(!r.ok||j.error) throw new Error(j.error||('Ошибка сервера '+r.status));
+  if(j.user) applyEco(j.user);
+  return j;
+}
+// записать в свой профиль то, что прислал сервер
+function applyEco(e){ const u=me(); if(!u||!e) return; u.coins=e.coins; u.items=e.items||[]; u.vipUntil=e.vipUntil||0; u.prem=e.prem||{}; cleanSlots(u); if(u.eq&&u.eq!=='tok_default'&&!hasItem(u,u.eq)) u.eq='tok_default'; }
+// сохранить профиль: в серверном режиме — без полей экономики (их пишет только сервер)
+function writeUser(a){
+  if(!FB||!a) return Promise.resolve();
+  const ref=FB.db.collection('users').doc(a.login);
+  if(!srvOn()) return ref.set({...a});
+  const d={...a}; ECO_F.forEach(k=>delete d[k]); delete d.banned;
+  return ref.update(d).catch(e=>{ if(e&&e.code==='not-found') return ref.set(d,{merge:true}); throw e; });
+}
+// свой профиль из базы: сервер мог изменить монеты/предметы (кто-то купил ваш лот, принял обмен, подарил предмет)
+let meUnsub=null;
+function listenMe(){
+  if(!FB||!DB.session||meUnsub) return;
+  meUnsub=FB.db.collection('users').doc(DB.session).onSnapshot(s=>{ if(!srvOn()||!s.exists) return; const d=s.data(), u=me(); if(!u) return;
+    const was=JSON.stringify([u.coins,u.items,u.vipUntil,u.prem]); applyEco(d);
+    if(was!==JSON.stringify([u.coins,u.items,u.vipUntil,u.prem])&&!$('#landing').classList.contains('hide')&&!$('#modal').innerHTML&&!$('#dlg').innerHTML) renderSite(); },e=>console.error('me',e));
+}
+async function loadSrvInfo(){
+  if(!SRV.url) return;
+  try{ const j=await (await fetch(SRV.url.replace(/\/$/,'')+'/info')).json(); SRV.bot=j.bot||''; SRV.price=j.price||100; if(PAGE==='games') renderSite(); }catch(e){ console.error('srv info',e); }
+}
+const hasPrem=u=>!!(u&&u.prem&&u.prem[seasonKey()]);
+const premLink=()=>SRV.bot&&DB.session?`https://t.me/${SRV.bot}?start=${DB.session}`:'';
+// обёртка для кнопок: показать ошибку сервера тостом и вернуть null
+async function apiTry(name,body){ try{ return await api(name,body); }catch(e){ toast('⚠ '+(e.message||e)); return null; } }
 async function loadUser(uid){
   if(!FB) return null;
   const s=await FB.db.collection('users').doc(uid).get();
@@ -2211,6 +2277,7 @@ const AUTH_ERR={'auth/invalid-email':'Неверный адрес почты.','
   'auth/too-many-requests':'Слишком много попыток. Подождите немного.','auth/network-request-failed':'Нет связи с сервером. Проверьте интернет.',
   'auth/operation-not-allowed':'Вход по почте выключен в Firebase.','auth/unauthorized-domain':'Этот адрес сайта не разрешён в настройках Firebase.'};
 const authErr=e=>AUTH_ERR[e&&e.code]||('Ошибка: '+((e&&e.message)||e));
+//@econ{
 // ====== ПРЕДМЕТЫ ======
 // Монеты 🪙 — только игровые. Получить их можно, только продав предметы на Маркете.
 const RAR=[['Обычный','#29b6f6'],['Редкий','#43a047'],['Эпический','#8e24aa'],['Легендарный','#fb8c00'],['Уникальный','#e53935'],['Мифический','#ff2d95']];
@@ -2384,6 +2451,7 @@ function autoEquip(a){
 }
 // на какие клетки надеты экземпляры карточки id
 const slotsOf=(a,id)=>Object.keys(cleanSlots(a)).filter(k=>{ const it=a.items.find(x=>x.uid===a.slots[k]); return it&&it.id===id; }).map(Number);
+//@econ}
 // ====== КАРТИНКИ ПРЕДМЕТОВ ======
 const RAR_GRAD=['#62b9ea,#2f9fd8','#5cc68a,#2e9e5b','#a77be0,#7b4fd0','#ffb347,#ff7b29','#ff5a5a,#c62828','#ff4fd8,#7b2ff7,#22d3ee'];
 // w,h — размер в px. Бренд: своя картинка из logos/ (если есть), иначе табличка в фирменных цветах.
@@ -2450,7 +2518,7 @@ const TASK_POOL=[
  {id:'play_duel',t:'Сыграйте «Дуэль»',goal:3,xp:150,mode:'duel'},
  {id:'play_ranked',t:'Сыграйте рейтинговый матч',goal:2,xp:250,mode:'ranked'}
 ];
-const today=()=>new Date().toLocaleDateString('sv');
+const today=()=>new Date().toLocaleDateString('sv',{timeZone:'Europe/Moscow'}); // день по Москве — как на сервере
 const TASKS_V=2; // при смене набора заданий — пересоздать задания дня
 // 4 задания в день: 2 по режимам (из доступных игроку) и 2 обычных; набор одинаковый для всех с тем же доступом
 function ensureTasks(a){
@@ -3070,7 +3138,7 @@ function dailyLogin(a){
   if(!a) return; const d=today(); const y=new Date(); y.setDate(y.getDate()-1); const yd=y.toLocaleDateString('sv');
   const L=a.login0||{}; if(L.day===d) return;
   const streak=L.day===yd?(L.streak||0)+1:1, xp=Math.min(100,20+streak*10), box=streak%7===0;
-  a.login0={day:d,streak}; a.xp=(a.xp||0)+xp; if(box) addItem(a,'set_start'); saveDB();
+  a.login0={day:d,streak}; a.xp=(a.xp||0)+xp; if(box){ if(srvOn()) apiTry('login7'); else addItem(a,'set_start'); } saveDB();
   setTimeout(()=>{ $('#modal').innerHTML=`<div class="ov" id="dlov"><div class="box lt" style="width:340px;text-align:center"><div style="font-size:48px">🎁</div>
     <h2 style="margin:4px 0">Награда за вход</h2><p>День <b>${streak}</b> подряд: <b>+${xp} XP</b>${box?'<br>и 🎁 <b>Набор Prima</b> в инвентарь!':''}</p>
     <div style="display:flex;justify-content:center;gap:4px;margin:8px 0">${[1,2,3,4,5,6,7].map(k=>{ const n=((streak-1)%7)+1; return `<span style="width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:${k<=n?'#22b8a5':'#e9ecf3'};color:${k<=n?'#fff':'#8a93a6'}">${k===7?'🎁':k}</span>`; }).join('')}</div>
@@ -3634,6 +3702,7 @@ async function giftItem(id){
     <div style="text-align:center"><button class="btn-o" id="gfGo">🎁 Подарить</button><button class="sec" id="gfx">Отмена</button></div></div></div>`;
   $('#gfx').onclick=closeModal;
   $('#gfGo').onclick=async()=>{ const to=$('#gfTo').value, text=cleanChat($('#gfText').value).slice(0,100);
+    if(srvOn()){ $('#gfGo').disabled=true; const j=await apiTry('gift',{to,id,text}); if(!j){ $('#gfGo').disabled=false; return; } addDeal(u,{k:'gift',item:id,price:0,who:(DB.accounts[to]||{}).name||''}); saveDB(); closeModal(); renderSite(); return toast('🎁 Подарок отправлен'); }
     const used=new Set(Object.values(cleanSlots(u))); let k=u.items.findIndex(it=>it.id===id&&!used.has(it.uid)); if(k<0) k=u.items.findIndex(it=>it.id===id); if(k<0) return;
     $('#gfGo').disabled=true; const [it]=u.items.splice(k,1); cleanSlots(u);
     try{ await saveAccount(u); await FB.db.collection('gifts').add({from:DB.session,fromName:u.name,to,item:id,text,at:Date.now()});
@@ -3651,7 +3720,7 @@ async function claimGift(gid){
   if(claiming.has(gid)) return; claiming.add(gid);
   try{ let g=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('gifts').doc(gid), s=await tx.get(ref); g=null; if(!s.exists) return; g=s.data(); if(g.to!==DB.session){ g=null; return; } tx.delete(ref); });
-    const u=me(); if(!g||!u) return; addItem(u,g.item); addDeal(u,{k:'gifted',item:g.item,price:0,who:g.fromName||''}); saveDB(); const x=item(g.item);
+    const u=me(); if(!g||!u) return; if(!srvOn()) addItem(u,g.item); addDeal(u,{k:'gifted',item:g.item,price:0,who:g.fromName||''}); saveDB(); const x=item(g.item);
     $('#modal').innerHTML=`<div class="ov" id="ggov"><div class="box lt" style="width:340px;text-align:center"><div class="muted">🎁 Подарок от <b>${esc(g.fromName||'друга')}</b></div>
       <div style="display:flex;justify-content:center;margin:10px 0">${itemArt(x,200,150)}</div><h2 style="margin:4px 0">${esc(x.n)}</h2>${g.text?`<p style="font-style:italic">«<span data-notr>${esc(g.text)}</span>»</p>`:''}<button id="ggok">Спасибо!</button></div></div>`;
     $('#ggok').onclick=closeModal; SFX.buy(); pushNote('🎁 Подарок от '+(g.fromName||'друга'),x.n,'gift');
@@ -3709,20 +3778,25 @@ document.addEventListener('submit',e=>{ if(e.target.id!=='ccf') return; e.preven
   FB.db.collection('clans').doc(DB.clan.id).collection('chat').add({uid:DB.session,name:u.name,color:u.color||'#3b8fd6',text:t,at:Date.now()}).catch(err=>toast('Не отправилось: '+(err.message||err))); });
 
 // ====== СЕЗОННЫЙ ПРОПУСК: уровни за очки сезона; бесплатные награды и дополнительные с VIP ======
+//@econ{
 const PASS=[[2,['xp',100],['key']],[5,['xp',150],['set_start']],[8,['key'],['key']],[12,['xp',200],['set_elite']],[16,['set_start'],['key']],[20,['xp',300],['case_lux']],[25,['key'],['set_elite']],[30,['set_start'],['key']],[40,['xp',500],['case_coll']],[50,['set_elite'],['set_elite']]];
+//@econ}
 const passRewardText=r=>r[0]==='xp'?`+${r[1]} XP`:`${item(r[0]).ic} ${item(r[0]).n}`;
 function passHTML(u){
-  const k=seasonKey(), pts=u[k]||0, cl=(u.pass&&u.pass[k])||{f:[],v:[]}, vip=isVip(u);
+  const k=seasonKey(), pts=u[k]||0, cl=(u.pass&&u.pass[k])||{f:[],v:[]}, srv=srvOn(), vip=srv?hasPrem(u):isVip(u);
   return `<div class="cardw"><div class="ch"><h3>🎟 Сезонный пропуск</h3><span class="muted">очки сезона: <b>${pts}</b></span></div>
-    <p class="muted" style="margin-top:-6px">Очки за матчи (победа +3, матч +1) открывают уровни. Награды верхнего ряда — всем, нижнего — с 👑 VIP. Пропуск обновляется каждый месяц.</p>
+    <p class="muted" style="margin-top:-6px">Очки за матчи (победа +3, матч +1) открывают уровни. Награды верхнего ряда — всем, нижнего — ${srv?'с ⭐ премиум-пропуском':'с 👑 VIP'}. Пропуск обновляется каждый месяц.</p>
+    ${srv?(vip?'<div class="premok">⭐ Премиум-пропуск на этот месяц открыт</div>':`<div class="premb"><span>⭐ <b>Премиум-пропуск</b> — нижний ряд наград до конца месяца</span>${premLink()?`<a class="btn-o" href="${premLink()}" target="_blank" rel="noopener">Купить за ${SRV.price} ⭐</a>`:'<span class="muted">загрузка…</span>'}</div><p class="muted" style="font-size:12px;margin-top:4px">Оплата звёздами Telegram в нашем боте. После оплаты вернитесь сюда — пропуск откроется сам.</p>`):''}
     <div class="pass">${PASS.map(([need,f,v],i)=>{ const open=pts>=need; const btn=(row,rw,ok)=>{ const got=cl[row].includes(i);
         return `<div class="pr ${got?'got':''} ${open&&ok&&!got?'can':''}" ${open&&ok&&!got?`data-act="passClaim" data-i="${i}" data-r="${row}"`:''}>${got?'✔ ':''}${passRewardText(rw)}</div>`; };
       return `<div class="pc ${open?'open':''}"><div class="pn">${need}</div>${btn('f',f,true)}${btn('v',v,vip)}</div>`; }).join('')}</div></div>`;
 }
-function passClaim(i,row){
-  const u=me(), k=seasonKey(); if(!u) return; const lv=PASS[i]; if(!lv||(u[k]||0)<lv[0]) return; if(row==='v'&&!isVip(u)) return toast('Нижний ряд — только с VIP');
+async function passClaim(i,row){
+  const u=me(), k=seasonKey(); if(!u) return; const lv=PASS[i]; if(!lv||(u[k]||0)<lv[0]) return; if(row==='v'&&!(srvOn()?hasPrem(u):isVip(u))) return toast(srvOn()?'Нижний ряд — с премиум-пропуском ⭐':'Нижний ряд — только с VIP');
   u.pass=u.pass||{}; const cl=u.pass[k]=u.pass[k]||{f:[],v:[]}; if(cl[row].includes(i)) return;
-  const rw=row==='f'?lv[1]:lv[2]; cl[row].push(i);
+  const rw=row==='f'?lv[1]:lv[2];
+  if(srvOn()){ const j=await apiTry('pass',{i,row}); if(!j) return; cl[row].push(i); if(j.xp) u.xp+=j.xp; saveDB(); renderSite(); return toast('🎟 Получено: '+passRewardText(rw)); }
+  cl[row].push(i);
   if(rw[0]==='xp') u.xp+=rw[1]; else addItem(u,rw[0]);
   saveDB(); renderSite(); toast('🎟 Получено: '+passRewardText(rw));
 }
@@ -4139,13 +4213,14 @@ function finishGame(w){
     const score=M().daily?Math.round(netWorth(p)):null;
     if(p.noReward) return {uid:p.uid||p.acc,pid:p.id,win:false,xp:0,rd,drop:null,tp:null,noReward:true,score};
     // VIP в рейтинговой игре получает предмет гарантированно, остальные — по таблице выпадения
-    const it=rollDrop(vip&&ranked);
+    const it=srvOn()&&G.online?null:rollDrop(vip&&ranked); // с сервером выпадение бросает сервер
     return {uid:p.uid||p.acc,pid:p.id,win,xp:50+(win?150:0),rd,drop:it?it.id:null,tp:(G.tp&&p.uid&&G.tp[p.uid])||null,score};
   });
   render(); netPublishNow();
   saveMatchLog(); showWinner(w,applyMyResult());
 }
 // начислить себе свою награду (один раз) и вернуть строки итогов для окна победителя
+// награда за матч от сервера (повторяем, если итог партии ещё не успел записаться)async function claimReward(rid){  for(let k=0;k<5;k++){ try{ const j=await api('reward',{rid}); if(j.drop){ const it=item(j.drop); SFX.buy(); toast(`🎁 Выпало: ${it.ic} ${it.n}`); } else toast('Предмет в этот раз не выпал'); saveDB(); return; }    catch(e){ if(!/не закончилась/.test(e.message)) return toast('⚠ '+e.message); await new Promise(r=>setTimeout(r,1500)); } }}
 function applyMyResult(){
   const lines=(G.results||[]).map(r=>{ const p=G.players[r.pid]; const it=r.drop&&item(r.drop);
     if(r.noReward) return `${pn(p)}: 🏳️ сдался в первые ${EARLY_SURRENDER} ходов — без награды${r.rd?` · рейтинг ${r.rd}`:''}`;
@@ -4157,7 +4232,7 @@ function applyMyResult(){
     if(r.noReward){ if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
       a.history=[{t:Date.now(),mode:G.mode,win:false,n:G.players.length},...(a.history||[])].slice(0,20); addLeagues(a,r); checkAch(a); saveDB(); return lines; }
     if(r.rd) a.rating=Math.max(0,(a.rating||1000)+r.rd);
-    if(r.drop) addItem(a,r.drop);
+    if(srvOn()&&G.online&&G.rid) claimReward(G.rid); else if(r.drop) addItem(a,r.drop);
     a.history=[{t:Date.now(),mode:G.mode,win:r.win,n:G.players.length},...(a.history||[])].slice(0,20);
     const meP={acc:DB.session};
     const G0=G; G=null; // чтобы track() не писал в журнал партии и не считал это игрой по сети
@@ -4243,7 +4318,7 @@ function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;
 // ключи сезона (месяц), недели и дня — для таблиц лидеров
 const pad2=n=>String(n).padStart(2,'0');
-const seasonKey=(d=new Date())=>`sp_${d.getFullYear()}_${pad2(d.getMonth()+1)}`;
+const seasonKey=(d=new Date())=>{ const m=new Date(d.getTime()+(d.getTimezoneOffset()+180)*60000); return `sp_${m.getFullYear()}_${pad2(m.getMonth()+1)}`; }; // месяц по Москве — как на сервере
 const prevSeasonKey=()=>{ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return seasonKey(d); };
 const seasonName=k=>{ const [,y,m]=k.split('_'); return ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][+m-1]+' '+y; };
 const weekKey=(d=new Date())=>{ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day);
@@ -4350,7 +4425,7 @@ function leaveNet(forget){
   Object.assign(NET,{rid:null,room:null,role:null,started:false,unsub:null,unsubAct:null,pubT:null,resolvers:{},handledAsk:null,endShown:false,spec:false});
   if(G&&G.online){ gameId++; stopTimer(); pending=null; G=null; }
   // хозяин после конца игры удаляет комнату (гости уже получили итог)
-  if(forget&&wasHost&&rid&&FB) roomRef(rid).delete().catch(()=>{});
+  if(forget&&wasHost&&rid&&FB) setTimeout(()=>roomRef(rid).delete().catch(()=>{}),60000); // не сразу: игроки успевают забрать награду
 }
 // хозяин: запуск или продолжение партии (например, после перезагрузки страницы)
 function resumeHost(r){
@@ -4786,6 +4861,7 @@ const PAGES={
       ${reportsHTML()}
       <div class="cardw"><div class="ch"><h3>⚙ Панель создателя</h3><button class="sec sm" data-act="adminReload">↻ Обновить список</button></div>
         <div class="admrow"><b style="width:auto">Имя создателя на сайте:</b><input class="inp" id="aCreator" value="${esc(DB.creatorName||CREATOR)}" style="width:240px"><button class="sm" data-act="adminCreator">Сохранить</button></div>
+        <div class="admrow"><b style="width:auto">Адрес сервера:</b><input class="inp" id="aApi" value="${esc(SRV.url)}" placeholder="https://kubital.….workers.dev" style="width:300px"><button class="sm" data-act="adminApi">Сохранить</button><button class="sm sec" data-act="adminApiCheck">Проверить</button><span class="muted">${SRV.url?(SRV.bot?'✅ подключён, бот @'+esc(SRV.bot):'⏳ нет ответа'):'не подключён — монеты меняет браузер игрока'}</span></div>
         <div class="admrow"><b style="width:auto">Найти игрока по нику:</b><input class="inp" id="aFind" data-enter="adminFind" style="width:200px"><button class="sm" data-act="adminFind">Найти</button></div>
         <p class="muted">Показано аккаунтов: ${accs.length}. Изменения сразу сохраняются в облаке.</p></div>
       <div class="cardw"><h3>🏪 Товары Маркета</h3><p class="muted">Маркет выставляет каждую карточку, кейс и набор по ${MKT_N} шт. по завышенной цене (ориентир ×${MKT_MULT}, не меньше 🪙 1). Игроки могут продавать дешевле — тогда сначала покупают у них. Сейчас выставлено Маркетом: <b>${(DB.lots||[]).filter(l=>l.bank).length}</b> шт.</p>
@@ -4796,6 +4872,7 @@ const PAGES={
       ${accs.length?accs.map(a=>{ const li=levelInfo(a.xp); return `<div class="cardw adm" data-l="${esc(a.login)}">
         <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">${avc(a,48)}<div style="flex:1"><b style="font-size:18px">${isVip(a)?'<span style="color:#ffb627">★</span> ':''}${esc(a.name)}</b> <span class="muted">@${esc(a.nick||'')}${a.login===DB.session?' · это вы':''}</span><br>
           <span class="muted">ур. ${li.lvl} · ${a.xp} XP · ${fmtC(a.coins)} · рейтинг ${a.rating||1000} · предметов ${(a.items||[]).length} · ${isVip(a)?'VIP '+vipLeft(a):'без VIP'}</span></div></div>
+        <div class="admrow"><b>Премиум</b><button class="sm btn-o" data-act="aPrem">⭐ Выдать на этот месяц</button><span class="muted">${(r=>r&&r.prem&&r.prem[seasonKey()]?"есть":"нет")(a)}</span></div>
         <div class="admrow"><b>VIP</b><button class="sm btn-o" data-act="aVip" data-d="7">+7 дней</button><button class="sm btn-o" data-act="aVip" data-d="30">+30 дней</button><button class="sm btn-o" data-act="aVip" data-d="forever">Навсегда</button><button class="sm red" data-act="aVip" data-d="0">Забрать</button></div>
         <div class="admrow"><b>Монеты</b><input class="inp" type="number" step="0.01" min="0" data-f="coins" value="25" style="width:110px"><button class="sm" data-act="aCoins" data-s="1">Начислить</button><button class="sm sec" data-act="aCoins" data-s="-1">Списать</button></div>
         <div class="admrow"><b>Опыт</b><input class="inp" type="number" min="0" data-f="xp" value="500" style="width:110px"><button class="sm" data-act="aXp">Начислить XP</button><button class="sm sec" data-act="aLvl10">Сразу 10 уровень</button></div>
@@ -4898,6 +4975,7 @@ function showContents(id,showAll){
 // открыть кейс/набор: предмет выбирается сразу, а потом лента прокручивается и останавливается на нём
 function openBox(id){
   const u=me(), x=item(id); if(!u||!x.pool) return;
+  if(srvOn()){ apiTry('open',{id}).then(j=>{ if(!j) return; renderSite(); spinReveal(x,item(j.got)); }); return; }
   const k=(u.items||[]).findIndex(it=>it.id===id); if(k<0) return;
   if(x.type==='case'){ const kk=u.items.findIndex(it=>it.id==='key'); if(kk<0) return toast('Нужен ключ 🔑'); u.items.splice(kk,1); }
   u.items.splice(u.items.findIndex(it=>it.id===id),1);
@@ -4957,6 +5035,7 @@ function toast(msg){ const t=document.createElement('div'); t.className='toast';
 function xpForLevel(L){ let xp=0,need=100; for(let l=1;l<L;l++){ xp+=need; need=100+(l+1)*25; } return xp; }
 function admAcc(el){ if(!isAdminUser()) return null; const c=el.closest('.adm'); if(!c) return null; const a=(DB.allUsers||[]).find(x=>x.login===c.dataset.l); return a?{a,c}:null; }
 // сохранить изменённый аккаунт в облако (если это я — обновить и мой кэш)
+// правка монет/предметов/VIP/премиума игрока через сервер (если он подключён)async function admApi(a,body,msg){ const j=await apiTry('admin',{uid:a.login,...body}); if(!j) return; Object.assign(a,j.target); if(a.login===DB.session) applyEco(j.target); toast('✔ '+msg(a)); renderSite(); }
 function admDone(msg,a){
   if(a){ if(a.login===DB.session) DB.accounts[a.login]=a; saveAccount(a).then(()=>toast('✔ '+msg)).catch(e=>toast('Ошибка: '+e.message)); }
   else toast('✔ '+msg);
@@ -4977,16 +5056,21 @@ const ADMIN_ACT={
     const a=d.data(); a.login=d.id; migrate(a);
     DB.allUsers=[a,...(DB.allUsers||[]).filter(x=>x.login!==a.login)]; renderSite();
   },
+  adminApi:async()=>{ if(!isAdminUser()) return; const v=($('#aApi').value||'').trim().replace(/\/+$/,''); if(v&&!/^https:\/\/[a-z0-9.-]+$/i.test(v)) return toast('Адрес должен начинаться с https:// без пути'); if(v){ try{ const j=await (await fetch(v+'/info')).json(); if(!j.ok) throw 0; }catch(e){ return toast('Сервер по этому адресу не отвечает'); } } await FB.db.collection('config').doc('site').set({api:v},{merge:true}); SRV.url=v; SRV.bot=''; await loadSrvInfo(); toast(v?'✔ Сервер подключён':'Сервер отключён'); renderSite(); },
+  adminApiCheck:async()=>{ if(!SRV.url) return toast('Адрес не задан'); try{ const j=await (await fetch(SRV.url+'/info')).json(); toast(j.ok?`✅ Сервер отвечает. Бот: @${j.bot||'не подключён'}, премиум ${j.price} ⭐`:'Сервер ответил с ошибкой'); }catch(e){ toast('Сервер не отвечает'); } },
   adminCreator:()=>{ if(!isAdminUser()) return; DB.creatorName=$('#aCreator').value.trim().slice(0,30)||CREATOR; $('#creator').textContent=DB.creatorName;
     FB.db.collection('config').doc('site').set({creatorName:DB.creatorName},{merge:true}).then(()=>toast('✔ Имя создателя сохранено')).catch(e=>toast('Ошибка: '+e.message)); },
   aVip:el=>{ const r=admAcc(el); if(!r) return; const d=el.dataset.d, a=r.a;
+    if(srvOn()) return admApi(a,{vipDays:d==='0'?-1:d==='forever'?36500:+d},a=>d==='0'?`VIP забран у ${a.name}`:`VIP для ${a.name}: ${vipLeft(a)}`);
     if(d==='0') a.vipUntil=0; else if(d==='forever') a.vipUntil=VIP_FOREVER; else a.vipUntil=Math.max(Date.now(),a.vipUntil||0)+(+d)*86400000;
     admDone(d==='0'?`VIP забран у ${a.name}`:`VIP для ${a.name}: ${vipLeft(a)}`,a); },
   aCoins:el=>{ const r=admAcc(el); if(!r) return; const v=Math.abs(+r.c.querySelector('[data-f=coins]').value||0)*(+el.dataset.s);
+    if(srvOn()) return admApi(r.a,{coins:v},a=>`Баланс ${a.name}: ${fmtC(a.coins)}`);
     r.a.coins=Math.max(0,r2((r.a.coins||0)+v)); admDone(`Баланс ${r.a.name}: ${fmtC(r.a.coins)}`,r.a); },
   aXp:el=>{ const r=admAcc(el); if(!r) return; r.a.xp+=Math.max(0,Math.floor(+r.c.querySelector('[data-f=xp]').value||0)); admDone(`${r.a.name}: уровень ${levelInfo(r.a.xp).lvl}`,r.a); },
   aLvl10:el=>{ const r=admAcc(el); if(!r) return; r.a.xp=Math.max(r.a.xp,xpForLevel(10)); admDone(`${r.a.name}: уровень ${levelInfo(r.a.xp).lvl}`,r.a); },
-  aItem:el=>{ const r=admAcc(el); if(!r) return; const x=item(r.c.querySelector('[data-f=item]').value); addItem(r.a,x.id); admDone(`Выдано: ${x.n}`,r.a); },
+  aItem:el=>{ const r=admAcc(el); if(!r) return; const x=item(r.c.querySelector('[data-f=item]').value); if(srvOn()) return admApi(r.a,{item:x.id},()=>`Выдано: ${x.n}`); addItem(r.a,x.id); admDone(`Выдано: ${x.n}`,r.a); },
+  aPrem:el=>{ const r=admAcc(el); if(!r) return; if(!srvOn()) return toast('Премиум работает только с подключённым сервером'); admApi(r.a,{prem:true},a=>`Премиум для ${a.name} на этот месяц`); },
   aRating:el=>{ const r=admAcc(el); if(!r) return; r.a.rating=Math.max(0,Math.floor(+r.c.querySelector('[data-f=rating]').value||0)); admDone(`Рейтинг ${r.a.name}: ${r.a.rating}`,r.a); }
 };
 const ACT={
@@ -4998,7 +5082,7 @@ const ACT={
     if(Object.keys(cleanSlots(u)).length&&!await askConfirm('Разложить карточки заново? Текущие надетые карточки будут переставлены.','Разложить')) return;
     const n=autoEquip(u); saveDB(); renderSite(); toast(`✔ Надето карточек: ${n}`); },
   dd:()=>{ DD=!DD; renderSite(); },
-  logout:()=>{ stopLots(); stopGlobalChat(); stopDM(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
+  logout:()=>{ if(meUnsub){ meUnsub(); meUnsub=null; } stopLots(); stopGlobalChat(); stopDM(); leaveNet(false); if(lobbyUnsub){ lobbyUnsub(); lobbyUnsub=null; } if(FB) FB.auth.signOut(); DB.session=null; DB.accounts={}; setupRows=null; go('home'); },
   back:()=>hideLanding(),
   scroll:el=>{ if(PAGE!=='home') go('home'); setTimeout(()=>{ const t=document.getElementById(el.dataset.to); if(t) t.scrollIntoView({behavior:'smooth'}); },30); },
   rulespage:()=>ACT.scroll({dataset:{to:'rules'}}),
@@ -5054,9 +5138,11 @@ const ACT={
   mtabgo:el=>{ marketTab=el.dataset.t; go('market'); },
   buyItem:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val||isLotItem(x)||u.coins<x.val) return;
     if(!await askConfirm(`Купить ${x.ic} «${x.n}» за ${fmtC(x.val)}?`,'Купить')) return;
+    if(srvOn()){ const j=await apiTry('shop',{id:x.id}); if(j){ addDeal(u,{k:"shop",item:x.id,price:x.val}); saveDB(); renderSite(); toast(`✔ Куплено: ${x.n}`); } return; }
     if(u.coins<x.val) return; u.coins=r2(u.coins-x.val); addItem(u,x.id); addDeal(u,{k:"shop",item:x.id,price:x.val}); saveDB(); renderSite(); toast(`✔ Куплено: ${x.n}`); },
   sell:async el=>{ const u=me(), x=item(el.dataset.i); if(!x.val) return;
     const price=bankPrice(x); if(!await askConfirm(`${isLotItem(x)?'Сдать Банку':'Продать'} ${x.ic} «${esc(x.n)}» за ${fmtC(price)}?${isLotItem(x)?`<br><span class="muted" style="font-size:14px">Игрокам можно продать дороже — кнопка «💰 Выставить».</span>`:''}`,'Продать')) return;
+    if(srvOn()){ const j=await apiTry('bank',{id:x.id}); if(j){ addDeal(u,{k:"bank",item:x.id,price:j.price}); saveDB(); renderSite(); toast(`✔ Продано за ${fmtC(j.price)}`); } return; }
     // продаём сначала ненадетый экземпляр
     const used=new Set(Object.values(cleanSlots(u)));
     let k=(u.items||[]).findIndex(it=>it.id===x.id&&!used.has(it.uid)); if(k<0) k=(u.items||[]).findIndex(it=>it.id===x.id); if(k<0) return;
@@ -5064,6 +5150,7 @@ const ACT={
   open:el=>showContents(el.dataset.i),
   vip:async el=>{ const u=me(), plan=VIP_PLANS.find(v=>v.days===+el.dataset.d); if(!plan||u.coins<plan.price) return;
     if(!await askConfirm(`Купить 👑 VIP на ${plan.days} дней за ${fmtC(plan.price)}?`,'Купить')) return;
+    if(srvOn()){ const j=await apiTry('vip',{days:plan.days}); if(j){ addDeal(u,{k:"vip",days:plan.days,price:plan.price}); saveDB(); renderSite(); toast('✔ VIP активирован'); } return; }
     if(u.coins<plan.price) return; toast('✔ VIP активирован');
     u.coins=r2(u.coins-plan.price); addDeal(u,{k:"vip",days:plan.days,price:plan.price}); u.vipUntil=Math.max(Date.now(),u.vipUntil||0)+plan.days*86400000; saveDB(); renderSite(); },
   theme:()=>showTheme(),
@@ -5122,11 +5209,15 @@ const ACT={
     const own=(u.items||[]).filter(it=>it.id===x.id); if(own.length<UPGRADE_N) return;
     const p=Math.round(inf.p*1000)/10;
     if(!await askConfirm(`⬆ Улучшение: ${UPGRADE_N} × «${x.n}» (${RAR[x.r][0].toLowerCase()})<br><br>Шанс <b>${p}%</b> получить одну карточку редкости «${RAR[x.r+1][0]}» из коллекции «${COLLECTIONS[x.coll].n}» (${inf.next.map(c=>esc(c.n)).join(', ')}).<br>При неудаче остаётся 1 карточка из ${UPGRADE_N}.`,'Улучшить')) return;
-    const used=new Set(Object.values(cleanSlots(u)));
-    const pickUids=own.sort((a,b)=>(used.has(a.uid)?1:0)-(used.has(b.uid)?1:0)).slice(0,UPGRADE_N).map(it=>it.uid);
-    const ok=Math.random()<inf.p, keep=ok?[]:[pickUids[pickUids.length-1]];
-    u.items=u.items.filter(it=>!pickUids.includes(it.uid)||keep.includes(it.uid));
-    let got=null; if(ok){ got=randOf(inf.next); addItem(u,got.id); }
+    let ok, got=null;
+    if(srvOn()){ const j=await apiTry('upgrade',{id:x.id}); if(!j) return; ok=j.ok; got=j.got?item(j.got):null; }
+    else {
+      const used=new Set(Object.values(cleanSlots(u)));
+      const pickUids=own.sort((a,b)=>(used.has(a.uid)?1:0)-(used.has(b.uid)?1:0)).slice(0,UPGRADE_N).map(it=>it.uid);
+      ok=Math.random()<inf.p; const keep=ok?[]:[pickUids[pickUids.length-1]];
+      u.items=u.items.filter(it=>!pickUids.includes(it.uid)||keep.includes(it.uid));
+      if(ok){ got=randOf(inf.next); addItem(u,got.id); }
+    }
     cleanSlots(u); saveDB(); renderSite();
     if(got){ $('#modal').innerHTML=`<div class="ov" id="gov"><div class="box lt" style="width:360px;text-align:center"><div class="muted">⬆ Улучшение удалось!</div>
       <div style="display:flex;justify-content:center;margin:10px 0">${itemArt(got,220,170)}</div><h2>${got.n}</h2><span class="rtag" style="background:${RAR[got.r][1]}">${RAR[got.r][0]}</span>
@@ -5154,7 +5245,9 @@ async function loadTop(){ if(!FB||!me()) return; try{ const s=await FB.db.collec
 // lots/{id}: {seller, sellerName, item, price, status:'open'|'sold', buyer, created, soldAt}
 // Выставить: карточка уходит из инвентаря в лот. Купить: лот помечается проданным (транзакция), покупатель
 // платит и получает карточку. Продавец забирает выручку сам (правила базы не дают писать в чужой профиль).
+//@econ{
 const LOT_FEE=0.1, BANK_CARD=0.5, LOT_MAX=20, LOT_PRICE_MAX=100000;
+//@econ}
 // история сделок аккаунта (последние 100): buy — у игрока, sell — игроку, bank — сдал Банку, shop — купил у Маркета, vip
 const DEAL_N={trade:['🤝','Обмен с игроком'],gift:['🎁','Подарено другу'],gifted:['🎁','Подарок от друга'],buy:['🛒','Куплено у игрока'],sell:['💰','Продано игроку'],bank:['🏦','Сдано Банку'],shop:['🏪','Куплено у Маркета'],vip:['👑','Куплен VIP']};
 function addDeal(u,d){ u.deals=[{t:Date.now(),...d},...(u.deals||[])].slice(0,100); }
@@ -5174,9 +5267,11 @@ function dealsHTML(u){
       :'<div class="empty"><div class="e">🧾</div><p class="muted">Здесь появятся ваши покупки и продажи.</p></div>');
 }
 let dealFilter='all';
+//@econ{
 const isLotItem=x=>!!x&&['card','case','set'].includes(x.type); // эти предметы продают только игроки
 const bankPrice=x=>r2(x.val*(isLotItem(x)?BANK_CARD:0.9));
 const lotNet=p=>r2(p*(1-LOT_FEE));
+//@econ}
 let lotsUnsub=null, myLotsUnsub=null;
 DB.lots=[]; DB.myLots=[];
 // открытые лоты по предметам, от дешёвых к дорогим
@@ -5211,13 +5306,16 @@ async function collectLot(l){
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(l.id), s=await tx.get(ref);
       got=null; if(!s.exists) return; const d=s.data(); if(d.status!=='sold'||d.seller!==DB.session) return; got=d; tx.delete(ref); });
     const u=me(); if(got&&got.bank) return;
-    if(got&&u){ u.coins=r2((u.coins||0)+lotNet(got.price)); let who=""; try{ const b=await loadUser(got.buyer); who=(b&&b.name)||""; }catch(_){} addDeal(u,{k:"sell",item:got.item,price:got.price,net:lotNet(got.price),who}); saveDB(); toast(`💰 Продано: «${item(got.item).n}» за ${fmtC(got.price)} — вам ${fmtC(lotNet(got.price))}`); if(PAGE==='market'||PAGE==='inventory') renderSite(); }
+    if(got&&u){ if(!srvOn()) u.coins=r2((u.coins||0)+lotNet(got.price)); let who=""; try{ const b=await loadUser(got.buyer); who=(b&&b.name)||""; }catch(_){} addDeal(u,{k:"sell",item:got.item,price:got.price,net:lotNet(got.price),who}); saveDB(); toast(`💰 Продано: «${item(got.item).n}» за ${fmtC(got.price)} — вам ${fmtC(lotNet(got.price))}`); if(PAGE==='market'||PAGE==='inventory') renderSite(); }
   }catch(e){ console.error('collect',e); collecting.delete(l.id); }
 }
 // ====== ТОВАРЫ МАРКЕТА: создатель выставляет все карточки/кейсы/наборы по MKT_N шт. по завышенной цене ======
+//@econ{
 const MKT_N=3, MKT_MULT=2;
 const mktPrice=x=>Math.max(1,Math.ceil(x.val*MKT_MULT*2)/2);
+//@econ}
 async function stockFill(){
+  if(srvOn()&&isAdminUser()){ if(!await askConfirm('Выставить на Маркет все карточки, кейсы и наборы до 3 шт. по завышенной цене?','Выставить')) return; const j=await apiTry('stockFill'); if(j) toast(`✔ Выставлено лотов: ${j.n}`); return; }
   if(!isAdminUser()||!FB) return;
   const have={}; (DB.myLots||[]).filter(l=>l.bank&&l.status==='open').forEach(l=>have[l.item]=(have[l.item]||0)+1);
   const todo=[]; ITEMS.filter(isLotItem).forEach(x=>{ for(let k=have[x.id]||0;k<MKT_N;k++) todo.push(x); });
@@ -5231,6 +5329,7 @@ async function stockFill(){
   }catch(e){ toast('Ошибка: '+(e.message||e)); }
 }
 async function stockClear(){
+  if(srvOn()&&isAdminUser()){ if(!await askConfirm('Снять все товары Маркета?','Снять')) return; const j=await apiTry('stockClear'); if(j) toast(`✔ Снято: ${j.n}`); return; }
   if(!isAdminUser()||!FB) return;
   const L=(DB.myLots||[]).filter(l=>l.bank&&l.status==='open'); if(!L.length) return toast('Товаров Маркета нет');
   if(!await askConfirm(`Снять ${L.length} лотов Маркета?`,'Снять')) return;
@@ -5246,6 +5345,7 @@ async function listLot(id){
   if(v===null||v===undefined||v==='') return;
   const price=r2(parseFloat(String(v).replace(',','.')));
   if(!(price>=0.01&&price<=LOT_PRICE_MAX)) return toast(`Цена — от 🪙 0.01 до 🪙 ${LOT_PRICE_MAX}`);
+  if(srvOn()){ const j=await apiTry('lotList',{id,price}); if(j) toast(`✔ Выставлено: «${x.n}» за ${fmtC(price)}`); renderSite(); return; }
   // убираем экземпляр из инвентаря (сначала ненадетый)
   const used=new Set(Object.values(cleanSlots(u)));
   let k=u.items.findIndex(it=>it.id===id&&!used.has(it.uid)); if(k<0) k=u.items.findIndex(it=>it.id===id); if(k<0) return;
@@ -5265,6 +5365,7 @@ async function buyLot(lid){
   if((u.coins||0)<l.price) return toast('Не хватает монет');
   if(!await askConfirm(`Купить ${x.ic} «${esc(x.n)}» у ${esc(l.sellerName||'игрока')} за ${fmtC(l.price)}?`,'Купить')) return;
   if((u.coins||0)<l.price) return;
+  if(srvOn()){ const j=await apiTry('lotBuy',{lid}); if(j){ addDeal(u,{k:"buy",item:j.item,price:j.price,who:j.seller||''}); saveDB(); toast(`✔ Куплено: «${x.n}» за ${fmtC(j.price)}`); renderSite(); } return; }
   try{
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(lid), s=await tx.get(ref);
       if(!s.exists||s.data().status!=='open') throw new Error('Этот лот уже купили');
@@ -5275,6 +5376,7 @@ async function buyLot(lid){
 }
 async function cancelLot(lid){
   const u=me(); if(!u||!FB) return;
+  if(srvOn()){ const j=await apiTry('lotCancel',{lid}); if(j){ toast('Лот снят — предмет вернулся в инвентарь'); renderSite(); } return; }
   let got=null;
   try{
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('lots').doc(lid), s=await tx.get(ref);
@@ -5300,10 +5402,10 @@ async function onSignedIn(){
   await loadFriends().catch(()=>{});
   if(PAGE==='auth'||PAGE==='home') go('games'); else renderSite();
   loadTop(); loadBoards(); loadFans(); if(isAdminUser()) adminLoad(); checkSeasonAward(me());
-  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); listenGifts(); listenClan(); listenOffers(); watchOrders(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
+  listenLobby(); rejoinMyRoom(); listenLots(); listenGlobalChat(); listenDM(); listenMe(); listenGifts(); listenClan(); listenOffers(); watchOrders(); heartbeat(); dailyLogin(me()); checkWeekendAward(me()); joinFromLink();
 }
 if(FB){
-  FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
+  FB.db.collection('config').doc('site').get().then(s=>{ if(s.exists&&s.data().api){ SRV.url=s.data().api; loadSrvInfo(); } if(s.exists&&s.data().creatorName){ DB.creatorName=s.data().creatorName; $('#creator').textContent=DB.creatorName; } }).catch(()=>{});
   FB.auth.onAuthStateChanged(async user=>{
     if(!user){ DB.session=null; DB.accounts={}; DB.ready=true; if(AUTH_PAGES.includes(PAGE)) go('auth'); else renderSite(); return; }
     if(REGISTERING) return; // профиль сейчас создаётся в register()
@@ -5378,6 +5480,7 @@ function showCollBook(uid){
 }
 
 // ====== КОЛЕСО УДАЧИ: бесплатно раз в день ======
+//@econ{
 const WHEEL=[
   {t:'+100 XP',ic:'⭐',c:'#29b6f6',w:30,give:u=>{ u.xp+=100; }},
   {t:'Ключ от кейса',ic:'🔑',c:'#43a047',w:16,give:u=>addItem(u,'key')},
@@ -5388,6 +5491,7 @@ const WHEEL=[
   {t:'Набор Aurum',ic:'Ⅱ',c:'#c99700',w:4,give:u=>addItem(u,'set_elite')},
   {t:'Эпическая карточка',ic:'💎',c:'#e53935',w:1,give:u=>{ const c=randOf(CARDS.filter(x=>x.r===2)); addItem(u,c.id); return c.n; }}
 ];
+//@econ}
 const wheelReady=u=>u&&u.wheelDay!==today();
 function wheelHTML(u){
   return `<div class="cardw"><div class="ch"><h3>🎡 Колесо удачи</h3><span class="muted">бесплатно раз в день</span></div>
@@ -5396,11 +5500,13 @@ function wheelHTML(u){
     ${wheelReady(u)?'<button data-act="wheel">🎡 Крутить</button>':`<button class="sec" disabled>Следующее вращение через ${timeLeft()}</button>`}</div></div></div>`;
 }
 function wheelGrad(){ const n=WHEEL.length; return WHEEL.map((s,i)=>`${s.c} ${i*360/n}deg ${(i+1)*360/n}deg`).join(','); }
-function spinWheel(){
+async function spinWheel(){
   const u=me(); if(!u||!wheelReady(u)) return;
-  const tot=WHEEL.reduce((s,x)=>s+x.w,0); let r=Math.random()*tot, k=0; for(;k<WHEEL.length-1;k++){ r-=WHEEL[k].w; if(r<0) break; }
+  let k=0, extra=null;
+  if(srvOn()){ const j=await apiTry('wheel'); u.wheelDay=today(); if(!j){ saveDB(); renderSite(); return; } k=j.k; extra=j.extra; if(j.xp) u.xp+=j.xp; saveDB(); }
+  else { const tot=WHEEL.reduce((s,x)=>s+x.w,0); let r=Math.random()*tot; for(;k<WHEEL.length-1;k++){ r-=WHEEL[k].w; if(r<0) break; } u.wheelDay=today(); extra=WHEEL[k].give(u); saveDB(); }
   const n=WHEEL.length, seg=360/n, target=360*6+(360-(k*seg+seg/2))+(Math.random()-0.5)*seg*0.6;
-  u.wheelDay=today(); const s=WHEEL[k]; const extra=s.give(u); saveDB();
+  const s=WHEEL[k];
   $('#modal').innerHTML=`<div class="ov" id="whov" style="z-index:60"><div class="box lt" style="width:420px;text-align:center"><h2 style="margin-top:0">🎡 Колесо удачи</h2>
     <div class="wheel"><div class="wpin"></div><div class="wdisc" id="wdisc" style="background:conic-gradient(${wheelGrad()})">${WHEEL.map((x,i)=>`<span style="transform:rotate(${i*seg+seg/2}deg) translateY(-118px)">${x.ic}</span>`).join('')}</div></div>
     <div id="wres" style="min-height:60px;margin-top:12px"></div></div></div>`;
@@ -5441,8 +5547,8 @@ async function settleOffer(o){
   try{ let got=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('offers').doc(o.id), s=await tx.get(ref); got=null; if(!s.exists) return; const d=s.data(); if(d.from!==DB.session||d.status==='open') return; got=d; tx.delete(ref); });
     const u=me(); if(!got||!u) return;
-    if(got.status==='accepted'){ (got.get||[]).forEach(id=>addItem(u,id)); addDeal(u,{k:'trade',item:(got.get||[])[0]||(got.give||[])[0],who:got.toName||''}); toast(`🤝 ${got.toName||'Игрок'} принял обмен!`); }
-    else { (got.give||[]).forEach(id=>addItem(u,id)); u.coins=r2((u.coins||0)+(got.coins||0)); toast(`${got.toName||'Игрок'} отклонил обмен — предметы вернулись`); }
+    if(got.status==='accepted'){ if(!srvOn()) (got.get||[]).forEach(id=>addItem(u,id)); addDeal(u,{k:'trade',item:(got.get||[])[0]||(got.give||[])[0],who:got.toName||''}); toast(`🤝 ${got.toName||'Игрок'} принял обмен!`); }
+    else { if(!srvOn()){ (got.give||[]).forEach(id=>addItem(u,id)); u.coins=r2((u.coins||0)+(got.coins||0)); } toast(`${got.toName||'Игрок'} отклонил обмен — предметы вернулись`); }
     saveDB();
   }catch(e){ console.error('settle',e); offSettling.delete(o.id); }
 }
@@ -5471,6 +5577,7 @@ async function sendOffer(a,sel){
   if(!sel.get.length) return toast('Выберите, что хотите получить');
   if(coins>(u.coins||0)) return toast('Не хватает монет');
   if(u.banned) return toast('⛔ Ваш аккаунт заблокирован');
+  if(srvOn()){ const j=await apiTry('offerSend',{to:a.login,give:sel.give,get:sel.get,coins}); if(j){ closeModal(); toast('✔ Предложение отправлено — ответ придёт в «Маркет → Обмены»'); } return; }
   const back=[]; for(const id of sel.give){ if(!takeItem(u,id)){ back.forEach(i=>addItem(u,i)); return toast('Предмета уже нет в инвентаре'); } back.push(id); }
   u.coins=r2((u.coins||0)-coins);
   try{ await saveAccount(u);
@@ -5483,6 +5590,7 @@ async function answerOffer(id,ok){
   if(ok){ const need={}; (o.get||[]).forEach(i=>need[i]=(need[i]||0)+1);
     for(const i in need) if(countItem(u,i)<need[i]) return toast(`У вас нет «${item(i).n}» — обмен невозможен`);
     if(!await askConfirm(`Принять обмен от ${esc(o.fromName||'игрока')}?`,'Принять')) return; }
+  if(srvOn()){ const j=await apiTry('offerAnswer',{oid:id,ok}); if(j){ if(ok){ addDeal(u,{k:'trade',item:(o.give||[])[0]||(o.get||[])[0],who:o.fromName||''}); saveDB(); toast('🤝 Обмен состоялся!'); } else toast('Предложение отклонено'); renderSite(); } return; }
   try{
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('offers').doc(id), s=await tx.get(ref); if(!s.exists||s.data().status!=='open') throw new Error('Предложение уже неактуально'); tx.update(ref,{status:ok?'accepted':'declined',doneAt:Date.now()}); });
     if(ok){ (o.get||[]).forEach(i=>takeItem(u,i)); (o.give||[]).forEach(i=>addItem(u,i)); u.coins=r2((u.coins||0)+(o.coins||0)); addDeal(u,{k:'trade',item:(o.give||[])[0]||(o.get||[])[0],who:o.fromName||''}); await saveAccount(u); toast('🤝 Обмен состоялся!'); }
@@ -5490,6 +5598,7 @@ async function answerOffer(id,ok){
   }catch(e){ toast(e.message||String(e)); }
 }
 async function cancelOffer(id){
+  if(srvOn()){ const j=await apiTry('offerCancel',{oid:id}); if(j){ toast('Предложение отменено — предметы вернулись'); renderSite(); } return; }
   try{ let got=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('offers').doc(id), s=await tx.get(ref); got=null; if(!s.exists) return; const d=s.data(); if(d.from!==DB.session||d.status!=='open') return; got=d; tx.delete(ref); });
     const u=me(); if(got&&u){ (got.give||[]).forEach(i=>addItem(u,i)); u.coins=r2((u.coins||0)+(got.coins||0)); saveDB(); toast('Предложение отменено — предметы вернулись'); }
@@ -5527,6 +5636,7 @@ async function placeOrder(id){
   if(!(price>=0.01&&price<=LOT_PRICE_MAX)) return toast(`Цена — от 🪙 0.01 до 🪙 ${LOT_PRICE_MAX}`);
   if(price>(u.coins||0)) return toast('Не хватает монет');
   if(L&&L[0].price<=price&&L[0].seller!==DB.session&&await askConfirm(`«${esc(x.n)}» уже продают за ${fmtC(L[0].price)} — дешевле вашей цены. Купить сразу?`,'Купить')) return buyLot(L[0].id);
+  if(srvOn()){ const j=await apiTry('orderPlace',{id,price}); if(j) toast(`✔ Заявка оставлена: «${x.n}» за ${fmtC(price)}`); renderSite(); return; }
   u.coins=r2(u.coins-price);
   try{ await saveAccount(u); await FB.db.collection('orders').add({buyer:DB.session,buyerName:u.name,item:id,price,status:'open',at:Date.now()}); toast(`✔ Заявка оставлена: «${x.n}» за ${fmtC(price)}`); }
   catch(e){ u.coins=r2(u.coins+price); saveDB(); toast('Не удалось: '+(e.code==='permission-denied'?'заявки ещё не включены':e.message||e)); }
@@ -5536,6 +5646,7 @@ async function fillOrder(oid){
   const u=me(), o=(DB.orders||[]).find(x=>x.id===oid); if(!u||!o) return;
   const x=item(o.item); if(!countItem(u,o.item)) return toast('У вас нет этого предмета');
   if(!await askConfirm(`Продать «${esc(x.n)}» игроку ${esc(o.buyerName||'')} по заявке за ${fmtC(o.price)}?<br><span class="muted" style="font-size:14px">Вы получите ${fmtC(lotNet(o.price))} (комиссия ${LOT_FEE*100}%).</span>`,'Продать')) return;
+  if(srvOn()){ const j=await apiTry('orderFill',{oid}); if(j){ addDeal(u,{k:'sell',item:o.item,price:o.price,net:j.net,who:o.buyerName||''}); saveDB(); toast(`💰 Продано по заявке за ${fmtC(o.price)}`); renderSite(); } return; }
   try{
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('orders').doc(oid), s=await tx.get(ref); if(!s.exists||s.data().status!=='open') throw new Error('Заявка уже неактуальна'); tx.update(ref,{status:'filled',seller:DB.session,sellerName:u.name,filledAt:Date.now()}); });
     takeItem(u,o.item); u.coins=r2((u.coins||0)+lotNet(o.price)); addDeal(u,{k:'sell',item:o.item,price:o.price,net:lotNet(o.price),who:o.buyerName||''}); await saveAccount(u);
@@ -5547,10 +5658,11 @@ async function collectOrder(o){
   if(ordCollect.has(o.id)) return; ordCollect.add(o.id);
   try{ let got=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('orders').doc(o.id), s=await tx.get(ref); got=null; if(!s.exists) return; const d=s.data(); if(d.buyer!==DB.session||d.status!=='filled') return; got=d; tx.delete(ref); });
-    const u=me(); if(got&&u){ addItem(u,got.item); addDeal(u,{k:'buy',item:got.item,price:got.price,who:got.sellerName||''}); saveDB(); toast(`📝 Заявка исполнена: «${item(got.item).n}» у вас в инвентаре!`); }
+    const u=me(); if(got&&u){ if(!srvOn()) addItem(u,got.item); addDeal(u,{k:'buy',item:got.item,price:got.price,who:got.sellerName||''}); saveDB(); toast(`📝 Заявка исполнена: «${item(got.item).n}» у вас в инвентаре!`); }
   }catch(e){ console.error('order',e); ordCollect.delete(o.id); }
 }
 async function cancelOrder(oid){
+  if(srvOn()){ const j=await apiTry('orderCancel',{oid}); if(j){ toast('Заявка снята — монеты вернулись'); renderSite(); } return; }
   try{ let got=null;
     await FB.db.runTransaction(async tx=>{ const ref=FB.db.collection('orders').doc(oid), s=await tx.get(ref); got=null; if(!s.exists) return; const d=s.data(); if(d.buyer!==DB.session||d.status!=='open') return; got=d; tx.delete(ref); });
     const u=me(); if(got&&u){ u.coins=r2((u.coins||0)+got.price); saveDB(); toast('Заявка снята — монеты вернулись'); } else toast('Заявка уже исполнена — предмет придёт сам');

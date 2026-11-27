@@ -1225,6 +1225,11 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+клетку 💰 Джекпот=the 💰 Jackpot square
+встаёт на джекпот, но он пока пуст=lands on the jackpot, but it's empty
+забираете всё, что накопилось из налогов, штрафов и порталов (сейчас=take everything accumulated from taxes, fines and portals (now
+получает=gets
+Налоги, штрафы и плата за порталы копятся в джекпоте. Кто встанет на клетку «💰 Джекпот» (вверху поля) — забирает всё=Taxes, fines and portal fees go into the jackpot. Whoever lands on the «💰 Jackpot» square (top of the board) takes it all
 со следующего хода=from next turn
 Продать Банку целиком=Sell to the Bank entirely
 встаёт ровно на Старт — ещё=lands exactly on Start — another
@@ -2884,7 +2889,7 @@ function render(){
     el.style.background=own?`linear-gradient(${G.players[s.owner].color}e0,${G.players[s.owner].color}e0),#fff`:'';
     pr.textContent=''; el.style.boxShadow='';
     // джекпот — прямо на клетке «Казино»
-    if(c.type==='casino'&&OPT().jackpot){ pr.textContent='💰 '+fmtCell(G.jackpot||0); pr.classList.add('jpt'); } else pr.classList.remove('jpt');
+    if(isJpCell(i)||(c.type==='casino'&&OPT().jackpot&&!isJpCell(JP_CELL))){ pr.textContent='💰 '+fmtCell(G.jackpot||0); pr.classList.add('jpt'); } else pr.classList.remove('jpt');
     if(lab){
       if(isOwnable(c)) lab.textContent=own?(s.mort?'🔒'+(OPT().mortLimit?mortLeft(s):''):fmtCell(rentDue(i,G.lastDice))):fmtCell(c.price);
       else if(c.type==='tax') lab.textContent=evOn('taxfree')?'0':fmtCell(c.amount);
@@ -2903,9 +2908,9 @@ function render(){
       `<div class="tok" data-pid="${p.id}" style="background:${p.color}" title="${esc(p.name)}"></div>`).join('');
   });
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
-  const jp=$('#jpot'); jp.classList.toggle('on',!!OPT().jackpot&&!G.over); jp.innerHTML=`💰 Джекпот: <b>${fmt(G.jackpot||0)}</b> — забирает тот, кто встанет на 🎰 Казино`;
+  const jp=$('#jpot'); jp.classList.toggle('on',!!OPT().jackpot&&!G.over); jp.innerHTML=`💰 Джекпот: <b>${fmt(G.jackpot||0)}</b> — забирает тот, кто встанет на ${isJpCell(JP_CELL)?'клетку 💰 Джекпот':'🎰 Казино'}`;
   // порталы: две клетки «Шанс» показываем как 🌀
-  PORTALS.forEach(i=>{ const el=$('#c'+i); if(!el||CELLS[i].type!=='chance') return; const on=!!OPT().portal; el.querySelector('.ic').textContent=on?'🌀':CELLS[i].ic; el.querySelector('.cn').textContent=on?'Портал':CELLS[i].name; el.classList.toggle('portal',on); });
+  PORTALS.forEach(i=>{ const el=$('#c'+i); if(!el||CELLS[i].type!=='chance') return; const jp=isJpCell(i), on=isPortal(i), cn=el.querySelector('.cn'); el.querySelector('.ic').textContent=jp?'💰':on?'🌀':CELLS[i].ic; cn.textContent=jp?'Джекпот':on?'Портал':CELLS[i].name; el.classList.toggle('portal',on||jp); });
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
   $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
   renderAuction(); maybeAutoEnd();
@@ -3699,7 +3704,7 @@ function openCard(i){
     body=`<table><tr><td>1 компания</td><td>сумма кубиков × 100k</td></tr><tr><td>Обе компании</td><td>сумма кубиков × 250k</td></tr>
       <tr><td>Цена</td><td>${fmt(c.price)}</td></tr><tr><td>Залог / выкуп</td><td>${fmt(c.price/2)} / ${fmt(unmortCost(i))}</td></tr></table>`;
   } else {
-    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:G&&OPT().portal&&PORTALS.includes(i)?'🌀 Портал: встали сюда — можно перенестись в случайную точку поля; за 1k — 2 точки на выбор, за 2k — 3, за 3k — 4.':'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:(G&&OPT().jackpot?`💰 Джекпот сейчас ${fmt(G.jackpot||0)} — забираете его, когда встаёте сюда. `:'')+'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
+    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:isJpCell(i)?`💰 Джекпот: встали сюда — забираете всё, что накопилось из налогов, штрафов и порталов (сейчас ${fmt(G.jackpot||0)}).`:isPortal(i)?'🌀 Портал: встали сюда — можно перенестись в случайную точку поля; за 1k — 2 точки на выбор, за 2k — 3, за 3k — 4.':'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:(G&&OPT().jackpot?`💰 Джекпот сейчас ${fmt(G.jackpot||0)} — забираете его, когда встаёте сюда. `:'')+'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
   }
   let owner='';
   if(G&&isOwnable(c)){
@@ -3722,7 +3727,7 @@ function openCard(i){
     if(s.mort&&G.mode==='deal') acts+=`<button data-m="sellbank" class="red">Продать Банку целиком (+${fmt(c.price/2)})</button>`;
   }
   $('#modal').innerHTML=`<div class="ov" id="ov"><div class="box card" style="padding:0">
-    <div class="hd" style="background:${col}">${G&&OPT().portal&&PORTALS.includes(i)&&c.type==='chance'?'🌀 Портал':c.ic+' '+c.name}</div>
+    <div class="hd" style="background:${col}">${isJpCell(i)?'💰 Джекпот':isPortal(i)?'🌀 Портал':c.ic+' '+c.name}</div>
     <div style="padding:12px 16px">${owner}${body}<div style="text-align:center">${acts}<button class="sec" data-m="close">Закрыть</button></div></div></div></div>`;
   $('#ov').onclick=e=>{
     if(e.target.id==='ov') return closeModal();
@@ -3862,9 +3867,10 @@ async function land(p,dice){
     }
   } else if(c.type==='tax'){ if(evOn('taxfree')) log(`🧾 Налоговые каникулы — ${pn(p)} ничего не платит`); else { log(`${pn(p)} платит ${c.name.toLowerCase()} ${fmt(c.amount)}`); await pay(p,c.amount,-1); if(!p.out) toJackpot(c.amount); } }
   else if(c.type==='stock') await stock(p);
-  else if(c.type==='chance'&&OPT().portal&&PORTALS.includes(i)&&!G.noPortal) await portal(p,i);
+  else if(isJpCell(i)) takeJackpot(p);
+  else if(isPortal(i)&&!G.noPortal) await portal(p,i);
   else if(c.type==='chance') await chance(p);
-  else if(c.type==='casino'){ if(OPT().jackpot&&G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); track(p,'jackpot'); G.jackpot=0; render(); } await casino(p); }
+  else if(c.type==='casino'){ if(OPT().jackpot&&!isJpCell(JP_CELL)&&G.jackpot>0) takeJackpot(p); await casino(p); }
   else if(c.type==='gojail') sendJail(p);
   render();
 }
@@ -4000,9 +4006,14 @@ async function askGive(to){
 function toJackpot(a){ if(!OPT().jackpot||!G||!(a>0)) return; G.jackpot=(G.jackpot||0)+a; render(); }
 // ====== ПОРТАЛЫ (галочка): две клетки «Шанс» становятся порталами ======
 const PORTALS=[7,22];
+// верхний портал (клетка 7): при включённом джекпоте здесь клетка «Джекпот», портал остаётся внизу (22)
+const JP_CELL=7;
+const isJpCell=i=>!!(G&&OPT().jackpot&&i===JP_CELL&&CELLS[i]&&CELLS[i].type==='chance');
+const isPortal=i=>!!(G&&OPT().portal&&PORTALS.includes(i)&&CELLS[i]&&CELLS[i].type==='chance'&&!isJpCell(i));
+function takeJackpot(p){ if(G.jackpot>0){ p.money+=G.jackpot; log(`💰 ${pn(p)} срывает <b>джекпот ${fmt(G.jackpot)}</b>!`); track(p,'jackpot'); G.jackpot=0; SFX.coin&&SFX.coin(); render(); } else log(`💰 ${pn(p)} встаёт на джекпот, но он пока пуст`); }
 // 🌀 ПОРТАЛ: случайные точки на поле; чем больше заплатишь, тем больше точек на выбор
-// бесплатно — 1 случайная точка, 1k — 2 на выбор, 2k — 3, 3k — 4 (деньги уходят в джекпот/Банку)
-const PORTAL_TIERS=[[0,1],[1000,2],[2000,3],[3000,4]];
+// 1k — 2 случайные точки на выбор, 2k — 3, 3k — 4 (деньги уходят в джекпот)
+const PORTAL_TIERS=[[1000,2],[2000,3],[3000,4]];
 async function portal(p,i){
   const v=await ask('portal',{tiers:PORTAL_TIERS}); if(p.out) return;
   if(v==='stay'||v==null){ log(`🌀 ${pn(p)} остаётся у портала`); return; }
@@ -4178,20 +4189,23 @@ async function chance(p){
 async function pay(p,amt,to){
   if(p.money<amt){
     if(p.bot) autoLiquidate(p,amt);
-    else { G.debt={pid:p.id,amt,to}; const r=await ask('debt'); G.debt=null; if(r!=='pay'){ bankrupt(p,to); return; } }
-    if(p.money<amt){ bankrupt(p,to); return; }
+    else { G.debt={pid:p.id,amt,to}; const r=await ask('debt'); G.debt=null; if(r!=='pay'){ bankrupt(p,to,amt); return; } }
+    if(p.money<amt){ bankrupt(p,to,amt); return; }
   }
   p.money-=amt; if(to>=0) G.players[to].money+=amt; render();
 }
-function bankrupt(p,to){
+function bankrupt(p,to,debt){
   if(p.out) return;
   const cred=to>=0?G.players[to]:null;
   G.cells.forEach((s,i)=>{ if(s.owner===p.id) while(s.level>0) sellBranch(p,i); });
-  if(cred){ cred.money+=Math.max(0,p.money); track(cred,'kill'); }
+  // кредитор получает долг деньгами: продаются филиалы и закладываются компании; хватило — ровно долг, нет — всё, что собрали
+  let paid=0;
+  if(cred){ G.cells.forEach((s,i)=>{ if(s.owner===p.id&&!s.mort&&isOwnable(CELLS[i])){ p.money+=CELLS[i].price/2; s.mort=true; } });
+    paid=Math.max(0,debt!=null?Math.min(debt,p.money):p.money); cred.money+=paid; track(cred,'kill'); }
   // кредитору — только деньги; компании возвращаются Банку, акции банкрота пропадают
   G.cells.forEach(s=>{ if(s.owner===p.id){ s.owner=-1; s.mort=false; resetCell(s); } if(s.sh&&s.sh.includes(p.id)) s.sh=s.sh.filter(x=>x!==p.id); });
   p.money=0; p.out=true; p.inJail=false; p.credit=null; checkRentStage();
-  log(`💥 ${pn(p)} объявляет банкротство${cred?' — деньги переходят к '+pn(cred)+', компании возвращаются Банку':' — компании возвращаются Банку'}`);
+  log(`💥 ${pn(p)} объявляет банкротство${cred?` — ${pn(cred)} получает ${fmt(paid)}${debt!=null&&paid<debt?` из ${fmt(debt)}`:''}, компании возвращаются Банку`:' — компании возвращаются Банку'}`);
   render();
 }
 
@@ -4520,7 +4534,7 @@ let setupMode='classic', setupRows=null;
 const OPTS_KEY='bizemp_opts';
 let setupOpts; try{ setupOpts=JSON.parse(localStorage.getItem(OPTS_KEY)); }catch(e){}
 if(!setupOpts) setupOpts={timer:true,auction:true,credit:true,mortLimit:true};
-const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал — переносишься в случайную точку; за 1k–3k — 2–4 точки на выбор'],['teams','👥 Командная игра 2 на 2','Игроки 1 и 3 против 2 и 4. Напарнику аренду не платят, деньги можно передавать. Нужно ровно 4 игрока']];
+const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги, штрафы и плата за порталы копятся в джекпоте. Кто встанет на клетку «💰 Джекпот» (вверху поля) — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал — переносишься в случайную точку; за 1k–3k — 2–4 точки на выбор'],['teams','👥 Командная игра 2 на 2','Игроки 1 и 3 против 2 и 4. Напарнику аренду не платят, деньги можно передавать. Нужно ровно 4 игрока']];
 function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name:'Вы'},{type:'bot',name:'Бот Алиса'},{type:'bot',name:'Бот Борис'},{type:'bot',name:'Бот Вика'}]; }
 // режимы с заданным составом: рейтинговая — вы и 3 бота, задача дня — вы и 2 бота
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;

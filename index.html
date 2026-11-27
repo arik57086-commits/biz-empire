@@ -1225,6 +1225,20 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+⏳ Ждём ответа на обмен=⏳ Waiting for a trade reply
+Пока ответа нет, ходить нельзя — таймер хода на паузе.=Until they answer, no moves can be made — the turn timer is paused.
+⏸ обмен=⏸ trade
+· после понижения уже улучшали — со следующего хода=· already upgraded after a downgrade — next turn
+· после понижения — 1 раз за ход=· after a downgrade — once per turn
+Продать филиалы группы и заложить=Sell the group's branches and mortgage
+Продать филиалы и заложить=Sell branches and mortgage
+Выгнать: вышел из игры=Kick: left the game
+Вы проголосовали=You voted
+🗳 Голос отправлен=🗳 Vote sent
+снова в сети — голосование не нужно=is back online — no vote needed
+🎁 Кому что выпало:=🎁 Who got what:
+🎁 Кому что выпало=🎁 Who got what
+🎁 Открывает награду…=🎁 Opening the reward…
 Общий чат:=Global chat:
 Очистить чат=Clear chat
 удаляет все сообщения общего чата у всех игроков=deletes all global chat messages for every player
@@ -2104,8 +2118,8 @@ body.ny #top #title:after{content:' 🎄'}
   #board{--s:min(calc(100vw - 24vw - 14px),calc(100dvh - 8px));min-width:0;min-height:0;flex:none;gap:1px;padding:1px}
   .cell{padding-top:0;font-size:calc(var(--s)/40);border-radius:2px}
   .lab{font-size:calc(var(--s)/40);border-radius:2px;letter-spacing:-.3px}
-  .cell .cn{display:none}
-  .cell .ic{font-size:calc(var(--s)/17)}
+  .cell .cn{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:calc(var(--s)/64);line-height:1.05;margin-top:1px;padding:0 1px;font-weight:700;letter-spacing:-.2px;word-break:break-word;hyphens:auto;max-width:100%}
+  .cell .ic{font-size:calc(var(--s)/24)}
   .cell .pr{font-size:calc(var(--s)/42);padding:0 1px;margin-top:0;line-height:1.1}
   .cell .lv{font-size:calc(var(--s)/36)}
   .cell.corner .ic{font-size:calc(var(--s)/11)}
@@ -2129,8 +2143,21 @@ body.ny #top #title:after{content:' 🎄'}
   #log{font-size:10px;padding:4px 6px;line-height:1.3}
   .ingame-menu{left:auto;right:6px;bottom:6px;padding:5px 9px;font-size:12px}
   .tcols{flex-direction:column}
+  .cell.side{flex-direction:column;gap:0}
+  .cell.side .ic{font-size:calc(var(--s)/32)}
+  .cell.side .cn{-webkit-line-clamp:2}
   .box{padding:14px}
   .card{width:min(300px,92vw)}
+}
+/* телефон вертикально: игроки строкой сверху, поле — на всю ширину экрана (клетки крупнее, названия помещаются) */
+@media (max-width:820px) and (orientation:portrait){
+  #app{flex-direction:column;justify-content:flex-start;padding-top:6px}
+  #players{flex-direction:row;width:100%;max-width:none;min-width:0;max-height:none;overflow-x:auto;overflow-y:visible;gap:4px}
+  #players .pl{flex:1 1 0;min-width:58px}
+  #board{--s:min(calc(100vw - 8px),calc(100dvh - 150px))}
+  .cell .cn{font-size:calc(var(--s)/56);-webkit-line-clamp:3;letter-spacing:-.4px;hyphens:manual}
+  .cell:not(.side):not(.corner) .ic{font-size:calc(var(--s)/30)}
+  .cell.side .cn{font-size:calc(var(--s)/48);-webkit-line-clamp:2}
 }
 @media(max-width:900px){html:not(.phsite) .cols,html:not(.phsite) .auth{grid-template-columns:1fr}html:not(.phsite) .auth .or{height:40px}html:not(.phsite) .lnav{flex-wrap:wrap}html:not(.phsite) .mpl{display:none}html:not(.phsite) .mbody{height:auto}html:not(.phsite) .hero .cta2{margin:12px 0 0}.mm{flex-direction:column;width:auto}.ml{width:auto}html:not(.phsite) .prof{flex-direction:column}}
 /* ===== Сайт на телефоне: компактное меню и страницы ===== */
@@ -2864,6 +2891,7 @@ function buildBoard(){
   });
 }
 const avLetter=p=>esc((p.name.replace(/^Бот\s+/,'')[0]||'?').toUpperCase());
+const TOKR={}, GLIDE={}; // фишки в полёте (см. glideTokens)
 function render(){
   if(!G) return;
   const m=M();
@@ -2879,7 +2907,7 @@ function render(){
       <div class="mn">${p.out?'Банкрот':fmt(p.money)}</div>
       ${OPT().teams&&p.team!=null?`<div class="tag" style="color:${TEAM_C[p.team]};opacity:1;font-weight:700">${teamName(p.team)}</div>`:''}
       <div class="tag">🏢 ${props}${p.inJail?' · 🚔 в тюрьме':''}${p.jailCards?' · 🎫 '+p.jailCards:''}${p.credit?` · 🏦 ${creditLeft(p)} ход.`:''}</div>
-      ${G.tmDeadline&&G.awaiting&&p===actor()?`<div class="tmr">⏱ <span id="tmv">${tmRemain()}</span></div>`:''}</div>${plMenu===p.id?playerMenu(p):''}`;
+      ${G.tradeWait&&p===actor()?`<div class="tmr">⏸ обмен</div>`:G.tmDeadline&&G.awaiting&&p===actor()?`<div class="tmr">⏱ <span id="tmv">${tmRemain()}</span></div>`:''}</div>${plMenu===p.id?playerMenu(p):''}`;
   }).join('');
   $('#newBtn').style.display=G.online?'none':'';
   if(NET.role==='guest'&&G.diceHtml) $('#dice').innerHTML=G.diceHtml;
@@ -2908,8 +2936,8 @@ function render(){
     cb.textContent=bon?'🃏'+bon+'%':''; cb.title=bon?`Карточка ${(G.players[s.owner].bonus[BASE_CELLS.indexOf(c)]||{}).brand||''}: аренда +${bon}%`:'';
     cbl.textContent=(s.sh&&s.sh.length)?'📊'+(s.sh.length>1?s.sh.length:''):''; cbl.title=(s.sh||[]).map(k=>G.players[k].name).join(', ');
     el.querySelector('.tokens').innerHTML=G.players.filter(p=>!p.out&&p.pos===i).map(p=>p.skin?
-      `<div class="tok sk" data-pid="${p.id}" style="border-color:${p.color}" title="${esc(p.name)}">${p.skin}</div>`:
-      `<div class="tok" data-pid="${p.id}" style="background:${p.color}" title="${esc(p.name)}"></div>`).join('');
+      `<div class="tok sk" data-pid="${p.id}" style="border-color:${p.color}${GLIDE[p.id]?';visibility:hidden':''}" title="${esc(p.name)}">${p.skin}</div>`:
+      `<div class="tok" data-pid="${p.id}" style="background:${p.color}${GLIDE[p.id]?';visibility:hidden':''}" title="${esc(p.name)}"></div>`).join('');
   });
   const ev=$('#evt'); ev.classList.toggle('on',!!G.event&&!G.over); ev.innerHTML=G.event?'⚡ '+evText(G.event):'';
   const jp=$('#jpot'); jp.classList.toggle('on',!!OPT().jackpot&&!G.over); jp.innerHTML=`💰 Джекпот: <b>${fmt(G.jackpot||0)}</b> — забирает тот, кто встанет на ${isJpCell(JP_CELL)?'клетку 💰 Джекпот':'🎰 Казино'}`;
@@ -2929,8 +2957,8 @@ function render(){
   renderActions();
   // игра по сети: напомнить, что настал ваш ход
   const can=canAct();
-  if(G.online&&can&&!NET.lastCan) notifyTurn();
-  NET.lastCan=can;
+  if(G.online&&can&&!NET.lastCan&&!NET.trW) notifyTurn();
+  NET.lastCan=can; NET.trW=!!G.tradeWait;
   netPublish();
 }
 const BASE_TITLE=document.title;
@@ -2978,13 +3006,34 @@ function fx(){
   if(!was||was.key!==key||$('#app').offsetParent===null||!$('#landing').classList.contains('hide')) return;
   let stepped=false;
   G.players.forEach((p,k)=>{ const d=p.money-was.money[k]; if(d) floatMoney(p.id,d);
-    if(p.pos!==was.pos[k]){ stepped=true; const t=document.querySelector(`#c${p.pos} .tok[data-pid="${p.id}"]`); if(t) t.classList.add('hop'); } });
-  if(stepped) SFX.step();
+    if(p.pos!==was.pos[k]) stepped=true; });
+  if(stepped){ SFX.step(); glideTokens(was); } else saveTokRects();
   const mp=myPlayer(); if(mp){ const d=mp.money-was.money[mp.id]; if(d>0) SFX.coin(); else if(d<0) SFX.pay(); }
   if(now.own.some((o,i)=>o!==was.own[i]&&o>=0)) SFX.buy();
 
   if(now.ev&&now.ev!==was.ev) SFX.event();
 }
+// плавное движение фишек: копия фишки летит поверх поля от старой клетки к новой (клетки обрезают содержимое)
+
+function glideTokens(was){
+  G.players.forEach((p,k)=>{
+    const el=document.querySelector(`#c${p.pos} .tok[data-pid="${p.id}"]`);
+    if(!el||p.out) return;
+    const to=el.getBoundingClientRect(), fly=GLIDE[p.id];
+    const from=fly?fly.getBoundingClientRect():TOKR[p.id];
+    if(fly){ fly.remove(); delete GLIDE[p.id]; }
+    if(p.pos===was.pos[k]||!from||!to.width) return;
+    const dx=from.left-to.left, dy=from.top-to.top, dist=Math.hypot(dx,dy); if(dist<2) return;
+    const ms=Math.round(Math.min(800,STEP_MS*0.9+dist*0.5));
+    const c=el.cloneNode(true); c.classList.add('tglide');
+    c.style.cssText+=`;position:fixed;left:${to.left}px;top:${to.top}px;width:${to.width}px;height:${to.height}px;margin:0;z-index:60;pointer-events:none;transform:translate(${dx}px,${dy}px);transition:transform ${ms}ms cubic-bezier(.45,.05,.35,1)`;
+    document.body.appendChild(c); el.style.visibility='hidden'; GLIDE[p.id]=c;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ c.style.transform='translate(0,0)'; }));
+    setTimeout(()=>{ if(GLIDE[p.id]===c){ c.remove(); delete GLIDE[p.id]; const r=document.querySelector(`#c${p.pos} .tok[data-pid="${p.id}"]`); if(r) r.style.visibility=''; } },ms+30);
+  });
+  saveTokRects();
+}
+function saveTokRects(){ document.querySelectorAll('.cell .tok[data-pid]').forEach(t=>{ const r=t.getBoundingClientRect(); if(r.width) TOKR[t.dataset.pid]=r; }); }
 // ====== 3D-КУБИКИ: катятся по центру поля и останавливаются на выпавших числах ======
 const PIPS={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
 const FACE_ROT={1:[0,0],6:[0,180],3:[0,-90],4:[0,90],2:[-90,0],5:[90,0]};
@@ -3352,7 +3401,7 @@ const savedLogs=()=>{ try{ return JSON.parse(localStorage.getItem(LOGS_KEY))||[]
 function saveMatchLog(){
   if(!G) return; const w=G.players[G.winner];
   const hist=[...(G.hist||[]),G.players.map(p=>p.out?0:Math.round(netWorth(p)))];
-  const rec={t:Date.now(),mode:G.mode,online:!!G.online,winner:w?w.name:'',hist,players:G.players.map(p=>({n:p.name,c:p.color,m:netWorth(p),out:p.out})),log:G.log.slice(-300)};
+  const rec={t:Date.now(),mode:G.mode,online:!!G.online,winner:w?w.name:'',hist,players:G.players.map(p=>({n:p.name,c:p.color,m:netWorth(p),out:p.out})),log:G.log.slice(-300),drops:G.results?resultLines():null,key:G.rid||null};
   try{ localStorage.setItem(LOGS_KEY,JSON.stringify([rec,...savedLogs()].slice(0,5))); }catch(e){}
 }
 function showMatchLog(k){
@@ -3360,6 +3409,7 @@ function showMatchLog(k){
   $('#modal').innerHTML=`<div class="ov" id="mlov"><div class="box" style="width:520px;max-height:86vh;display:flex;flex-direction:column">
     <h2 style="margin:0 0 4px">📜 ${m.ic} ${m.n}</h2><div class="muted">${new Date(r.t).toLocaleString(LOC,{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})} · победитель: <b>${esc(r.winner||'—')}</b></div>
     <div style="margin:8px 0">${r.players.map(p=>`<span class="badge" style="background:${p.c};color:#fff">${esc(p.n)}: ${p.out?'банкрот':fmt(p.m)}</span>`).join('')}</div>
+    ${r.drops&&r.drops.length?`<details style="margin-bottom:6px" open><summary style="cursor:pointer">🎁 Кому что выпало</summary><div class="tsum" style="text-align:left">${r.drops.join('<br>')}</div></details>`:''}
     ${r.hist?`<details style="margin-bottom:6px"><summary style="cursor:pointer">📈 График партии</summary>${graphSVG(r.players,r.hist)}</details>`:''}
     <div class="mlog">${r.log.slice().reverse().map(x=>`<div>${x}</div>`).join('')}</div>
     <div style="text-align:center;margin-top:8px"><button class="sec" id="mlx">Закрыть</button></div></div></div>`;
@@ -3470,6 +3520,7 @@ $('#reactBar').onclick=e=>{
 function canAct(){
   if(!G||G.over) return false;
   const a=actor();
+  if(G.tradeWait) return false; // ждём ответа на обмен — ходить нельзя
   if(NET.role==='guest') return !!G.awaiting&&a.uid===DB.session;
   return !!pending&&!a.bot&&!isRemote(a);
 }
@@ -3486,7 +3537,12 @@ function playerMenu(p){
     else if(creditWait(p)) h+=`<div class="pmi dis">🏦 Новый кредит — через ${creditWait(p)} ход.</div>`;
     else h+=`<div class="pmi" data-pm="credit">🏦 Взять кредит ${fmt(CREDIT)} на ${CREDIT_TURNS} ходов</div>`;
   }
-  if(!p.bot&&!p.out&&!G.over&&(!G.online||p.uid===DB.session)) h+=`<div class="pmi red" data-pm="give">✕ Сдаться</div>`;
+  if(!p.bot&&!p.out&&!G.over&&(!G.online||p.uid===DB.session)) h+=`<div class="pmi red" data-pm="surr">✕ Сдаться</div>`;
+  // игрок вышел из сети — остальные голосуют, большинство «за» — он автоматически сдаётся
+  const mp=myPlayer();
+  if(G.online&&!G.over&&!NET.spec&&mp&&!mp.out&&p!==mp&&!p.out&&!p.bot&&p.uid&&!isOnlineUid(p.uid)){
+    const v=(G.kick&&G.kick[p.id])||[], voted=v.includes(mp.id);
+    h+=`<div class="pmi ${voted?'dis':'red'}" data-pm="kick">🗳 ${voted?'Вы проголосовали':'Выгнать: вышел из игры'} · ${v.length}/${kickNeed(p)}</div>`; }
   return h+'</div>';
 }
 $('#players').onclick=e=>{
@@ -3498,7 +3554,9 @@ $('#players').onclick=e=>{
     if(m.dataset.pm==='stats') showGameStats(p);
     if(m.dataset.pm==='trade') openTrade(p.id);
     if(m.dataset.pm==='give') askGive(p);
-    if(m.dataset.pm==='give') surrender(p);
+    if(m.dataset.pm==='surr') surrender(p);
+    if(m.dataset.pm==='kick'&&!m.classList.contains('dis')){ const mp=myPlayer(); if(!mp) return;
+      if(NET.role==='guest'){ netSend({kind:'cmd',name:'kick',pid:p.id}); toast('🗳 Голос отправлен'); } else kickVote(mp,p.id); }
     if((m.dataset.pm==='credit'||m.dataset.pm==='repay')&&!m.classList.contains('dis')&&canAct()&&actor()===p){
       if(NET.role==='guest') netSend({kind:'cmd',name:m.dataset.pm});
       else if(m.dataset.pm==='credit') takeCredit(p); else repayCredit(p);
@@ -3539,6 +3597,17 @@ function endIfLastStanding(){
 
   closeModal(); finishGame(alive.slice().sort((a,b)=>netWorth(b)-netWorth(a))[0]);
   return true;
+}
+// голосование за исключение вышедшего: нужно больше половины остальных игроков
+const kickNeed=t=>Math.floor(G.players.filter(x=>!x.out&&x!==t).length/2)+1;
+function kickVote(voter,tid){
+  const t=G&&G.players[tid]; if(!t||!voter||t.out||voter.out||voter===t||G.over) return;
+  if(isOnlineUid(t.uid)){ if(!isRemote(voter)) toast(`${t.name} снова в сети — голосование не нужно`); return; }
+  G.kick=G.kick||{}; const v=G.kick[tid]=G.kick[tid]||[]; if(v.includes(voter.id)) return; v.push(voter.id);
+  const need=kickNeed(t);
+  log(`🗳 ${pn(voter)} голосует за исключение ${pn(t)} (вышел из игры): ${v.length}/${need}`);
+  if(v.length>=need){ delete G.kick[tid]; log(`🗳 Большинство за — ${pn(t)} исключён и автоматически сдаётся`); doSurrender(t); }
+  render(); netPublishNow();
 }
 const EARLY_SURRENDER=5; // сдался за первые 5 своих ходов — награды за матч нет
 function doSurrender(p){
@@ -3592,6 +3661,7 @@ function renderActions(){
   const el=$('#actions'); let h='';
   if(G.over){ el.innerHTML=''; return; }
   const a=actor(), ad=G.askData||askData;
+  if(G.tradeWait){ const tw=G.tradeWait; el.innerHTML=`<div class="acard"><b class="t">⏳ Ждём ответа на обмен</b><small>${pn(G.players[tw.from])} предложил(а) обмен ${pn(G.players[tw.to])}. Пока ответа нет, ходить нельзя — таймер хода на паузе.</small></div>`; return; }
   if(!canAct()){ el.innerHTML=`<div class="hint">${a.bot||G.awaiting||isRemote(a)?'Ходит '+pn(a)+'…':''}</div>`; return; }
   let tradeBtn=''; // обмен и кредит — через меню игрока слева (нажмите на игрока)
   const manage='<div class="hint">Нажмите на свою компанию, чтобы строить филиалы ★ или закладывать. Обмен и кредит — нажмите на игрока слева.</div>';
@@ -3643,8 +3713,13 @@ function startTimer(){
   let t=OPT().timer; if(!t||!G||actor().bot) return;
   // игрок по сети не в сети — ждём меньше, чтобы он не тормозил остальных
   if(isRemote(actor())&&!isOnlineUid(actor().uid)) t=Math.min(t,20);
-  G.tmDeadline=Date.now()+t*1000;
-  tmInt=setInterval(()=>{ if(G&&G.tmDeadline&&Date.now()>=G.tmDeadline){ stopTimer(); onTimeout(); } },500);
+  armTimer(t*1000);
+}
+const TRADE_BONUS=15000; // после ответа на обмен — +15 секунд к оставшемуся времени хода
+function armTimer(ms){
+  if(tmInt) clearInterval(tmInt);
+  G.tmDeadline=Date.now()+ms;
+  tmInt=setInterval(()=>{ if(G&&G.tmDeadline&&!G.tradeWait&&Date.now()>=G.tmDeadline){ stopTimer(); onTimeout(); } },500);
 }
 setInterval(()=>{ const el=document.getElementById('tmv'); if(el) el.textContent=tmRemain(); },500);
 function onTimeout(){
@@ -3668,8 +3743,12 @@ function canManage(i){
 // действие с клеткой: build | sell | mort | unmort (общая функция для местного игрока и для команд по сети)
 function cellAction(a,i,m){
   const c=CELLS[i], s=G.cells[i]; if(s.owner!==a.id) return;
-  if(m==='build'&&canBuild(i)) doBuild(a,i);
-  if(m==='sell'&&canSell(i)){ sellBranch(a,i); (G.noRebuild=G.noRebuild||{})[i]=G.turnNo; log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
+  if(m==='build'&&canBuild(i)){ doBuild(a,i); const nr=(G.noRebuild||{})[i]; if(nr&&nr.t===G.turnNo) nr.b++; }
+  if(m==='sell'&&canSell(i)){ sellBranch(a,i); markRebuild(i); log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
+  // заложить компанию, на которой (или в группе которой) стоят филиалы: сначала филиалы продаются по полной цене
+  if(m==='mort'&&!s.mort&&!canMortgage(i)&&c.type==='prop'){ const cs=M().noMono?[i]:groupCells(c.g); let got=0;
+    for(let k=0;k<30&&cs.some(j=>G.cells[j].level);k++){ const j=cs.filter(j=>G.cells[j].level).sort((x,y)=>G.cells[y].level-G.cells[x].level)[0]; got+=sellBranch(a,j); markRebuild(j); }
+    if(got) log(`${pn(a)} продаёт филиалы группы «${GROUPS[c.g].n}» и получает ${fmt(got)}`); }
   if(m==='mort'&&canMortgage(i)){ a.money+=c.price/2; s.mort=true; s.mortR=G.round||1; log(`${pn(a)} закладывает ${cn(i)} и получает ${fmt(c.price/2)}`); }
   if(m==='unmort'&&s.mort&&a.money>=unmortCost(i)){ a.money-=unmortCost(i); s.mort=false; log(`${pn(a)} выкупает ${cn(i)}`); }
   // «Расклад»: заложенную компанию можно продать Банку целиком — вторая половина цены, компания становится свободной
@@ -3679,14 +3758,20 @@ function cellAction(a,i,m){
 function canBuild(i){
   const c=CELLS[i],s=G.cells[i],a=actor();
   if(c.type!=='prop'||G.phase==='debt'||s.owner!==a.id||s.mort||s.level>=5||a.money<houseCost(i)) return false;
-  if((G.noRebuild||{})[i]===G.turnNo) return false; // продал филиал в этот ход — снова строить можно со следующего хода
+  if(rebuildUsed(i)) return false; // понизил филиал в этот ход — снова улучшить можно только 1 раз за ход
   if(M().noMono) return true;
   if(!ownsGroup(a.id,c.g)) return false;
   const gc=groupCells(c.g); if(gc.some(j=>G.cells[j].mort)) return false;
   return s.level===Math.min(...gc.map(j=>G.cells[j].level));
 }
 function canSell(i){ const c=CELLS[i],s=G.cells[i]; if(c.type!=='prop'||!s.level) return false; if(M().noMono) return true; return s.level===Math.max(...groupCells(c.g).map(j=>G.cells[j].level)); }
-function canMortgage(i){ const c=CELLS[i],s=G.cells[i]; if(s.mort||s.hq) return false; if(c.type!=='prop') return true; if(M().noMono) return !s.level; return groupCells(c.g).every(j=>!G.cells[j].level); }
+// после продажи филиала компанию в этот же ход можно улучшить только один раз (старые сохранения: число = номер хода)
+const rebuildUsed=i=>{ const nr=(G.noRebuild||{})[i]; return !!nr&&(typeof nr==='number'?nr===G.turnNo:nr.t===G.turnNo&&nr.b>=1); };
+const rebuildOne=i=>{ const nr=(G.noRebuild||{})[i]; return !!nr&&typeof nr==='object'&&nr.t===G.turnNo&&!nr.b; };
+const markRebuild=i=>{ const nr=G.noRebuild=G.noRebuild||{}; if(!(nr[i]&&nr[i].t===G.turnNo)) nr[i]={t:G.turnNo,b:0}; };
+// сколько вернут филиалы, которые придётся продать перед залогом
+const branchesBack=i=>{ const c=CELLS[i]; return (M().noMono?[i]:groupCells(c.g)).reduce((t,j)=>{ const s=G.cells[j]; return t+(s.paid&&s.paid.length?s.paid.slice(0,s.level).reduce((a,b)=>a+b,0):s.level*CELLS[j].house); },0); };
+function canMortgage(i){ const c=CELLS[i],s=G.cells[i]; if(s.mort) return false; if(c.type!=='prop') return true; if(M().noMono) return !s.level; return groupCells(c.g).every(j=>!G.cells[j].level); }
 // продажа филиала возвращает полную цену, которую за него заплатили (s.paid — цены по уровням)
 const branchBack=i=>{ const s=G.cells[i]; return s.paid&&s.paid.length?s.paid[s.paid.length-1]:CELLS[i].house; };
 const sellBranch=(p,i)=>{ const s=G.cells[i], v=branchBack(i); p.money+=v; if(s.paid) s.paid.pop(); s.level--; return v; };
@@ -3723,10 +3808,11 @@ function openCard(i){
   let acts='';
   if(G&&canManage(i)){
     const a=actor();
-    if(c.type==='prop'&&(M().noMono||ownsGroup(a.id,c.g))) acts+=`<button data-m="build" ${canBuild(i)?'':'disabled'}>Построить филиал (${fmt(houseCost(i))})${(G.noRebuild||{})[i]===G.turnNo?' · со следующего хода':''}</button>`;
+    if(c.type==='prop'&&(M().noMono||ownsGroup(a.id,c.g))) acts+=`<button data-m="build" ${canBuild(i)?'':'disabled'}>Построить филиал (${fmt(houseCost(i))})${rebuildUsed(i)?' · после понижения уже улучшали — со следующего хода':rebuildOne(i)?' · после понижения — 1 раз за ход':''}</button>`;
     if(canHQ(i)) acts+=`<button data-m="hq" class="btn-o">🏛 Штаб-квартира (${fmt(hqCost(i))})</button>`;
     if(canSell(i)) acts+=`<button data-m="sell" class="sec">Продать филиал (+${fmt(branchBack(i))})</button>`;
-    if(!s.mort) acts+=`<button data-m="mort" class="sec" ${canMortgage(i)?'':'disabled'}>Заложить (+${fmt(c.price/2)})</button>`;
+    if(!s.mort) acts+=canMortgage(i)||c.type!=='prop'?`<button data-m="mort" class="sec" ${canMortgage(i)?'':'disabled'}>Заложить (+${fmt(c.price/2)})</button>`
+      :`<button data-m="mort" class="sec">Продать филиалы${M().noMono?'':' группы'} и заложить (+${fmt(branchesBack(i)+c.price/2)})</button>`;
     else acts+=`<button data-m="unmort" ${a.money>=unmortCost(i)&&G.phase!=='debt'?'':'disabled'}>Выкупить (${fmt(unmortCost(i))})</button>`;
     if(s.mort&&G.mode==='deal') acts+=`<button data-m="sellbank" class="red">Продать Банку целиком (+${fmt(c.price/2)})</button>`;
   }
@@ -3809,9 +3895,10 @@ async function move(p,n){
     p.pos=(p.pos+1)%40;
     if(p.pos===0){ G.justPassed=p.id; p.laps=(p.laps||0)+1; checkRentStage(); const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
       if(M().third&&!G.speedOn){ G.speedOn=true; log(`⚡ ${pn(p)} первым прошёл круг — теперь все бросают <b>третий кубик</b> (1–6, 🚂 поезд или 💼 бизнесмен)!`); } }
-    render(); await sleep(110);
+    render(); await sleep(STEP_MS);
   }
 }
+const STEP_MS=300; // шаг фишки по полю: плавно и не слишком быстро
 async function moveTo(p,t){ await move(p,(t-p.pos+40)%40); }
 // «Быстрая игра» и «Расклад»: когда ВСЕ оставшиеся игроки прошли 15 / 20 / 25 кругов,
 // владелец получает только 75% / 50% / 25% аренды (остальное забирает Банк) — партия быстрее идёт к концу
@@ -4336,7 +4423,14 @@ function confirmTradeUI(t){
 async function proposeTrade(t){
   const A=G.players[t.from], B=G.players[t.to];
   if(!A||!B||!tradeValid(t)) return {ok:false,msg:'Сделка невозможна.'};
-  const ok=B.bot?false:await confirmTrade(t);
+  let ok=false;
+  if(!B.bot){
+    // пока соперник думает над обменом — таймер хода на паузе, а предложивший не может ходить
+    const left=G.tmDeadline?Math.max(0,G.tmDeadline-Date.now()):0;
+    G.tradeWait={from:A.id,to:B.id}; if(tmInt){ clearInterval(tmInt); tmInt=null; } G.tmDeadline=0; render(); netPublishNow();
+    try{ ok=await confirmTrade(t); }
+    finally{ if(G&&!G.over){ G.tradeWait=null; if(pending&&left) armTimer(Math.min(left+TRADE_BONUS,(OPT().timer||90)*1000)); render(); netPublishNow(); } }
+  }
   if(ok&&tradeValid(t)){ execTrade(t); return {ok:true}; }
   log(`${pn(B)} отклоняет предложение обмена от ${pn(A)}`); render();
   return {ok:false,msg:`${pn(B)} отказывается. Предложите больше.`};
@@ -4444,11 +4538,23 @@ function finishGame(w){
 }
 // начислить себе свою награду (один раз) и вернуть строки итогов для окна победителя
 // награда за матч от сервера (повторяем, если итог партии ещё не успел записаться)
-async function claimReward(rid){  for(let k=0;k<5;k++){ try{ const j=await api('reward',{rid}); if(j.drop){ const it=item(j.drop); SFX.buy(); toast(`🎁 Выпало: ${it.ic} ${it.n}`); feedDrop(j.drop,'получает за матч'); } if(j.refGift) setTimeout(()=>toast('🤝 Вы сыграли 3 матча — вам и другу пришли кейс «Сияние» и ключ!'),1500); else toast('Предмет в этот раз не выпал'); saveDB(); return; }    catch(e){ if(!/не закончилась/.test(e.message)) return toast('⚠ '+e.message); await new Promise(r=>setTimeout(r,1500)); } }}
-function applyMyResult(){
-  const lines=(G.results||[]).map(r=>{ const p=G.players[r.pid]; const it=r.drop&&item(r.drop);
+async function claimReward(rid){  for(let k=0;k<5;k++){ try{ const j=await api('reward',{rid}); reportDrop(j.drop||null); if(j.drop){ const it=item(j.drop); SFX.buy(); toast(`🎁 Выпало: ${it.ic} ${it.n}`); feedDrop(j.drop,'получает за матч'); } if(j.refGift) setTimeout(()=>toast('🤝 Вы сыграли 3 матча — вам и другу пришли кейс «Сияние» и ключ!'),1500); else toast('Предмет в этот раз не выпал'); saveDB(); return; }    catch(e){ if(!/не закончилась/.test(e.message)) return toast('⚠ '+e.message); await new Promise(r=>setTimeout(r,1500)); } }}
+// строки итогов: кому что выпало (с сервером выпадение приходит позже — каждый игрок сообщает своё)
+function resultLines(){
+  return (G.results||[]).map(r=>{ const p=G.players[r.pid]; const it=r.drop&&item(r.drop), wait=srvOn()&&G.online&&!r.drop&&!r.dropSet;
     if(r.noReward) return `${pn(p)}: 🏳️ сдался в первые ${EARLY_SURRENDER} ходов — без награды${r.rd?` · рейтинг ${r.rd}`:''}`;
-    return `${pn(p)}: +${r.xp} XP${r.rd?` · рейтинг ${r.rd>0?'+':''}${r.rd}`:''}${r.score!=null?` · 🧩 капитал <b>${fmt(r.score)}</b>`:''}<br>${it?`🎁 Выпало: ${it.ic} <b>${esc(it.n)}</b> <span style="color:${RAR[it.r][1]}">${RAR[it.r][0]}</span> · ${fmtC(it.val)}`:'<span class="muted">Предмет в этот раз не выпал</span>'}`; });
+    return `${pn(p)}: +${r.xp} XP${r.rd?` · рейтинг ${r.rd>0?'+':''}${r.rd}`:''}${r.score!=null?` · 🧩 капитал <b>${fmt(r.score)}</b>`:''}<br>${it?`🎁 Выпало: ${it.ic} <b>${esc(it.n)}</b> <span style="color:${RAR[it.r][1]}">${RAR[it.r][0]}</span> · ${fmtC(it.val)}`:wait?'<span class="muted">🎁 Открывает награду…</span>':'<span class="muted">Предмет в этот раз не выпал</span>'}`; });
+}
+function refreshWinRewards(){ if(!G||!G.over) return; const L=resultLines(), el=$('#wrew'); if(el) el.innerHTML=L.join('<br>');
+  try{ const s=savedLogs(); if(s[0]&&G.rid&&s[0].key===G.rid){ s[0].drops=L; localStorage.setItem(LOGS_KEY,JSON.stringify(s)); } }catch(e){} }
+// сообщить всем, что выпало мне за матч (хозяин записывает в итоги партии)
+function reportDrop(drop){
+  if(!G||!G.online||!G.over) return;
+  if(NET.role==='host') setDrop(DB.session,drop); else netSend({kind:'drop',drop:drop||null});
+}
+function setDrop(uid,drop){ const r=(G.results||[]).find(x=>x.uid===uid); if(!r||r.dropSet) return; r.drop=drop&&item(drop)&&item(drop).id?drop:null; r.dropSet=true; netPublishNow(); refreshWinRewards(); }
+function applyMyResult(){
+  const lines=resultLines();
   const r=(G.results||[]).find(x=>x.uid===DB.session), a=me();
   const key=G.online?G.rid:'local'+G.turnNo+'_'+(G.log.length);
   if(r&&a&&a.lastGame!==key){
@@ -4501,7 +4607,7 @@ function endSummary(win){
 }
 function showWinner(p,rewards){
   $('#modal').innerHTML=`<div class="ov"><div class="box" style="text-align:center;width:420px"><div style="font-size:60px">🏆</div>
-    <h2>${G&&OPT().teams&&G.winTeam!=null?`Победила команда ${teamName(G.winTeam)}<br><small style="font-size:15px">${G.players.filter(x=>x.team===G.winTeam).map(pn).join(" и ")}</small>`:`Победитель: ${p?pn(p):"никто"}`}</h2>${rewards.length?`<div class="tsum">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
+    <h2>${G&&OPT().teams&&G.winTeam!=null?`Победила команда ${teamName(G.winTeam)}<br><small style="font-size:15px">${G.players.filter(x=>x.team===G.winTeam).map(pn).join(" и ")}</small>`:`Победитель: ${p?pn(p):"никто"}`}</h2>${rewards.length?`<div class="muted" style="margin:4px 0">🎁 Кому что выпало:</div><div class="tsum" id="wrew">${rewards.join('<br>')}</div>`:'<p class="muted">Войдите в аккаунт, чтобы получать опыт и предметы за игры.</p>'}
     ${G?endSummary(p):""}<div id="rmBox"></div><button id="wmenu">В меню</button><button class="sec" id="wstats">📊 Статистика</button><button class="sec" id="wgraph">📈 График</button><button class="sec" id="wlog">📜 Журнал</button><button class="sec" id="wshare">📣 Поделиться</button>${G&&G.online?'':'<button class="sec" id="wnew">Ещё раз</button>'}</div></div>`;
   $('#wmenu').onclick=()=>{ closeModal(); if(G&&G.online) leaveNet(true); showLanding(); };
   $('#wstats').onclick=()=>showGameStats(p);
@@ -4603,11 +4709,14 @@ function listenActions(){
   }));
 }
 function hostHandleAction(a){
+  if(G&&G.over&&a.kind==='drop'){ setDrop(a.uid,a.drop); return; }
   if(!G||G.over) return;
   const p=G.players.find(x=>x.uid===a.uid);
   if(a.kind==='chat'){ gameChatLog(p,a.name,a.text); return; }
   if(!p) return;
   p.afk=0; // игрок на связи
+  if(G.kick&&G.kick[p.id]){ delete G.kick[p.id]; log(`${pn(p)} вернулся — голосование за исключение отменено`); }
+  if(a.kind==='cmd'&&a.name==='kick') return kickVote(p,+a.pid);
   if(a.kind==='answer'){ if(pending&&actor()===p&&G.phase===a.phase) answer(a.v); return; }
   if(a.kind==='reply'){ const r=NET.resolvers[a.askId]; if(r&&G.remoteAsk&&G.remoteAsk.id===a.askId&&G.remoteAsk.pid===p.id) r(a.v); return; }
   if(a.kind!=='cmd') return;
@@ -4662,7 +4771,7 @@ function resumeHost(r){
   const takeover=r.takenBy===DB.session&&r.takenAt&&Date.now()-r.takenAt<60000, inMenu=!$('#landing').classList.contains('hide');
   gameId++; pending=null; stopTimer();
   G=JSON.parse(r.state); applyLayout(G.layout);
-  G.phase='wait'; G.awaiting=false; G.remoteAsk=null; G.askData=null;
+  G.phase='wait'; G.awaiting=false; G.remoteAsk=null; G.askData=null; G.tradeWait=null;
   NET.role='host'; NET.started=true; NET.rev=r.rev||0;
   listenActions(); listenReacts(); if(!(takeover&&inMenu)){ closeModal(); hideLanding(); } renderLog(); render();
   if(G.over){ showWinner(G.players[G.winner],applyMyResult()); return; }
@@ -4682,7 +4791,7 @@ function applyGuestState(r){
   const ra=G.remoteAsk;
   if(ra&&G.players[ra.pid]&&G.players[ra.pid].uid===DB.session&&NET.handledAsk!==ra.id){ NET.handledAsk=ra.id; handleRemoteAsk(ra); }
   if(G.over&&!NET.endShown){ NET.endShown=true; saveMatchLog(); showWinner(G.players[G.winner],applyMyResult()); }
-  if(G.over) updateRematch();
+  if(G.over){ updateRematch(); refreshWinRewards(); }
 }
 // хозяин: начать партию в комнате
 function startOnlineGame(r){

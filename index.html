@@ -1225,6 +1225,31 @@
 Эту компанию нельзя добавить в договор=This company can't be added to the deal
 Юг=South
 Январь=January
+со следующего хода=from next turn
+Продать Банку целиком=Sell to the Bank entirely
+встаёт ровно на Старт — ещё=lands exactly on Start — another
+всего=total
+Перенесись в случайную точку поля. Чем больше заплатишь — тем больше точек на выбор (за Старт деньги не дают).=Jump to a random spot on the board. The more you pay, the more spots to choose from (no money for passing Start).
+Случайно=Random
+на выбор=to choose from
+бесплатно=free
+Куда перенестись?=Where to jump?
+Нажмите на одну из=Click one of the
+подсвеченных клеток=highlighted squares
+на поле.=on the board.
+проходит через портал=goes through the portal
+и попадает на=and lands on
+не хватает денег на портал=not enough money for the portal
+Банку и получает ещё=to the Bank and gets another
+деньги переходят к=money goes to
+компании возвращаются Банку=companies return to the Bank
+Поле после обмена=Board after the trade
+Поле как сейчас=Board as it is now
+будет вся группа=will own the whole group
+теряет полную группу=loses the full group
+Полных групп этот обмен не меняет=This trade doesn't change any full groups
+Портал: встали сюда — можно перенестись в случайную точку поля; за 1k — 2 точки на выбор, за 2k — 3, за 3k — 4=Portal: land here to jump to a random spot; for 1k — 2 spots to choose from, for 2k — 3, for 3k — 4
+Две клетки «Шанс» становятся порталами: встал — переносишься в случайную точку; за 1k–3k — 2–4 точки на выбор=Two «Chance» squares become portals: land on one to jump to a random spot; for 1k–3k — 2–4 spots to choose from
 Промокод=Promo code
 Промокод активирован!=Promo code activated!
 Активировать=Activate
@@ -1604,6 +1629,8 @@ button.sm{padding:5px 12px;font-size:13px}
 .cell .pr{font-size:.95em;opacity:.7;margin-top:2px;padding:0 4px;border-radius:3px}
 .cell .lv{color:#e6a800;font-size:1.1em;line-height:1}
 .cell.owned .pr{opacity:1;font-weight:700;color:#fff}
+.cell .pr.jpt{opacity:1;background:#ffb627;color:#3a2a00;font-weight:800;border-radius:6px;animation:jpp 1.6s ease-in-out infinite}@keyframes jpp{50%{box-shadow:0 0 8px #ffb627}}
+.cell.tprev{outline:3px dashed var(--tpc,#ffb627);outline-offset:-3px;z-index:4}.tprevn{margin-top:6px;font-size:12px;line-height:1.5;color:#ffd166}
 .cell.mort .ic,.cell.mort .cn{opacity:.35}
 .cell.corner{background:var(--corner)}
 .cell.corner .ic{font-size:max(26px,calc(var(--s)/22))}
@@ -2812,6 +2839,7 @@ function buildBoard(){
     const [r,col]=gridPos(i); d.style.gridRow=r+1; d.style.gridColumn=col+1; // +1: снаружи — дорожка для ценников
     d.innerHTML=`<div class="ic">${c.ic}</div><div class="cn">${c.name}</div><div class="lv"></div><div class="pr"></div><div class="tokens"></div><div class="cb"></div><div class="cb l"></div>`;
     const click=()=>{ if(G&&G.phase==='pick'&&canAct()) return answer(String(i));
+      if(G&&G.phase==='portalpick'&&canAct()){ const ad=G.askData||askData; if(ad&&(ad.cells||[]).includes(i)) return answer(String(i)); }
       if(G&&G.phase==='move'&&canAct()){ const ad=G.askData||askData, a=actor(), n=((ad&&ad.opts)||[]).find(n=>(a.pos+n)%40===i); if(n!==undefined) return answer(String(n)); } if(typeof TR!=='undefined'&&TR&&!TR.view&&tradeCellClick(i)) return; openCard(i); };
     d.onclick=click; b.appendChild(d);
     // ценник снаружи поля рядом с клеткой: цвет группы + цена/аренда
@@ -2855,6 +2883,8 @@ function render(){
     // купленная клетка целиком цвета владельца, ценник снаружи показывает аренду
     el.style.background=own?`linear-gradient(${G.players[s.owner].color}e0,${G.players[s.owner].color}e0),#fff`:'';
     pr.textContent=''; el.style.boxShadow='';
+    // джекпот — прямо на клетке «Казино»
+    if(c.type==='casino'&&OPT().jackpot){ pr.textContent='💰 '+fmtCell(G.jackpot||0); pr.classList.add('jpt'); } else pr.classList.remove('jpt');
     if(lab){
       if(isOwnable(c)) lab.textContent=own?(s.mort?'🔒'+(OPT().mortLimit?mortLeft(s):''):fmtCell(rentDue(i,G.lastDice))):fmtCell(c.price);
       else if(c.type==='tax') lab.textContent=evOn('taxfree')?'0':fmtCell(c.amount);
@@ -2863,6 +2893,9 @@ function render(){
     lv.textContent=(s.hq?'🏛':'')+(s.level?(s.level===5?'🏨':'★'.repeat(s.level)):'');
     // значки: 🃏 карточка владельца (+%), 📊 акции соперников
     const [cb,cbl]=el.querySelectorAll('.cb'), bon=s.owner>=0?cellBonus(G.players[s.owner],i):0;
+    { const br=bon?((G.players[s.owner].bonus||{})[BASE_CELLS.indexOf(c)]||{}).brand:null, cnm=el.querySelector('.cn'); // надетая карточка — табличка бренда вместо названия
+      if(br){ if(cnm.dataset.brand!==br){ const [bg,fg]=BRAND_STYLE[br]||['#fff','#262b38']; cnm.textContent=br; cnm.dataset.brand=br; cnm.style.cssText=`background:${bg};color:${fg};border-radius:3px;font-weight:800;padding:0 2px;box-shadow:0 0 0 1px #0002`; } }
+      else if(cnm.dataset.brand){ cnm.textContent=c.name; delete cnm.dataset.brand; cnm.style.cssText=''; } }
     cb.textContent=bon?'🃏'+bon+'%':''; cb.title=bon?`Карточка ${(G.players[s.owner].bonus[BASE_CELLS.indexOf(c)]||{}).brand||''}: аренда +${bon}%`:'';
     cbl.textContent=(s.sh&&s.sh.length)?'📊'+(s.sh.length>1?s.sh.length:''):''; cbl.title=(s.sh||[]).map(k=>G.players[k].name).join(', ');
     el.querySelector('.tokens').innerHTML=G.players.filter(p=>!p.out&&p.pos===i).map(p=>p.skin?
@@ -2876,9 +2909,10 @@ function render(){
   $('#reactBar').classList.toggle('on',!!G.online&&!G.over);
   $('#chatBar').classList.toggle('on',!!G.online&&!G.over);
   renderAuction(); maybeAutoEnd();
+  if(typeof TR!=='undefined'&&TR&&TR.prev) applyTradePreview();
   // поезд: подсветить клетки, куда можно пойти; тройка — любая клетка
   { const can=canAct(), ad=G.askData||askData, a=actor(), mv=G.phase==='move'&&can&&ad&&ad.opts?ad.opts:[];
-    CELLS.forEach((c,i)=>{ const el=$('#c'+i), n=mv.find(n=>(a.pos+n)%40===i); el.classList.toggle('mvopt',n!==undefined); if(n!==undefined) el.dataset.mv='+'+n; else delete el.dataset.mv; el.classList.toggle('pickopt',G.phase==='pick'&&can); }); }
+    CELLS.forEach((c,i)=>{ const el=$('#c'+i), n=mv.find(n=>(a.pos+n)%40===i); const pp=G.phase==='portalpick'&&can&&ad&&(ad.cells||[]).includes(i); el.classList.toggle('mvopt',n!==undefined||pp); if(n!==undefined) el.dataset.mv='+'+n; else if(pp) el.dataset.mv='🌀'; else delete el.dataset.mv; el.classList.toggle('pickopt',G.phase==='pick'&&can); }); }
   fx();
   // подсветка клетки, где стоит тот, кто сейчас ходит
   const cp=!G.over&&G.players[G.cur];
@@ -3565,7 +3599,9 @@ function renderActions(){
       <div class="hint">Заложите компании, продайте филиалы (нажмите на свою клетку), продайте компанию другому игроку (нажмите на него слева → «Обмен») или возьмите кредит (нажмите на себя слева).</div>`; break;
     case 'end': h=`<div class="acard"><b class="t">Ход сделан</b><small>Можно строить филиалы и меняться — или передать ход.</small><button data-a="end">Завершить ход ➜</button></div>`+manage; break;
     case 'move': h=`<div class="acard"><b class="t">🚂 Поезд!</b><small>Нажмите на <b>подсвеченную клетку</b> на поле — туда и поедете.</small><div class="mvchips">${ad.opts.map(n=>{ const t=(a.pos+n)%40; return `<button class="sec" data-a="${n}">+${n} ${CELLS[t].ic}</button>`; }).join('')}</div></div>`; break;
-    case 'portal': { h=`<div class="acard"><b class="t">🌀 Портал</b><small>Можно мгновенно перенестись ко второму порталу на другой стороне поля (за Старт деньги не дают).</small><div class="row2"><button data-a="go">🌀 Перенестись</button><button data-a="stay" class="sec">Остаться</button></div></div>`; break; }
+    case 'portal': { const T=(ad&&ad.tiers)||PORTAL_TIERS; h=`<div class="acard"><b class="t">🌀 Портал</b><small>Перенесись в случайную точку поля. Чем больше заплатишь — тем больше точек на выбор (за Старт деньги не дают).</small>
+      <div class="row2" style="flex-wrap:wrap">${T.map(([cost,n],k)=>`<button data-a="${k}" ${cost>a.money?'disabled':''}>${n===1?'🎲 Случайно':`🌀 ${n} на выбор`} · ${cost?fmt(cost):'бесплатно'}</button>`).join('')}<button data-a="stay" class="sec">Остаться</button></div></div>`; break; }
+    case 'portalpick': h=`<div class="acard"><b class="t">🌀 Куда перенестись?</b><small>Нажмите на одну из <b>подсвеченных клеток</b> на поле.</small></div>`; break;
     case 'pick': h=`<div class="acard"><b class="t">🎯 Тройка!</b><small>Нажмите на <b>любую клетку поля</b> — туда и поедете.</small></div>`; break;
     case 'stock': h=`<div class="q">📊 Фондовый рынок: ${pn(a)}, купить акцию? С каждой аренды этой компании вам будет идти ${STOCK_CUT*100}%.</div>`+
       ad.opts.map(i=>`<button data-a="${i}" ${a.money<stockPrice(i)?'disabled':''}>${CELLS[i].ic} ${CELLS[i].name} (${esc(G.players[G.cells[i].owner].name)}) — ${fmt(stockPrice(i))}</button>`).join('')+
@@ -3611,7 +3647,7 @@ function onTimeout(){
   if(!isRemote(a)&&($('#tov')||$('#ov')||$('#ppov'))) closeModal();
   if(!isRemote(a)&&TR&&!TR.view) closeTrade();
   const v={roll:'roll',jail:'roll',buy:'skip',end:'end',debt:G.debt&&a.money>=G.debt.amt?'pay':'give',
-    move:String(ad&&ad.opts?ad.opts[0]:''),pick:'-1',stock:'skip',portal:'stay'}[G.phase]||'end';
+    move:String(ad&&ad.opts?ad.opts[0]:''),pick:'-1',stock:'skip',portal:'stay',portalpick:String(ad&&ad.cells?ad.cells[0]:'')}[G.phase]||'end';
   answer(v);
 }
 
@@ -3624,14 +3660,17 @@ function canManage(i){
 function cellAction(a,i,m){
   const c=CELLS[i], s=G.cells[i]; if(s.owner!==a.id) return;
   if(m==='build'&&canBuild(i)) doBuild(a,i);
-  if(m==='sell'&&canSell(i)){ sellBranch(a,i); log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
+  if(m==='sell'&&canSell(i)){ sellBranch(a,i); (G.noRebuild=G.noRebuild||{})[i]=G.turnNo; log(`${pn(a)} продаёт филиал в ${cn(i)}`); }
   if(m==='mort'&&canMortgage(i)){ a.money+=c.price/2; s.mort=true; s.mortR=G.round||1; log(`${pn(a)} закладывает ${cn(i)} и получает ${fmt(c.price/2)}`); }
   if(m==='unmort'&&s.mort&&a.money>=unmortCost(i)){ a.money-=unmortCost(i); s.mort=false; log(`${pn(a)} выкупает ${cn(i)}`); }
+  // «Расклад»: заложенную компанию можно продать Банку целиком — вторая половина цены, компания становится свободной
+  if(m==='sellbank'&&G.mode==='deal'&&s.mort){ a.money+=c.price/2; s.owner=-1; s.mort=false; s.level=0; s.paid=[]; resetCell(s); log(`${pn(a)} продаёт ${cn(i)} Банку и получает ещё ${fmt(c.price/2)}`); }
   if(m==='hq'&&canHQ(i)){ a.money-=hqCost(i); s.hq=true; log(`🏛 ${pn(a)} строит <b>штаб-квартиру</b> в ${cn(i)} — аренда всей группы «${GROUPS[c.g].n}» +${Math.round((HQ_MULT-1)*100)}%`); track(a,'build'); track(a,'hq'); }
 }
 function canBuild(i){
   const c=CELLS[i],s=G.cells[i],a=actor();
   if(c.type!=='prop'||G.phase==='debt'||s.owner!==a.id||s.mort||s.level>=5||a.money<houseCost(i)) return false;
+  if((G.noRebuild||{})[i]===G.turnNo) return false; // продал филиал в этот ход — снова строить можно со следующего хода
   if(M().noMono) return true;
   if(!ownsGroup(a.id,c.g)) return false;
   const gc=groupCells(c.g); if(gc.some(j=>G.cells[j].mort)) return false;
@@ -3660,7 +3699,7 @@ function openCard(i){
     body=`<table><tr><td>1 компания</td><td>сумма кубиков × 100k</td></tr><tr><td>Обе компании</td><td>сумма кубиков × 250k</td></tr>
       <tr><td>Цена</td><td>${fmt(c.price)}</td></tr><tr><td>Залог / выкуп</td><td>${fmt(c.price/2)} / ${fmt(unmortCost(i))}</td></tr></table>`;
   } else {
-    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:G&&OPT().portal&&PORTALS.includes(i)?'🌀 Портал: встали сюда — можете мгновенно перенестись ко второму порталу на другой стороне поля.':'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:(G&&OPT().jackpot?`💰 Джекпот сейчас ${fmt(G.jackpot||0)} — забираете его, когда встаёте сюда. `:'')+'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
+    body=`<p>${({start:`Каждый раз, проходя Старт, получаете ${fmt(salary())}.`,chance:G&&OPT().portal&&PORTALS.includes(i)?'🌀 Портал: встали сюда — можно перенестись в случайную точку поля; за 1k — 2 точки на выбор, за 2k — 3, за 3k — 4.':'Вытяните случайную карту: может повезти, а может и нет.',tax:`Заплатите банку ${fmt(c.amount||0)}.`,jail:`Просто в гостях — или сидите. Выйти: дубль, ${fmt(JAIL_FINE)} или карта 🎫.`,free:'Отдыхайте, здесь ничего не происходит.',casino:(G&&OPT().jackpot?`💰 Джекпот сейчас ${fmt(G.jackpot||0)} — забираете его, когда встаёте сюда. `:'')+'Можно сделать ставку 500k–2,000k на 1–3 числа кубика. Угадали — выигрыш ×5, ×2.5 или ×1.6.',gojail:'Отправляйтесь прямо в тюрьму, Старт не проходите.',stock:'Купите акцию компании соперника за половину её цены — с каждой аренды этой компании вам будет идти 10%. На одну компанию — до 2 акционеров.'})[c.type]}</p>`;
   }
   let owner='';
   if(G&&isOwnable(c)){
@@ -3675,11 +3714,12 @@ function openCard(i){
   let acts='';
   if(G&&canManage(i)){
     const a=actor();
-    if(c.type==='prop'&&(M().noMono||ownsGroup(a.id,c.g))) acts+=`<button data-m="build" ${canBuild(i)?'':'disabled'}>Построить филиал (${fmt(houseCost(i))})</button>`;
+    if(c.type==='prop'&&(M().noMono||ownsGroup(a.id,c.g))) acts+=`<button data-m="build" ${canBuild(i)?'':'disabled'}>Построить филиал (${fmt(houseCost(i))})${(G.noRebuild||{})[i]===G.turnNo?' · со следующего хода':''}</button>`;
     if(canHQ(i)) acts+=`<button data-m="hq" class="btn-o">🏛 Штаб-квартира (${fmt(hqCost(i))})</button>`;
     if(canSell(i)) acts+=`<button data-m="sell" class="sec">Продать филиал (+${fmt(branchBack(i))})</button>`;
     if(!s.mort) acts+=`<button data-m="mort" class="sec" ${canMortgage(i)?'':'disabled'}>Заложить (+${fmt(c.price/2)})</button>`;
     else acts+=`<button data-m="unmort" ${a.money>=unmortCost(i)&&G.phase!=='debt'?'':'disabled'}>Выкупить (${fmt(unmortCost(i))})</button>`;
+    if(s.mort&&G.mode==='deal') acts+=`<button data-m="sellbank" class="red">Продать Банку целиком (+${fmt(c.price/2)})</button>`;
   }
   $('#modal').innerHTML=`<div class="ov" id="ov"><div class="box card" style="padding:0">
     <div class="hd" style="background:${col}">${G&&OPT().portal&&PORTALS.includes(i)&&c.type==='chance'?'🌀 Портал':c.ic+' '+c.name}</div>
@@ -3706,8 +3746,8 @@ const roll3=(rnd=Math.random)=>{ const v=rnd()*8|0; return v===6?'T':v===7?'W':v
 function mulberry(a){ return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const hashStr=s=>{ let h=2166136261; for(const ch of s){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return h>>>0; };
 const gRnd=()=>G&&G.seed!=null?mulberry(G.seed+(G.rc=(G.rc||0)+1)*7919)():Math.random();
-async function rollDice(p){
-  const third=!!M().third&&!!G.speedOn;
+async function rollDice(p,two){
+  const third=!two&&!!M().third&&!!G.speedOn; // из тюрьмы — только 2 кубика
   for(let k=0;k<7;k++){ $('#dice').innerHTML=DIE[Math.random()*6|0]+DIE[Math.random()*6|0]+(third?`<span class="d3">${face3(roll3())}</span>`:''); await sleep(60); }
   const a=1+(gRnd()*6|0), b=1+(gRnd()*6|0), c=third?roll3(gRnd):0;
   G.roll={id:((G.roll&&G.roll.id)||0)+1,v:[a,b,c],pid:p.id}; dice3d(G.roll); FX&&(FX.rollId=G.roll.id);
@@ -3758,7 +3798,7 @@ function botPickCell(p){ let best=0,bs=-1e9; for(let i=0;i<40;i++){ const sc=cel
 async function move(p,n){
   for(let k=0;k<n;k++){
     p.pos=(p.pos+1)%40;
-    if(p.pos===0){ p.laps=(p.laps||0)+1; checkRentStage(); const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
+    if(p.pos===0){ G.justPassed=p.id; p.laps=(p.laps||0)+1; checkRentStage(); const sal=salary(); p.money+=sal; log(sal?`${pn(p)} проходит Старт и получает ${fmt(sal)}`:`${pn(p)} проходит Старт — после ${SALARY_OFF_R}-го круга за круг не платят`); track(p,'start');
       if(M().third&&!G.speedOn){ G.speedOn=true; log(`⚡ ${pn(p)} первым прошёл круг — теперь все бросают <b>третий кубик</b> (1–6, 🚂 поезд или 💼 бизнесмен)!`); } }
     render(); await sleep(110);
   }
@@ -3795,6 +3835,9 @@ function sendJail(p){ p.pos=10; p.inJail=true; p.jailTries=0; p.dbl=0; log(`${pn
 async function land(p,dice){
   const i=p.pos, c=CELLS[i], s=G.cells[i];
   render();
+  // встал ровно на Старт — выплата за круг ещё раз (всего вдвое больше)
+  if(c.type==='start'&&G.justPassed===p.id){ const sal=salary(); if(sal){ p.money+=sal; log(`🎯 ${pn(p)} встаёт ровно на Старт — ещё ${fmt(sal)} (всего ${fmt(sal*2)})`); SFX.coin&&SFX.coin(); render(); } }
+  G.justPassed=null;
   if(isOwnable(c)){
     if(s.owner<0){
       // живой игрок всегда выбирает сам: «Купить» (серая, если не хватает денег — можно заложить/обменяться и купить) или аукцион/отказ
@@ -3957,15 +4000,22 @@ async function askGive(to){
 function toJackpot(a){ if(!OPT().jackpot||!G||!(a>0)) return; G.jackpot=(G.jackpot||0)+a; render(); }
 // ====== ПОРТАЛЫ (галочка): две клетки «Шанс» становятся порталами ======
 const PORTALS=[7,22];
+// 🌀 ПОРТАЛ: случайные точки на поле; чем больше заплатишь, тем больше точек на выбор
+// бесплатно — 1 случайная точка, 1k — 2 на выбор, 2k — 3, 3k — 4 (деньги уходят в джекпот/Банку)
+const PORTAL_TIERS=[[0,1],[1000,2],[2000,3],[3000,4]];
 async function portal(p,i){
-  const to=PORTALS.find(x=>x!==i);
-  let go;
-  if(p.bot) go=Math.random()<0.5;
-  else { const v=await ask('portal',{to}); if(p.out) return; go=v==='go'; }
-  if(!go){ log(`🌀 ${pn(p)} остаётся у портала`); return; }
-  log(`🌀 ${pn(p)} проходит через портал на другую сторону поля`); SFX.event(); track(p,'portal');
-  p.pos=to; render(); await sleep(400);
-  p.pos=to; render(); // на втором портале ничего не происходит — следующий ход уже оттуда
+  const v=await ask('portal',{tiers:PORTAL_TIERS}); if(p.out) return;
+  if(v==='stay'||v==null){ log(`🌀 ${pn(p)} остаётся у портала`); return; }
+  const [cost,n]=PORTAL_TIERS[+v]||PORTAL_TIERS[0];
+  if(cost>p.money){ log(`🌀 ${pn(p)}: не хватает денег на портал`); return; }
+  if(cost){ await pay(p,cost,-1); if(p.out) return; toJackpot(cost); }
+  const pool=CELLS.map((c,j)=>j).filter(j=>j!==i&&!['gojail','jail'].includes(CELLS[j].type)&&!PORTALS.includes(j));
+  const opts=[]; while(opts.length<n&&pool.length) opts.push(pool.splice(gRnd()*pool.length|0,1)[0]);
+  let t=opts[0];
+  if(opts.length>1){ const a=await ask('portalpick',{cells:opts}); if(p.out) return; if(opts.includes(+a)) t=+a; }
+  log(`🌀 ${pn(p)} проходит через портал${cost?` (за ${fmt(cost)})`:''} и попадает на ${cn(t)}`); SFX.event(); track(p,'portal');
+  p.pos=t; render(); await sleep(400);
+  await land(p,G.lastDice);
 }
 
 // ====== ФОНДОВЫЙ РЫНОК: акции компаний соперников ======
@@ -4138,9 +4188,10 @@ function bankrupt(p,to){
   const cred=to>=0?G.players[to]:null;
   G.cells.forEach((s,i)=>{ if(s.owner===p.id) while(s.level>0) sellBranch(p,i); });
   if(cred){ cred.money+=Math.max(0,p.money); track(cred,'kill'); }
-  G.cells.forEach(s=>{ if(s.owner===p.id){ if(cred) s.owner=cred.id; else { s.owner=-1; s.mort=false; resetCell(s); } } });
+  // кредитору — только деньги; компании возвращаются Банку, акции банкрота пропадают
+  G.cells.forEach(s=>{ if(s.owner===p.id){ s.owner=-1; s.mort=false; resetCell(s); } if(s.sh&&s.sh.includes(p.id)) s.sh=s.sh.filter(x=>x!==p.id); });
   p.money=0; p.out=true; p.inJail=false; p.credit=null; checkRentStage();
-  log(`💥 ${pn(p)} объявляет банкротство${cred?' — всё имущество переходит к '+pn(cred):''}`);
+  log(`💥 ${pn(p)} объявляет банкротство${cred?' — деньги переходят к '+pn(cred)+', компании возвращаются Банку':' — компании возвращаются Банку'}`);
   render();
 }
 
@@ -4177,6 +4228,22 @@ const tradeVal=(cells,m)=>m+cells.reduce((s,i)=>s+CELLS[i].price*(G.cells[i].mor
 const av2=p=>`<div class="av2" style="background:${p.color}">${p.skin||avLetter(p)}</div>`;
 function tItem(i,rm){ const c=CELLS[i], s=G.cells[i];
   return `<div class="titem"><span class="ic">${c.ic}</span><div style="min-width:0"><b style="font-weight:600">${c.name}${s.level?' '+(s.level===5?'🏨':'★'.repeat(s.level)):''}${s.mort?' 🔒':''}</b><small>${fmt(c.price+s.level*(c.house||0))}</small></div>${rm?`<span class="rm" data-rm="${i}">✕</span>`:''}</div>`; }
+// 👁 предпросмотр: поле так, как оно будет после обмена (клетки окрашены в цвет нового владельца)
+function tradeAfterOwner(i){ if(!TR) return G.cells[i].owner; if(TR.give.includes(i)) return TR.B; if(TR.get.includes(i)) return TR.A; return G.cells[i].owner; }
+function applyTradePreview(){
+  document.querySelectorAll('.cell.tprev').forEach(el=>el.classList.remove('tprev'));
+  if(!TR||!TR.prev) return;
+  [...TR.give,...TR.get].forEach(i=>{ const el=$('#c'+i); if(!el) return; const o=G.players[tradeAfterOwner(i)];
+    el.style.background=`linear-gradient(${o.color}e0,${o.color}e0),#fff`; el.classList.add('tprev'); el.style.setProperty('--tpc',o.color); });
+}
+function tradePreviewNote(){
+  if(!TR) return ''; const out=[];
+  for(const g of Object.keys(GROUPS)){ const gc=groupCells(g); if(!gc.length) continue;
+    for(const pid of [TR.A,TR.B]){ const before=gc.every(j=>G.cells[j].owner===pid), after=gc.every(j=>tradeAfterOwner(j)===pid);
+      if(after&&!before) out.push(`🎉 У ${pn(G.players[pid])} будет вся группа «${GROUPS[g].n}»`);
+      if(before&&!after) out.push(`⚠ ${pn(G.players[pid])} теряет полную группу «${GROUPS[g].n}»`); } }
+  return out.join('<br>')||'Полных групп этот обмен не меняет';
+}
 function markTradeCells(){
   const sel=TR?[...TR.give,...TR.get]:[], hl=(TR&&TR.view)?[]:sel;
   CELLS.forEach((c,i)=>{ const el=$('#c'+i); if(!el) return;
@@ -4185,7 +4252,7 @@ function markTradeCells(){
     el.classList.toggle('tsel',hl.includes(i));
     el.classList.toggle('tpulse',!!(TR&&TR.view)&&sel.includes(i)); });
 }
-function closeTrade(){ if(TR&&TR.res) TR.res(false); TR=null; const b=$('#tradeBox'); if(b){ b.classList.remove('on'); b.innerHTML=''; } markTradeCells(); }
+function closeTrade(){ if(TR&&TR.res) TR.res(false); const hadPrev=TR&&TR.prev; TR=null; document.querySelectorAll('.cell.tprev').forEach(el=>el.classList.remove('tprev')); if(hadPrev&&G) render(); const b=$('#tradeBox'); if(b){ b.classList.remove('on'); b.innerHTML=''; } markTradeCells(); }
 function openTrade(partnerId){
   const A=actor(); if(!canAct()) return;
   const others=G.players.filter(o=>o!==A&&!o.out); if(!others.length) return;
@@ -4203,12 +4270,14 @@ function drawTrade(msg=''){
   const vA=tradeVal(TR.give,TR.mFrom), vB=tradeVal(TR.get,TR.mTo);
   box.innerHTML=`<div class="th">${view?'Предложение обмена':'Договор'}<button class="x" data-tx="close">✕</button></div>
     <div class="tb">${side(A,TR.give,TR.mFrom,'a',view?'предлагает':'предлагаете')}${side(B,TR.get,TR.mTo,'b',view?'отдаёте взамен':'отдаёт')}</div>
-    <div class="tf"><div class="sums"><b>${fmt(vA)}</b><span>Общая сумма</span><b>${fmt(vB)}</b></div><div class="tmsg">${msg}</div>
+    <div class="tf"><div class="sums"><b>${fmt(vA)}</b><span>Общая сумма</span><b>${fmt(vB)}</b></div><div class="tmsg">${msg}${TR.prev?`<div class="tprevn">${tradePreviewNote()}</div>`:""}</div>
+      ${TR.give.length||TR.get.length?`<button class="sec" data-tx="prev">${TR.prev?"↩ Поле как сейчас":"👁 Поле после обмена"}</button>`:""}
       ${view?`<button data-tx="yes">✔ Принять</button><button class="red" data-tx="no">Отклонить</button>`
         :`<button data-tx="send">Предложить</button><button class="sec" data-tx="close">Отмена</button>`}</div>`;
-  box.classList.add('on'); markTradeCells();
+  box.classList.add('on'); markTradeCells(); applyTradePreview();
 }
 $('#tradeBox').onclick=async e=>{
+  if(TR&&e.target.closest('[data-tx="prev"]')){ TR.prev=!TR.prev; render(); drawTrade(); applyTradePreview(); return; }
   if(!TR) return;
   const rm=e.target.closest('[data-rm]'); if(rm){ const i=+rm.dataset.rm; TR.give=TR.give.filter(x=>x!==i); TR.get=TR.get.filter(x=>x!==i); return drawTrade(); }
   const mo=e.target.closest('[data-money]');
@@ -4289,7 +4358,7 @@ async function turnInner(){
       if(choice==='card'){ p.jailCards--; p.inJail=false; log(`${pn(p)} использует карту 🎫 и выходит из тюрьмы`); }
       else if(choice==='pay'){ log(`${pn(p)} платит ${fmt(JAIL_FINE)} и выходит из тюрьмы`); await pay(p,JAIL_FINE,-1); if(p.out) break; toJackpot(JAIL_FINE); p.inJail=false; }
       else {
-        const [a,b,c]=await rollDice(p);
+        const [a,b,c]=await rollDice(p,true);
         if(a===b){ p.inJail=false; log(`${pn(p)} выходит из тюрьмы по дублю`); const mv=await chooseMove(p,a,b,c); if(p.out) break;
           await doMove(p,mv); }
         else if(++p.jailTries>=3){ log(`${pn(p)} не смог выбросить дубль за 3 попытки и платит ${fmt(JAIL_FINE)}`); await pay(p,JAIL_FINE,-1); if(p.out) break; toJackpot(JAIL_FINE); p.inJail=false;
@@ -4451,7 +4520,7 @@ let setupMode='classic', setupRows=null;
 const OPTS_KEY='bizemp_opts';
 let setupOpts; try{ setupOpts=JSON.parse(localStorage.getItem(OPTS_KEY)); }catch(e){}
 if(!setupOpts) setupOpts={timer:true,auction:true,credit:true,mortLimit:true};
-const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал на один — можешь перенестись к другому'],['teams','👥 Командная игра 2 на 2','Игроки 1 и 3 против 2 и 4. Напарнику аренду не платят, деньги можно передавать. Нужно ровно 4 игрока']];
+const OPT_LIST=[['timer','⏱ Таймер хода — 90 секунд','Если не успели, ход делается автоматически'],['auction','🔨 Аукцион','Если игрок отказался от покупки, компания уходит с молотка'],['credit','🏦 Кредит Банка','5,000k — вернуть 6,000k за 10 своих ходов. Новый можно взять через 3 хода после возврата'],['mortLimit','🔒 Срок залога — 15 кругов','Не выкупили вовремя — компания уходит Банку'],['jackpot','💰 Джекпот','Налоги и штрафы копятся в джекпоте. Кто встанет на «Казино» — забирает всё'],['portal','🌀 Порталы','Две клетки «Шанс» становятся порталами: встал — переносишься в случайную точку; за 1k–3k — 2–4 точки на выбор'],['teams','👥 Командная игра 2 на 2','Игроки 1 и 3 против 2 и 4. Напарнику аренду не платят, деньги можно передавать. Нужно ровно 4 игрока']];
 function defaultRows(){ const u=me(); return [{type:u?'me':'guest',name:u?u.name:'Вы'},{type:'bot',name:'Бот Алиса'},{type:'bot',name:'Бот Борис'},{type:'bot',name:'Бот Вика'}]; }
 // режимы с заданным составом: рейтинговая — вы и 3 бота, задача дня — вы и 2 бота
 const fixedRows=m=>m.ranked?defaultRows():m.daily?defaultRows().slice(0,3):null;

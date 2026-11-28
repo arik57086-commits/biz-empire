@@ -183,9 +183,15 @@ const ACTIONS={
     if(ok){ got=randOf(inf.next); addItem(u,got.id); } else addItem(u,x.id); saveEco(t,uid,u); return {ok,got:got&&got.id,user:pub(u)}; }); },
   // награда за матч по сети: сервер сам бросает выпадение, один раз на игрока за партию
   async reward(env,uid,b){ const rid=String(b.rid||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)) fail('Нет такой партии'); NY_ON=(await siteCfg(env)).ny;
+    const raw=await gfetch(env,`${FS}/rooms/${rid}`), born=raw&&raw.createTime?Date.parse(raw.createTime):0; // время создания комнаты ставит сама база — подделать нельзя
     return tx(env,async t=>{ const room=await t.get('rooms/'+rid); if(!room||room.status!=='over'||!room.state) fail('Партия ещё не закончилась');
       const st=JSON.parse(room.state), r=(st.results||[]).find(x=>x.uid===uid); if(!r) fail('Вы не играли в этой партии');
       if(await t.get(`claims/${rid}_${uid}`)) fail('Награда уже получена');
+      // проверка, что матч правда был: игроки из комнаты, партия шла не меньше 4 минут и было достаточно ходов
+      const humans=(st.players||[]).filter(p=>p.uid&&!p.bot).length, uids=room.uids||[];
+      const real=humans>=2&&(st.results||[]).every(x=>uids.includes(x.uid))&&(st.players||[]).every(p=>!p.uid||uids.includes(p.uid))
+        &&(st.turnNo||0)>=humans*3&&born&&Date.now()-born>=4*60000;
+      if(!real){ t.create(`claims/${rid}_${uid}`,{uid,rid,drop:null,short:true,at:Date.now()}); return {drop:null,short:true}; }
       const u=await getUser(t,uid); let drop=null; const ranked=st.mode==='ranked', win=!!r.win&&!r.noReward;
       if(!r.noReward){ const it=rollDrop(ranked&&(u.vipUntil||0)>Date.now()); if(it){ drop=it.id; addItem(u,drop); } }
       // итоги матча считает сервер: матчи, победы, рейтинг, очки сезона/турниров/режимов
@@ -290,8 +296,79 @@ const ACTIONS={
       if(b.item){ if(!ITEMS.some(x=>x.id===b.item)) fail('Нет такого предмета'); addItem(u,b.item); }
       if(b.vipDays!=null) u.vipUntil=+b.vipDays<0?0:+b.vipDays>=36500?VIP_FOREVER:Math.max(Date.now(),u.vipUntil||0)+(+b.vipDays)*86400000;
       if(b.prem) u.prem[seasonKey()]=true;
-      saveEco(t,who,u); return {target:pub(u)}; }); }
+      saveEco(t,who,u); return {target:pub(u)}; }); },
+  // ---- Telegram: привязать чат к аккаунту (одноразовый код в ссылке t.me/бот?start=L…) ----
+  async tgLink(env,uid){ const code=(newUid()+newUid()).replace(/[^a-z0-9]/g,'').slice(0,24);
+    await tx(env,async t=>{ t.create('tglink/'+code,{uid,exp:Date.now()+20*60000}); return 1; });
+    return {code,bot:await botName(env)}; },
+  async tgOff(env,uid){ return tx(env,async t=>{ const u=await getUser(t,uid); delete u.srv.tg; saveEco(t,uid,u); return {ok:true}; }); },
+  // «Твой ход»: ведущий партии зовёт в Telegram игрока, который не в игре (не чаще раза в 3 минуты)
+  async ping(env,uid,b){ const rid=String(b.rid||''), to=String(b.to||''); if(!/^[A-Za-z0-9]{10,40}$/.test(rid)||!to||to===uid) fail('Нет такой партии');
+    const room=await getDoc(env,'rooms/'+rid); if(!room||room.data.status!=='playing') fail('Партия не идёт');
+    if(room.data.host!==uid||!(room.data.uids||[]).includes(to)) fail('Звать может только ведущий партии');
+    const chat=await tx(env,async t=>{ const u=await getUser(t,to); const g=u.srv.tg; if(!g||!g.chat) return null; if(g.last&&Date.now()-g.last<180000) return null;
+      g.last=Date.now(); saveEco(t,to,u); return g.chat; });
+    if(!chat) return {sent:false};
+    const r=await tg(env,'sendMessage',{chat_id:chat,text:`🎲 Твой ход в Кубитале! ${room.data.hostName||'Соперники'} и остальные ждут — у тебя 90 секунд, потом ход сделается сам.`,reply_markup:{inline_keyboard:[[{text:'🎲 Вернуться в игру',web_app:{url:SITE}}]]}});
+    return {sent:!!r.ok}; },
+  // ---- рассылка создателя всем, кто писал боту (по 25 за вызов; next — с кого продолжать) ----
+  async broadcast(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    const text=String(b.text||'').trim().slice(0,1500); if(!text) fail('Напишите текст рассылки');
+    const sq={from:[{collectionId:'tgchats'}],orderBy:[{field:{fieldPath:'__name__'},direction:'ASCENDING'}],limit:25};
+    if(b.after) sq.startAt={values:[{referenceValue:DOCNAME('tgchats/'+String(b.after).replace(/[^0-9-]/g,''))}],before:false};
+    const r=await gfetch(env,`${FS}:runQuery`,{method:'POST',body:JSON.stringify({structuredQuery:sq})});
+    const L=(r||[]).filter(x=>x.document).map(x=>({id:x.document.name.split('/').pop(),data:objOf(x.document)}));
+    const res=await Promise.all(L.map(c=>tg(env,'sendMessage',{chat_id:c.data.chat,text:'📣 '+text,reply_markup:{inline_keyboard:[[{text:'🎲 Играть',web_app:{url:SITE}}]]}}).catch(()=>({ok:false}))));
+    return {sent:res.filter(x=>x.ok).length,fail:res.filter(x=>!x.ok).length,next:L.length===25?L[L.length-1].id:null}; },
+  async tgCount(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    const r=await gfetch(env,`${FS}:runAggregationQuery`,{method:'POST',body:JSON.stringify({structuredAggregationQuery:{structuredQuery:{from:[{collectionId:'tgchats'}]},aggregations:[{alias:'n',count:{}}]}})});
+    return {n:+(((r||[])[0]||{}).result||{aggregateFields:{n:{integerValue:0}}}).aggregateFields.n.integerValue||0}; },
+  // ---- ТУРНИР на 8: хранится в config/site.tour, менять его может только сервер ----
+  async tourCreate(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников'); const name=String(b.name||'').trim().slice(0,40)||'Турнир';
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}; if(c.tour&&['reg','play'].includes(c.tour.status)) fail('Турнир уже идёт — сначала завершите или отмените его');
+      const tour={id:newUid(),name,status:'reg',players:[],groups:{},rooms:{},win:{},created:Date.now()}; t.update('config/site',{tour},['tour']); return {tour}; }); },
+  async tourJoin(env,uid,b){ return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour; if(!tr||tr.status!=='reg') fail('Регистрация закрыта');
+      const u=await getUser(t,uid); if(u.banned) fail('Вы заблокированы');
+      if(b.leave){ tr.players=tr.players.filter(p=>p.uid!==uid); }
+      else { if(tr.players.some(p=>p.uid===uid)) fail('Вы уже участвуете'); if(tr.players.length>=TOUR_MAX) fail('Мест нет — уже 8 участников'); tr.players.push({uid,name:String(u.name||'Игрок').slice(0,30)}); }
+      t.update('config/site',{tour:tr},['tour']); return {n:tr.players.length}; }); },
+  async tourStart(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour; if(!tr||tr.status!=='reg') fail('Нет турнира с открытой регистрацией');
+      const P=tr.players.map(p=>p.uid).sort(()=>Math.random()-0.5); if(P.length<2) fail('Нужно хотя бы 2 участника');
+      if(P.length>=5){ const h=Math.ceil(P.length/2); tr.groups={s0:P.slice(0,h),s1:P.slice(h)}; } else tr.groups={f:P};
+      tr.status='play'; tr.rooms={}; tr.win={}; tr.started=Date.now(); t.update('config/site',{tour:tr},['tour']); return {tour:tr}; }); },
+  async tourCancel(env,uid){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников');
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour; if(!tr) fail('Турнира нет'); tr.status=tr.status==='done'?'closed':'cancel'; t.update('config/site',{tour:tr},['tour']); return {ok:true}; }); },
+  // хозяин группы сообщает, в какой комнате играет его группа
+  async tourRoom(env,uid,b){ const stage=String(b.stage||''), rid=String(b.rid||''); const room=await getDoc(env,'rooms/'+rid);
+    if(!room||room.data.host!==uid||!room.data.tour||room.data.tour.stage!==stage) fail('Нет такой комнаты');
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour; if(!tr||tr.status!=='play'||room.data.tour.id!==tr.id) fail('Турнир не идёт');
+      const g=tr.groups[stage]; if(!g||g[0]!==uid) fail('Комнату создаёт первый игрок группы'); if(tr.win[stage]) fail('Эта игра уже сыграна');
+      tr.rooms[stage]=rid; t.update('config/site',{tour:tr},['tour']); return {ok:true}; }); },
+  // итог игры турнира: победитель проходит дальше (вызывает любой участник после конца партии)
+  async tourResult(env,uid,b){ const rid=String(b.rid||''); const room=await getDoc(env,'rooms/'+rid); if(!room||room.data.status!=='over'||!room.data.state||!room.data.tour) fail('Партия не закончилась');
+    const st=JSON.parse(room.data.state), w=st.players&&st.players[st.winner]; if(!w||!w.uid) fail('Нет победителя');
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour, stage=room.data.tour.stage; if(!tr||tr.status!=='play'||room.data.tour.id!==tr.id) fail('Турнир не идёт');
+      const g=tr.groups[stage]; if(!g||!g.includes(w.uid)||!g.includes(uid)||tr.rooms[stage]!==rid) fail('Это не игра турнира'); if(tr.win[stage]) return {done:true};
+      return tourAdvance(t,tr,stage,w.uid); }); },
+  // создатель может сам назначить победителя игры (если кто-то не пришёл)
+  async tourWin(env,uid,b){ if(!await isAdm(env,uid)) fail('Только для создателя и помощников'); const stage=String(b.stage||''), w=String(b.uid||'');
+    return tx(env,async t=>{ const c=(await t.get('config/site'))||{}, tr=c.tour; if(!tr||tr.status!=='play') fail('Турнир не идёт');
+      const g=tr.groups[stage]; if(!g||!g.includes(w)) fail('Этого игрока нет в группе'); if(tr.win[stage]) fail('Победитель уже есть');
+      return tourAdvance(t,tr,stage,w); }); }
 };
+const TOUR_MAX=8;
+async function tourAdvance(t,tr,stage,w){
+  tr.win[stage]=w;
+  if(stage!=='f'&&tr.win.s0&&tr.win.s1) tr.groups.f=[tr.win.s0,tr.win.s1];
+  if(stage==='f'){ tr.status='done'; tr.champ=w; tr.ended=Date.now();
+    const u=await getUser(t,w); addItem(u,'case_lux'); addItem(u,'key'); addItem(u,'key'); saveEco(t,w,u);
+    const second=(tr.groups.f||[]).find(x=>x!==w); if(second){ const s=await getUser(t,second); addItem(s,'key'); saveEco(t,second,s); } }
+  t.update('config/site',{tour:tr},['tour']); return {tour:tr};
+}
+async function botName(env){ if(!BOTINFO){ const r=await tg(env,'getMe',{}); BOTINFO=r.ok?r.result.username:null; } return BOTINFO; }
+// записать документ целиком без проверок (для списка чатов бота)
+async function upsert(env,path,data){ try{ await gfetch(env,`${FS}:commit`,{method:'POST',body:JSON.stringify({writes:[{update:{name:DOCNAME(path),fields:fieldsOf(data)}}]})}); }catch(e){ console.error('upsert',e); } }
 
 // =====================================================================
 // TELEGRAM-БОТ: премиум-пропуск за звёзды
@@ -314,6 +391,13 @@ async function onTelegram(env,upd){
     await tg(env,'sendMessage',{chat_id:m.chat.id,text:`✅ Премиум-пропуск на ${monthName(k)} открыт! Вернитесь в игру — нижний ряд наград сезонного пропуска теперь ваш.`,reply_markup:{inline_keyboard:[[{text:'🎲 Открыть игру',web_app:{url:SITE}}]]}});
     return; }
   const text=String(m.text||'');
+  if(m.chat&&m.chat.type==='private') await upsert(env,'tgchats/'+m.chat.id,{chat:m.chat.id,at:Date.now()}); // для рассылки создателя
+  // привязка уведомлений «твой ход»: /start L<код из игры>
+  const lm=text.match(/^\/start L([a-z0-9]{8,30})$/);
+  if(lm){ const who=await tx(env,async t=>{ const l=await t.get('tglink/'+lm[1]); if(!l||l.exp<Date.now()) return null;
+      const u=await getUser(t,l.uid); u.srv.tg={chat:m.chat.id,at:Date.now()}; saveEco(t,l.uid,u); t.del('tglink/'+lm[1]); return u.name||'игрок'; });
+    await tg(env,'sendMessage',{chat_id:m.chat.id,text:who?`🔔 Готово, ${who}! Когда в игре по сети настанет твой ход, а тебя не будет в игре, я напишу сюда.`:'Ссылка устарела — нажмите «🔔 Уведомления в Telegram» в игре ещё раз.',reply_markup:{inline_keyboard:[[{text:'🎲 Играть',web_app:{url:SITE}}]]}});
+    return; }
   if(text.startsWith('/start')){ const uid=text.split(' ')[1]||'';
     if(!/^[A-Za-z0-9]{20,40}$/.test(uid)||!(await getDoc(env,'users/'+uid))){
       await tg(env,'sendMessage',{chat_id:m.chat.id,text:'👋 Это бот игры «Кубитал» — экономическая игра с друзьями. Нажмите «🎲 Играть», чтобы открыть игру прямо в Telegram.\n\nПремиум-пропуск покупается из игры: «Игры» → «Сезонный пропуск» → «⭐ Купить премиум».',reply_markup:{inline_keyboard:[[{text:'🎲 Играть',web_app:{url:SITE}}]]}}); return; }
